@@ -1,0 +1,535 @@
+openapi: 3.0.0
+info:
+  title: IBUC System API
+  description: API REST para o Sistema de Gestão de Curso de Teologia Infanto-Juvenil
+  version: 1.0.0
+  contact:
+    name: IBUC - Instituto Bíblico Único Caminho
+    email: contato@ibuc.com.br
+
+servers:
+  - url: https://seu-projeto.supabase.co/rest/v1
+    description: Supabase REST API
+
+security:
+  - bearerAuth: []
+
+paths:
+  /polos:
+    get:
+      summary: Lista todos os polos
+      description: Retorna lista de polos respeitando RLS (Row Level Security)
+      tags:
+        - Polos
+      responses:
+        '200':
+          description: Lista de polos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Polo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Cria um novo polo
+      description: Apenas super_admin ou admin_geral podem criar polos
+      tags:
+        - Polos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PoloInput'
+      responses:
+        '201':
+          description: Polo criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Polo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /polos/{id}:
+    get:
+      summary: Busca polo por ID
+      tags:
+        - Polos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dados do polo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Polo'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Atualiza um polo
+      tags:
+        - Polos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PoloInput'
+      responses:
+        '200':
+          description: Polo atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Polo'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /alunos:
+    get:
+      summary: Lista alunos
+      description: Retorna lista de alunos respeitando RLS (apenas do polo do usuário)
+      tags:
+        - Alunos
+      parameters:
+        - name: polo_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, ativo, inativo, concluido]
+      responses:
+        '200':
+          description: Lista de alunos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Aluno'
+    post:
+      summary: Cria um novo aluno
+      description: Apenas secretários e diretores podem criar alunos
+      tags:
+        - Alunos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlunoInput'
+      responses:
+        '201':
+          description: Aluno criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aluno'
+
+  /alunos/{id}:
+    get:
+      summary: Busca aluno por ID
+      tags:
+        - Alunos
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dados do aluno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aluno'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /matriculas:
+    get:
+      summary: Lista matrículas
+      description: Retorna lista de matrículas respeitando RLS
+      tags:
+        - Matrículas
+      parameters:
+        - name: polo_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, em_analise, ativa, recusada, cancelada]
+      responses:
+        '200':
+          description: Lista de matrículas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Matricula'
+    post:
+      summary: Cria uma nova matrícula
+      description: Cria matrícula (pré-matrícula online ou presencial)
+      tags:
+        - Matrículas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatriculaInput'
+      responses:
+        '201':
+          description: Matrícula criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Matricula'
+
+  /matriculas/{id}/efetivar:
+    post:
+      summary: Efetiva uma matrícula
+      description: Aprova uma pré-matrícula e efetiva a matrícula
+      tags:
+        - Matrículas
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                turma_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Matrícula efetivada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Matricula'
+
+  /matriculas/protocolo/{protocolo}:
+    get:
+      summary: Busca matrícula por protocolo
+      description: Busca matrícula usando o protocolo (público)
+      tags:
+        - Matrículas
+      parameters:
+        - name: protocolo
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dados da matrícula
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Matricula'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /presencas:
+    get:
+      summary: Lista presenças
+      description: Retorna lista de presenças (professores veem apenas suas turmas)
+      tags:
+        - Presenças
+      parameters:
+        - name: turma_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: data
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lista de presenças
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Presenca'
+    post:
+      summary: Registra presença
+      description: Professores podem registrar presença dos alunos
+      tags:
+        - Presenças
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PresencaInput'
+      responses:
+        '201':
+          description: Presenças registradas
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Polo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        codigo:
+          type: string
+        endereco:
+          type: object
+          properties:
+            cep:
+              type: string
+            rua:
+              type: string
+            numero:
+              type: string
+            bairro:
+              type: string
+            cidade:
+              type: string
+            estado:
+              type: string
+        telefone:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+          enum: [ativo, inativo]
+        created_at:
+          type: string
+          format: date-time
+
+    PoloInput:
+      type: object
+      required:
+        - nome
+        - codigo
+        - endereco
+      properties:
+        nome:
+          type: string
+        codigo:
+          type: string
+        endereco:
+          type: object
+
+    Aluno:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        data_nascimento:
+          type: string
+          format: date
+        sexo:
+          type: string
+          enum: [M, F, Outro]
+        cpf:
+          type: string
+        endereco:
+          type: object
+        polo_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pendente, ativo, inativo, concluido]
+
+    AlunoInput:
+      type: object
+      required:
+        - nome
+        - data_nascimento
+        - sexo
+        - endereco
+        - polo_id
+        - nivel_atual_id
+      properties:
+        nome:
+          type: string
+        data_nascimento:
+          type: string
+          format: date
+        sexo:
+          type: string
+          enum: [M, F, Outro]
+        endereco:
+          type: object
+        polo_id:
+          type: string
+          format: uuid
+
+    Matricula:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        aluno_id:
+          type: string
+          format: uuid
+        polo_id:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum: [online, presencial]
+        status:
+          type: string
+          enum: [pendente, em_analise, ativa, recusada, cancelada]
+        protocolo:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    MatriculaInput:
+      type: object
+      required:
+        - aluno_id
+        - polo_id
+        - tipo
+      properties:
+        aluno_id:
+          type: string
+          format: uuid
+        polo_id:
+          type: string
+          format: uuid
+        tipo:
+          type: string
+          enum: [online, presencial]
+
+    Presenca:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        aluno_id:
+          type: string
+          format: uuid
+        turma_id:
+          type: string
+          format: uuid
+        data:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [presente, falta, justificativa, atraso]
+
+    PresencaInput:
+      type: object
+      required:
+        - aluno_id
+        - turma_id
+        - data
+        - status
+      properties:
+        aluno_id:
+          type: string
+          format: uuid
+        turma_id:
+          type: string
+          format: uuid
+        data:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [presente, falta, justificativa, atraso]
+
+  responses:
+    Unauthorized:
+      description: Não autenticado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Unauthorized"
+
+    Forbidden:
+      description: Sem permissão
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Forbidden"
+
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Not found"
+
