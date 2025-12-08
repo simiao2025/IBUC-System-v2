@@ -87,3 +87,8 @@ Write-Host "📚 Para mais informações, veja:" -ForegroundColor Cyan
 Write-Host "   - GITHUB_SETUP.md" -ForegroundColor White
 Write-Host "   - COMANDOS_GIT.md" -ForegroundColor White
 
+
+
+
+
+

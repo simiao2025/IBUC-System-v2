@@ -17,6 +17,12 @@ import EnhancedPoloManagement from './pages/admin/EnhancedPoloManagement';
 import SystemSettings from './pages/admin/SystemSettings';
 import EducationalReports from './pages/admin/EducationalReports';
 import StudentManagement from './pages/admin/StudentManagement';
+import EnrollmentManagement from './pages/admin/EnrollmentManagement';
+import AttendanceByStudent from './pages/admin/AttendanceByStudent';
+import AttendanceByClass from './pages/admin/AttendanceByClass';
+import DracmasLaunch from './pages/admin/DracmasLaunch';
+import DracmasByStudent from './pages/admin/DracmasByStudent';
+import DracmasByClass from './pages/admin/DracmasByClass';
 import Materials from './pages/Materials';
 import Module01 from './pages/modules/Module01';
 import Module02 from './pages/modules/Module02';
@@ -53,6 +59,56 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <Layout><Home /></Layout>,
+  },
+  {
+    path: '/admin/dracmas/lancamento',
+    element: (
+      <Layout>
+        <ProtectedRoute adminOnly>
+          <DracmasLaunch />
+        </ProtectedRoute>
+      </Layout>
+    ),
+  },
+  {
+    path: '/admin/dracmas/aluno',
+    element: (
+      <Layout>
+        <ProtectedRoute adminOnly>
+          <DracmasByStudent />
+        </ProtectedRoute>
+      </Layout>
+    ),
+  },
+  {
+    path: '/admin/dracmas/turma',
+    element: (
+      <Layout>
+        <ProtectedRoute adminOnly>
+          <DracmasByClass />
+        </ProtectedRoute>
+      </Layout>
+    ),
+  },
+  {
+    path: '/admin/attendance/student',
+    element: (
+      <Layout>
+        <ProtectedRoute adminOnly>
+          <AttendanceByStudent />
+        </ProtectedRoute>
+      </Layout>
+    ),
+  },
+  {
+    path: '/admin/attendance/class',
+    element: (
+      <Layout>
+        <ProtectedRoute adminOnly>
+          <AttendanceByClass />
+        </ProtectedRoute>
+      </Layout>
+    ),
   },
   {
     path: '/cadastro-aluno',
@@ -225,12 +281,7 @@ export const router = createBrowserRouter([
     element: (
       <Layout>
         <ProtectedRoute adminOnly>
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">Gerenciamento de Matrículas</h1>
-              <p className="text-gray-600">Em desenvolvimento...</p>
-            </div>
-          </div>
+          <EnrollmentManagement />
         </ProtectedRoute>
       </Layout>
     ),

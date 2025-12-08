@@ -48,18 +48,19 @@ const AdminAccess: React.FC = () => {
 
     setLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const success = login(formData.email, formData.password, 'admin');
-    
-    if (success) {
-      navigate('/admin/dashboard');
-    } else {
-      setErrors({ password: 'E-mail ou senha inválidos' });
+    try {
+      const success = await login(formData.email, formData.password, 'admin');
+      
+      if (success) {
+        navigate('/admin/dashboard');
+      } else {
+        setErrors({ password: 'E-mail ou senha inválidos' });
+      }
+    } catch (error) {
+      setErrors({ password: 'Erro ao realizar login. Tente novamente.' });
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -94,7 +95,7 @@ const AdminAccess: React.FC = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   error={errors.email}
-                  placeholder="admin@ibuc.com.br"
+                  placeholder="Digite seu e-mail"
                   required
                   className="flex-1"
                 />
@@ -124,20 +125,6 @@ const AdminAccess: React.FC = () => {
             >
               Entrar
             </Button>
-
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-2">
-                Credenciais de demonstração:
-              </p>
-              <div className="space-y-1">
-                <p className="text-xs text-gray-500">
-                  <strong>E-mail:</strong> admin@ibuc.com.br
-                </p>
-                <p className="text-xs text-gray-500">
-                  <strong>Senha:</strong> admin123
-                </p>
-              </div>
-            </div>
           </form>
         </Card>
 

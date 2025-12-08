@@ -6,3 +6,8 @@ export class AvaliacoesService {
   constructor(private supabase: SupabaseService) {}
 }
 
+
+
+
+
+

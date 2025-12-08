@@ -88,6 +88,8 @@ export interface Polo {
 
 // Tipos para funções administrativas
 export type AdminRole =
+  | 'super_admin'
+  | 'admin_geral'
   | 'coordenador_geral'
   | 'diretor_geral'
   | 'coordenador_polo'

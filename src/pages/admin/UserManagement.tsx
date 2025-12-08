@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import { UsuarioService } from '../../services/usuario.service';
 import {
   ArrowLeft,
   Plus,
@@ -17,38 +18,16 @@ import {
   Phone,
   MapPin,
   Calendar,
-  Filter
+  Filter,
+  Loader2
 } from 'lucide-react';
 import type { AdminUser, AdminRole, AccessLevel } from '../../types';
 
 const UserManagement: React.FC = () => {
   const { polos } = useApp();
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([
-    {
-      id: '1',
-      name: 'Dr. João Silva',
-      email: 'joao.silva@ibuc.org.br',
-      cpf: '123.456.789-00',
-      phone: '(63) 99999-9999',
-      role: 'diretor_geral',
-      accessLevel: 'geral',
-      isActive: true,
-      createdAt: '2024-01-15',
-      updatedAt: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'Ana Costa',
-      email: 'ana.costa@ibuc.org.br',
-      cpf: '987.654.321-00',
-      phone: '(63) 98888-8888',
-      role: 'coordenador_geral',
-      accessLevel: 'geral',
-      isActive: true,
-      createdAt: '2024-01-15',
-      updatedAt: '2024-01-15'
-    }
-  ]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<AdminRole | 'all'>('all');
@@ -67,6 +46,60 @@ const UserManagement: React.FC = () => {
     isActive: true
   });
 
+  // Carregar usuários ao montar
+  useEffect(() => {
+    carregarUsuarios();
+  }, []);
+
+  const carregarUsuarios = async () => {
+    try {
+      setLoading(true);
+      const filtros: any = {};
+      if (filterRole !== 'all') filtros.role = filterRole;
+      if (filterAccessLevel !== 'all' && filterAccessLevel === 'polo_especifico') {
+        // Se for polo específico, precisamos filtrar por polo_id depois
+      }
+      if (searchTerm) filtros.search = searchTerm;
+
+      const data = await UsuarioService.listarUsuarios(filtros);
+      
+      // Mapear dados da API para o formato do componente
+      const usuariosMapeados = data.map((u: any) => ({
+        id: u.id,
+        name: u.nome_completo,
+        email: u.email,
+        cpf: u.cpf || '',
+        phone: u.telefone || '',
+        role: u.role as AdminRole,
+        accessLevel: u.polo_id ? 'polo_especifico' : 'geral' as AccessLevel,
+        poloId: u.polo_id || '',
+        isActive: u.ativo,
+        createdAt: u.created_at || new Date().toISOString(),
+        updatedAt: u.updated_at || new Date().toISOString(),
+      }));
+
+      // Filtrar por accessLevel se necessário
+      let usuariosFiltrados = usuariosMapeados;
+      if (filterAccessLevel !== 'all') {
+        usuariosFiltrados = usuariosMapeados.filter(u => u.accessLevel === filterAccessLevel);
+      }
+
+      setAdminUsers(usuariosFiltrados);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      alert('Erro ao carregar usuários. Verifique o console.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Recarregar quando filtros mudarem
+  useEffect(() => {
+    if (!loading) {
+      carregarUsuarios();
+    }
+  }, [filterRole, filterAccessLevel, searchTerm]);
+
   const roleLabels: Record<AdminRole, string> = {
     coordenador_geral: 'Coordenador Geral',
     diretor_geral: 'Diretor Geral',
@@ -83,70 +116,104 @@ const UserManagement: React.FC = () => {
     polo_especifico: 'Polo Específico'
   };
 
-  const filteredUsers = adminUsers.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesAccessLevel = filterAccessLevel === 'all' || user.accessLevel === filterAccessLevel;
-    
-    return matchesSearch && matchesRole && matchesAccessLevel;
-  });
+  const filteredUsers = adminUsers;
 
-  const handleCreateUser = () => {
-    if (!newUser.name || !newUser.email || !newUser.cpf || !newUser.phone) return;
+  const handleCreateUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.cpf || !newUser.phone) {
+      alert('Preencha todos os campos obrigatórios');
+      return;
+    }
 
-    const user: AdminUser = {
-      id: Date.now().toString(),
-      name: newUser.name,
-      email: newUser.email,
-      cpf: newUser.cpf,
-      phone: newUser.phone,
-      role: newUser.role as AdminRole,
-      accessLevel: newUser.accessLevel as AccessLevel,
-      poloId: newUser.poloId,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    try {
+      setSaving(true);
+      await UsuarioService.criarUsuario({
+        nome_completo: newUser.name,
+        email: newUser.email,
+        cpf: newUser.cpf,
+        telefone: newUser.phone,
+        role: newUser.role,
+        polo_id: newUser.accessLevel === 'polo_especifico' ? newUser.poloId : undefined,
+        ativo: newUser.isActive !== false,
+      });
 
-    setAdminUsers([...adminUsers, user]);
-    setNewUser({
-      name: '',
-      email: '',
-      cpf: '',
-      phone: '',
-      role: 'professor',
-      accessLevel: 'polo_especifico',
-      poloId: '',
-      isActive: true
-    });
-    setShowCreateForm(false);
-  };
-
-  const handleUpdateUser = () => {
-    if (!editingUser) return;
-
-    setAdminUsers(adminUsers.map(user => 
-      user.id === editingUser.id 
-        ? { ...editingUser, updatedAt: new Date().toISOString() }
-        : user
-    ));
-    setEditingUser(null);
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      setAdminUsers(adminUsers.filter(user => user.id !== userId));
+      alert('Usuário criado com sucesso!');
+      await carregarUsuarios();
+      setNewUser({
+        name: '',
+        email: '',
+        cpf: '',
+        phone: '',
+        role: 'professor',
+        accessLevel: 'polo_especifico',
+        poloId: '',
+        isActive: true
+      });
+      setShowCreateForm(false);
+    } catch (error: any) {
+      console.error('Erro ao criar usuário:', error);
+      alert(error.message || 'Erro ao criar usuário. Verifique o console.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const toggleUserStatus = (userId: string) => {
-    setAdminUsers(adminUsers.map(user => 
-      user.id === userId 
-        ? { ...user, isActive: !user.isActive, updatedAt: new Date().toISOString() }
-        : user
-    ));
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+
+    try {
+      setSaving(true);
+      await UsuarioService.atualizarUsuario(editingUser.id, {
+        nome_completo: editingUser.name,
+        email: editingUser.email,
+        cpf: editingUser.cpf,
+        telefone: editingUser.phone,
+        role: editingUser.role,
+        polo_id: editingUser.accessLevel === 'polo_especifico' ? editingUser.poloId : undefined,
+        ativo: editingUser.isActive,
+      });
+
+      alert('Usuário atualizado com sucesso!');
+      await carregarUsuarios();
+      setEditingUser(null);
+    } catch (error: any) {
+      console.error('Erro ao atualizar usuário:', error);
+      alert(error.message || 'Erro ao atualizar usuário. Verifique o console.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
+
+    try {
+      await UsuarioService.deletarUsuario(userId);
+      alert('Usuário deletado com sucesso!');
+      await carregarUsuarios();
+    } catch (error: any) {
+      console.error('Erro ao deletar usuário:', error);
+      alert(error.message || 'Erro ao deletar usuário. Verifique o console.');
+    }
+  };
+
+  const toggleUserStatus = async (userId: string) => {
+    const user = adminUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    try {
+      if (user.isActive) {
+        await UsuarioService.atualizarUsuario(userId, { ativo: false });
+      } else {
+        await UsuarioService.atualizarUsuario(userId, { ativo: true });
+      }
+      alert(`Usuário ${user.isActive ? 'desativado' : 'ativado'} com sucesso!`);
+      await carregarUsuarios();
+    } catch (error: any) {
+      console.error('Erro ao alterar status:', error);
+      alert(error.message || 'Erro ao alterar status. Verifique o console.');
+    }
+  };
+
 
   const getRoleIcon = (role: AdminRole) => {
     switch (role) {
@@ -378,8 +445,15 @@ const UserManagement: React.FC = () => {
             </div>
             
             <div className="flex space-x-3 mt-6">
-              <Button className="flex-1" onClick={handleCreateUser}>
-                Criar Usuário
+              <Button className="flex-1" onClick={handleCreateUser} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Criar Usuário'
+                )}
               </Button>
               <Button 
                 variant="outline" 
@@ -460,8 +534,15 @@ const UserManagement: React.FC = () => {
             </div>
             
             <div className="flex space-x-3 mt-6">
-              <Button className="flex-1" onClick={handleUpdateUser}>
-                Salvar Alterações
+              <Button className="flex-1" onClick={handleUpdateUser} disabled={saving}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Salvar Alterações'
+                )}
               </Button>
               <Button 
                 variant="outline" 

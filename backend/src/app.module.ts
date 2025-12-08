@@ -5,10 +5,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseModule } from './supabase/supabase.module';
 import { PolosModule } from './polos/polos.module';
+import { TurmasModule } from './turmas/turmas.module';
 import { AlunosModule } from './alunos/alunos.module';
 import { MatriculasModule } from './matriculas/matriculas.module';
 import { PresencasModule } from './presencas/presencas.module';
 import { AvaliacoesModule } from './avaliacoes/avaliacoes.module';
+import { DracmasModule } from './dracmas/dracmas.module';
 import { MensalidadesModule } from './mensalidades/mensalidades.module';
 import { PagamentosModule } from './pagamentos/pagamentos.module';
 import { DocumentosModule } from './documentos/documentos.module';
@@ -16,6 +18,8 @@ import { RelatoriosModule } from './relatorios/relatorios.module';
 import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { LgpdModule } from './lgpd/lgpd.module';
 import { WorkersModule } from './workers/workers.module';
+import { DiretoriaModule } from './diretoria/diretoria.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -31,10 +35,12 @@ import { WorkersModule } from './workers/workers.module';
     }),
     SupabaseModule,
     PolosModule,
+    TurmasModule,
     AlunosModule,
     MatriculasModule,
     PresencasModule,
     AvaliacoesModule,
+    DracmasModule,
     MensalidadesModule,
     PagamentosModule,
     DocumentosModule,
@@ -42,6 +48,8 @@ import { WorkersModule } from './workers/workers.module';
     NotificacoesModule,
     LgpdModule,
     WorkersModule,
+    DiretoriaModule,
+    UsuariosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -387,7 +387,7 @@ const PoloManagement: React.FC = () => {
               >
                 <Link to="/admin/dashboard">
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Dashboard
+                  Voltar
                 </Link>
               </Button>
               <div>

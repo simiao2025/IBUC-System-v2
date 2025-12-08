@@ -69,7 +69,9 @@ export class PdfProcessor {
 
     doc.end();
 
-    await new Promise((resolve) => stream.on('finish', resolve));
+    await new Promise<void>((resolve) => {
+      stream.on('finish', () => resolve());
+    });
 
     // Upload para Supabase Storage
     const fileBuffer = fs.readFileSync(filePath);

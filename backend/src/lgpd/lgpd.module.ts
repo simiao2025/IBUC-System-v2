@@ -9,3 +9,8 @@ import { LgpdService } from './lgpd.service';
 })
 export class LgpdModule {}
 
+
+
+
+
+

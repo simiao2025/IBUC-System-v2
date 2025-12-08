@@ -4,6 +4,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import { PresencasAPI } from '../../lib/api';
 
 interface AlunoPresenca {
   aluno_id: string;
@@ -35,7 +36,6 @@ const PresencaForm: React.FC = () => {
     setLoading(true);
 
     try {
-      // Chamar API do backend
       const presencas = alunos
         .filter(a => a.status)
         .map(a => ({
@@ -46,8 +46,12 @@ const PresencaForm: React.FC = () => {
           observacao: a.status === 'justificativa' ? observacao : undefined,
         }));
 
-      // await api.post('/presencas/batch', { presencas });
-      console.log('Presenças registradas:', presencas);
+      if (presencas.length === 0) {
+        alert('Selecione pelo menos um aluno com status para registrar presença.');
+        return;
+      }
+
+      await PresencasAPI.lancarLote(presencas);
 
       alert('Presença registrada com sucesso!');
     } catch (error) {
@@ -184,4 +188,9 @@ const PresencaForm: React.FC = () => {
 };
 
 export default PresencaForm;
+
+
+
+
+
 

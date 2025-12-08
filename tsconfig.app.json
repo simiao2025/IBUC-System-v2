@@ -20,5 +20,12 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "backend/**/*",
+    "backend",
+    "node_modules",
+    "dist",
+    "**/backend/**"
+  ]
 }

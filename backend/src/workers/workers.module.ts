@@ -16,3 +16,8 @@ import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 })
 export class WorkersModule {}
 
+
+
+
+
+

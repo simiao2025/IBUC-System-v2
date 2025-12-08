@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { Level, LEVELS } from '../../types';
 import Card from '../../components/ui/Card';
@@ -20,7 +21,8 @@ import {
   FileText,
   Calendar,
   CheckCircle,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react';
 
 interface EnhancedPolo {
@@ -66,6 +68,7 @@ interface EnhancedPolo {
 }
 
 const EnhancedPoloManagement: React.FC = () => {
+  const { addPolo, updatePolo, deletePolo } = useApp();
   const [polos, setPolos] = useState<EnhancedPolo[]>([
     {
       id: '1',
@@ -268,15 +271,27 @@ const EnhancedPoloManagement: React.FC = () => {
 
   const handleSubmit = () => {
     if (editingPolo) {
-      setPolos(prev => prev.map(polo => 
-        polo.id === editingPolo.id ? { ...editingPolo, ...formData } as EnhancedPolo : polo
-      ));
+      let updated: EnhancedPolo | null = null;
+      setPolos(prev => prev.map(polo => {
+        if (polo.id === editingPolo.id) {
+          updated = { ...editingPolo!, ...formData } as EnhancedPolo;
+          return updated;
+        }
+        return polo;
+      }));
+
+      if (updated) {
+        // Atualiza também no contexto global
+        updatePolo(updated.id, updated as any);
+      }
     } else {
       const newPolo: EnhancedPolo = {
         id: Date.now().toString(),
         ...formData
       } as EnhancedPolo;
       setPolos(prev => [...prev, newPolo]);
+      // Adiciona no contexto global
+      addPolo(newPolo as any);
     }
     resetForm();
   };
@@ -290,13 +305,24 @@ const EnhancedPoloManagement: React.FC = () => {
   const handleDelete = (id: string) => {
     if (confirm('Tem certeza que deseja excluir este polo?')) {
       setPolos(prev => prev.filter(polo => polo.id !== id));
+      // Remove também do contexto global
+      deletePolo(id);
     }
   };
 
   const toggleStatus = (id: string) => {
-    setPolos(prev => prev.map(polo => 
-      polo.id === id ? { ...polo, isActive: !polo.isActive } : polo
-    ));
+    let updated: EnhancedPolo | null = null;
+    setPolos(prev => prev.map(polo => {
+      if (polo.id === id) {
+        updated = { ...polo, isActive: !polo.isActive };
+        return updated;
+      }
+      return polo;
+    }));
+
+    if (updated) {
+      updatePolo(updated.id, updated as any);
+    }
   };
 
   return (
@@ -305,9 +331,20 @@ const EnhancedPoloManagement: React.FC = () => {
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Polos</h1>
-              <p className="text-sm text-gray-600">Cadastro e gestão completa dos polos/congregações</p>
+            <div className="flex items-center space-x-4">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/admin/dashboard">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Link>
+              </Button>
+              <div className="flex items-center space-x-2">
+                <MapPin className="h-5 w-5 text-blue-600" />
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Polos</h1>
+                  <p className="text-sm text-gray-600">Cadastro e gestão completa dos polos/congregações</p>
+                </div>
+              </div>
             </div>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4 mr-2" />

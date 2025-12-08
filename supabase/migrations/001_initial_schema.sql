@@ -10,45 +10,121 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================
 -- ENUMS
 -- ============================================
+-- NOTA: Se receber erro "type already exists", os ENUMs já foram criados.
+-- Neste caso, você pode pular esta seção ou executar 000_check_and_create_types.sql primeiro.
 
-CREATE TYPE status_polo AS ENUM ('ativo', 'inativo');
-CREATE TYPE role_usuario AS ENUM (
-  'super_admin',
-  'admin_geral',
-  'diretor_geral',
-  'coordenador_geral',
-  'diretor_polo',
-  'coordenador_polo',
-  'secretario_polo',
-  'tesoureiro',
-  'professor',
-  'auxiliar',
-  'responsavel',
-  'aluno'
-);
-CREATE TYPE status_aluno AS ENUM ('pendente', 'ativo', 'inativo', 'concluido');
-CREATE TYPE sexo AS ENUM ('M', 'F', 'Outro');
-CREATE TYPE tipo_parentesco AS ENUM ('pai', 'mae', 'tutor', 'outro');
-CREATE TYPE turno AS ENUM ('manha', 'tarde', 'noite');
-CREATE TYPE status_turma AS ENUM ('ativa', 'inativa', 'concluida');
-CREATE TYPE status_matricula AS ENUM ('pendente', 'em_analise', 'ativa', 'recusada', 'cancelada');
-CREATE TYPE tipo_matricula AS ENUM ('online', 'presencial');
-CREATE TYPE status_presenca AS ENUM ('presente', 'falta', 'justificativa', 'atraso');
-CREATE TYPE tipo_conteudo AS ENUM ('pdf', 'video', 'atividade', 'link');
-CREATE TYPE status_mensalidade AS ENUM ('pendente', 'pago', 'vencido');
-CREATE TYPE metodo_pagamento AS ENUM ('pix', 'boleto', 'cartao', 'presencial');
-CREATE TYPE status_pagamento AS ENUM ('pending', 'success', 'failed');
-CREATE TYPE tipo_notificacao AS ENUM ('sistema', 'aviso_polo', 'aviso_turma');
-CREATE TYPE tipo_consentimento AS ENUM ('uso_imagem', 'tratamento_dados', 'comunicacao', 'outros');
-CREATE TYPE tipo_documento AS ENUM ('certidao', 'rg', 'cpf', 'comprovante_residencia', 'laudo', 'outro');
-CREATE TYPE owner_type AS ENUM ('aluno', 'responsavel', 'usuario');
+DO $$
+BEGIN
+    -- status_polo
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_polo') THEN
+        CREATE TYPE status_polo AS ENUM ('ativo', 'inativo');
+    END IF;
+
+    -- role_usuario
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'role_usuario') THEN
+        CREATE TYPE role_usuario AS ENUM (
+            'super_admin',
+            'admin_geral',
+            'diretor_geral',
+            'coordenador_geral',
+            'diretor_polo',
+            'coordenador_polo',
+            'secretario_polo',
+            'tesoureiro',
+            'professor',
+            'auxiliar',
+            'responsavel',
+            'aluno'
+        );
+    END IF;
+
+    -- status_aluno
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_aluno') THEN
+        CREATE TYPE status_aluno AS ENUM ('pendente', 'ativo', 'inativo', 'concluido');
+    END IF;
+
+    -- sexo
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sexo') THEN
+        CREATE TYPE sexo AS ENUM ('M', 'F', 'Outro');
+    END IF;
+
+    -- tipo_parentesco
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_parentesco') THEN
+        CREATE TYPE tipo_parentesco AS ENUM ('pai', 'mae', 'tutor', 'outro');
+    END IF;
+
+    -- turno
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'turno') THEN
+        CREATE TYPE turno AS ENUM ('manha', 'tarde', 'noite');
+    END IF;
+
+    -- status_turma
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_turma') THEN
+        CREATE TYPE status_turma AS ENUM ('ativa', 'inativa', 'concluida');
+    END IF;
+
+    -- status_matricula
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_matricula') THEN
+        CREATE TYPE status_matricula AS ENUM ('pendente', 'em_analise', 'ativa', 'recusada', 'cancelada');
+    END IF;
+
+    -- tipo_matricula
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_matricula') THEN
+        CREATE TYPE tipo_matricula AS ENUM ('online', 'presencial');
+    END IF;
+
+    -- status_presenca
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_presenca') THEN
+        CREATE TYPE status_presenca AS ENUM ('presente', 'falta', 'justificativa', 'atraso');
+    END IF;
+
+    -- tipo_conteudo
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_conteudo') THEN
+        CREATE TYPE tipo_conteudo AS ENUM ('pdf', 'video', 'atividade', 'link');
+    END IF;
+
+    -- status_mensalidade
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_mensalidade') THEN
+        CREATE TYPE status_mensalidade AS ENUM ('pendente', 'pago', 'vencido');
+    END IF;
+
+    -- metodo_pagamento
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'metodo_pagamento') THEN
+        CREATE TYPE metodo_pagamento AS ENUM ('pix', 'boleto', 'cartao', 'presencial');
+    END IF;
+
+    -- status_pagamento
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_pagamento') THEN
+        CREATE TYPE status_pagamento AS ENUM ('pending', 'success', 'failed');
+    END IF;
+
+    -- tipo_notificacao
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_notificacao') THEN
+        CREATE TYPE tipo_notificacao AS ENUM ('sistema', 'aviso_polo', 'aviso_turma');
+    END IF;
+
+    -- tipo_consentimento
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_consentimento') THEN
+        CREATE TYPE tipo_consentimento AS ENUM ('uso_imagem', 'tratamento_dados', 'comunicacao', 'outros');
+    END IF;
+
+    -- tipo_documento
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipo_documento') THEN
+        CREATE TYPE tipo_documento AS ENUM ('certidao', 'rg', 'cpf', 'comprovante_residencia', 'laudo', 'outro');
+    END IF;
+
+    -- owner_type
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'owner_type') THEN
+        CREATE TYPE owner_type AS ENUM ('aluno', 'responsavel', 'usuario');
+    END IF;
+END $$;
 
 -- ============================================
 -- TABELAS PRINCIPAIS
 -- ============================================
 
 -- 1. POLOS
-CREATE TABLE polos (
+CREATE TABLE IF NOT EXISTS polos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nome TEXT NOT NULL,
   codigo VARCHAR(50) UNIQUE NOT NULL,
@@ -68,7 +144,7 @@ CREATE TABLE polos (
 );
 
 -- 2. USUARIOS
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash TEXT, -- Para usuários não-Supabase Auth
@@ -85,7 +161,7 @@ CREATE TABLE usuarios (
 );
 
 -- 3. NIVELS
-CREATE TABLE niveis (
+CREATE TABLE IF NOT EXISTS niveis (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nome TEXT NOT NULL,
   idade_min INTEGER NOT NULL,
@@ -96,7 +172,7 @@ CREATE TABLE niveis (
 );
 
 -- 4. MODULOS
-CREATE TABLE modulos (
+CREATE TABLE IF NOT EXISTS modulos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   numero INTEGER NOT NULL CHECK (numero >= 1 AND numero <= 10),
   titulo TEXT NOT NULL,
@@ -110,7 +186,7 @@ CREATE TABLE modulos (
 );
 
 -- 5. TURMAS
-CREATE TABLE turmas (
+CREATE TABLE IF NOT EXISTS turmas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nome TEXT NOT NULL,
   polo_id UUID NOT NULL REFERENCES polos(id) ON DELETE CASCADE,
@@ -133,7 +209,7 @@ CREATE TABLE turmas (
 );
 
 -- 6. RESPONSAVEIS
-CREATE TABLE responsaveis (
+CREATE TABLE IF NOT EXISTS responsaveis (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nome TEXT NOT NULL,
   cpf VARCHAR(14),
@@ -150,7 +226,7 @@ CREATE TABLE responsaveis (
 );
 
 -- 7. ALUNOS
-CREATE TABLE alunos (
+CREATE TABLE IF NOT EXISTS alunos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   nome TEXT NOT NULL,
@@ -189,7 +265,7 @@ CREATE TABLE alunos (
 );
 
 -- 8. ALUNO_RESPONSAVEL (N:N)
-CREATE TABLE aluno_responsavel (
+CREATE TABLE IF NOT EXISTS aluno_responsavel (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   aluno_id UUID NOT NULL REFERENCES alunos(id) ON DELETE CASCADE,
   responsavel_id UUID NOT NULL REFERENCES responsaveis(id) ON DELETE CASCADE,
@@ -200,7 +276,7 @@ CREATE TABLE aluno_responsavel (
 );
 
 -- 9. MATRICULAS
-CREATE TABLE matriculas (
+CREATE TABLE IF NOT EXISTS matriculas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   aluno_id UUID NOT NULL REFERENCES alunos(id) ON DELETE CASCADE,
   turma_id UUID REFERENCES turmas(id) ON DELETE SET NULL,
@@ -221,7 +297,7 @@ CREATE TABLE matriculas (
 );
 
 -- 10. LICOES
-CREATE TABLE licoes (
+CREATE TABLE IF NOT EXISTS licoes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   modulo_id UUID NOT NULL REFERENCES modulos(id) ON DELETE CASCADE,
   titulo TEXT NOT NULL,
@@ -236,7 +312,7 @@ CREATE TABLE licoes (
 );
 
 -- 11. CONTEUDOS
-CREATE TABLE conteudos (
+CREATE TABLE IF NOT EXISTS conteudos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   licao_id UUID NOT NULL REFERENCES licoes(id) ON DELETE CASCADE,
   tipo tipo_conteudo NOT NULL,
@@ -249,7 +325,7 @@ CREATE TABLE conteudos (
 );
 
 -- 12. PRESENCAS
-CREATE TABLE presencas (
+CREATE TABLE IF NOT EXISTS presencas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   aluno_id UUID NOT NULL REFERENCES alunos(id) ON DELETE CASCADE,
   turma_id UUID NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
@@ -264,7 +340,7 @@ CREATE TABLE presencas (
 );
 
 -- 13. AVALIACOES
-CREATE TABLE avaliacoes (
+CREATE TABLE IF NOT EXISTS avaliacoes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   turma_id UUID NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
   modulo_id UUID REFERENCES modulos(id),
@@ -277,7 +353,7 @@ CREATE TABLE avaliacoes (
 );
 
 -- 14. NOTAS
-CREATE TABLE notas (
+CREATE TABLE IF NOT EXISTS notas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   avaliacao_id UUID NOT NULL REFERENCES avaliacoes(id) ON DELETE CASCADE,
   aluno_id UUID NOT NULL REFERENCES alunos(id) ON DELETE CASCADE,
@@ -291,7 +367,7 @@ CREATE TABLE notas (
 );
 
 -- 15. BOLETINS
-CREATE TABLE boletins (
+CREATE TABLE IF NOT EXISTS boletins (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   aluno_id UUID NOT NULL REFERENCES alunos(id) ON DELETE CASCADE,
   periodo TEXT NOT NULL,
@@ -305,7 +381,7 @@ CREATE TABLE boletins (
 );
 
 -- 16. DOCUMENTOS
-CREATE TABLE documentos (
+CREATE TABLE IF NOT EXISTS documentos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   owner_type owner_type NOT NULL,
   owner_id UUID NOT NULL,
@@ -321,7 +397,7 @@ CREATE TABLE documentos (
 );
 
 -- 17. MENSALIDADES
-CREATE TABLE mensalidades (
+CREATE TABLE IF NOT EXISTS mensalidades (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   aluno_id UUID NOT NULL REFERENCES alunos(id) ON DELETE CASCADE,
   polo_id UUID NOT NULL REFERENCES polos(id) ON DELETE CASCADE,
@@ -338,7 +414,7 @@ CREATE TABLE mensalidades (
 );
 
 -- 18. PAGAMENTOS
-CREATE TABLE pagamentos (
+CREATE TABLE IF NOT EXISTS pagamentos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   mensalidade_id UUID NOT NULL REFERENCES mensalidades(id) ON DELETE CASCADE,
   metodo metodo_pagamento NOT NULL,
@@ -353,7 +429,7 @@ CREATE TABLE pagamentos (
 );
 
 -- 19. NOTIFICACOES
-CREATE TABLE notificacoes (
+CREATE TABLE IF NOT EXISTS notificacoes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
   body TEXT NOT NULL,
@@ -365,7 +441,7 @@ CREATE TABLE notificacoes (
 );
 
 -- 20. CONSENTS (LGPD)
-CREATE TABLE consents (
+CREATE TABLE IF NOT EXISTS consents (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   subject_type owner_type NOT NULL,
   subject_id UUID NOT NULL,
@@ -378,7 +454,7 @@ CREATE TABLE consents (
 );
 
 -- 21. AUDIT_LOGS
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   entity TEXT NOT NULL,
   entity_id UUID NOT NULL,
@@ -392,26 +468,89 @@ CREATE TABLE audit_logs (
 -- ÍNDICES
 -- ============================================
 
-CREATE INDEX idx_polos_codigo ON polos(codigo);
-CREATE INDEX idx_usuarios_email ON usuarios(email);
-CREATE INDEX idx_usuarios_polo_id ON usuarios(polo_id);
-CREATE INDEX idx_usuarios_role ON usuarios(role);
-CREATE INDEX idx_alunos_polo_id ON alunos(polo_id);
-CREATE INDEX idx_alunos_turma_id ON alunos(turma_id);
-CREATE INDEX idx_alunos_status ON alunos(status);
-CREATE INDEX idx_matriculas_polo_id ON matriculas(polo_id);
-CREATE INDEX idx_matriculas_status ON matriculas(status);
-CREATE INDEX idx_matriculas_protocolo ON matriculas(protocolo);
-CREATE INDEX idx_presencas_aluno_id ON presencas(aluno_id);
-CREATE INDEX idx_presencas_turma_id ON presencas(turma_id);
-CREATE INDEX idx_presencas_data ON presencas(data);
-CREATE INDEX idx_mensalidades_aluno_id ON mensalidades(aluno_id);
-CREATE INDEX idx_mensalidades_status ON mensalidades(status);
-CREATE INDEX idx_mensalidades_vencimento ON mensalidades(vencimento);
-CREATE INDEX idx_documentos_owner ON documentos(owner_type, owner_id);
-CREATE INDEX idx_audit_logs_entity ON audit_logs(entity, entity_id);
-CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+-- Criar índices apenas se não existirem
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_polos_codigo') THEN
+        CREATE INDEX idx_polos_codigo ON polos(codigo);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_usuarios_email') THEN
+        CREATE INDEX idx_usuarios_email ON usuarios(email);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_usuarios_polo_id') THEN
+        CREATE INDEX idx_usuarios_polo_id ON usuarios(polo_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_usuarios_role') THEN
+        CREATE INDEX idx_usuarios_role ON usuarios(role);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_alunos_polo_id') THEN
+        CREATE INDEX idx_alunos_polo_id ON alunos(polo_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_alunos_turma_id') THEN
+        CREATE INDEX idx_alunos_turma_id ON alunos(turma_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_alunos_status') THEN
+        CREATE INDEX idx_alunos_status ON alunos(status);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_matriculas_polo_id') THEN
+        CREATE INDEX idx_matriculas_polo_id ON matriculas(polo_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_matriculas_status') THEN
+        CREATE INDEX idx_matriculas_status ON matriculas(status);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_matriculas_protocolo') THEN
+        CREATE INDEX idx_matriculas_protocolo ON matriculas(protocolo);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_presencas_aluno_id') THEN
+        CREATE INDEX idx_presencas_aluno_id ON presencas(aluno_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_presencas_turma_id') THEN
+        CREATE INDEX idx_presencas_turma_id ON presencas(turma_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_presencas_data') THEN
+        CREATE INDEX idx_presencas_data ON presencas(data);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_mensalidades_aluno_id') THEN
+        CREATE INDEX idx_mensalidades_aluno_id ON mensalidades(aluno_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_mensalidades_status') THEN
+        CREATE INDEX idx_mensalidades_status ON mensalidades(status);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_mensalidades_vencimento') THEN
+        CREATE INDEX idx_mensalidades_vencimento ON mensalidades(vencimento);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_documentos_owner') THEN
+        CREATE INDEX idx_documentos_owner ON documentos(owner_type, owner_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_audit_logs_entity') THEN
+        CREATE INDEX idx_audit_logs_entity ON audit_logs(entity, entity_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_audit_logs_user_id') THEN
+        CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_audit_logs_created_at') THEN
+        CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+    END IF;
+END $$;
 
 -- ============================================
 -- TRIGGERS
@@ -426,15 +565,20 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Remover triggers se existirem antes de criar
+DROP TRIGGER IF EXISTS update_polos_updated_at ON polos;
 CREATE TRIGGER update_polos_updated_at BEFORE UPDATE ON polos
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_usuarios_updated_at ON usuarios;
 CREATE TRIGGER update_usuarios_updated_at BEFORE UPDATE ON usuarios
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_responsaveis_updated_at ON responsaveis;
 CREATE TRIGGER update_responsaveis_updated_at BEFORE UPDATE ON responsaveis
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_alunos_updated_at ON alunos;
 CREATE TRIGGER update_alunos_updated_at BEFORE UPDATE ON alunos
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -449,6 +593,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS generate_protocolo ON matriculas;
 CREATE TRIGGER generate_protocolo BEFORE INSERT ON matriculas
   FOR EACH ROW EXECUTE FUNCTION generate_matricula_protocolo();
 
@@ -467,6 +612,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_mensalidade_status ON pagamentos;
 CREATE TRIGGER update_mensalidade_status AFTER INSERT OR UPDATE ON pagamentos
   FOR EACH ROW EXECUTE FUNCTION update_mensalidade_on_payment();
 
@@ -557,10 +703,12 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Policies para POLOS
+DROP POLICY IF EXISTS "Super admin pode ver todos os polos" ON polos;
 CREATE POLICY "Super admin pode ver todos os polos"
   ON polos FOR SELECT
   USING (is_super_admin());
 
+DROP POLICY IF EXISTS "Usuários podem ver polos do seu tenant" ON polos;
 CREATE POLICY "Usuários podem ver polos do seu tenant"
   ON polos FOR SELECT
   USING (
@@ -569,6 +717,7 @@ CREATE POLICY "Usuários podem ver polos do seu tenant"
     EXISTS (SELECT 1 FROM usuarios WHERE id = auth.uid()::UUID AND role IN ('admin_geral', 'diretor_geral'))
   );
 
+DROP POLICY IF EXISTS "Super admin e admin_geral podem inserir polos" ON polos;
 CREATE POLICY "Super admin e admin_geral podem inserir polos"
   ON polos FOR INSERT
   WITH CHECK (
@@ -577,10 +726,12 @@ CREATE POLICY "Super admin e admin_geral podem inserir polos"
   );
 
 -- Policies para ALUNOS
+DROP POLICY IF EXISTS "Super admin pode ver todos os alunos" ON alunos;
 CREATE POLICY "Super admin pode ver todos os alunos"
   ON alunos FOR SELECT
   USING (is_super_admin());
 
+DROP POLICY IF EXISTS "Usuários podem ver alunos do seu polo" ON alunos;
 CREATE POLICY "Usuários podem ver alunos do seu polo"
   ON alunos FOR SELECT
   USING (
@@ -593,6 +744,7 @@ CREATE POLICY "Usuários podem ver alunos do seu polo"
     )
   );
 
+DROP POLICY IF EXISTS "Secretários e diretores podem inserir alunos no seu polo" ON alunos;
 CREATE POLICY "Secretários e diretores podem inserir alunos no seu polo"
   ON alunos FOR INSERT
   WITH CHECK (
@@ -604,6 +756,7 @@ CREATE POLICY "Secretários e diretores podem inserir alunos no seu polo"
     ))
   );
 
+DROP POLICY IF EXISTS "Secretários e diretores podem atualizar alunos do seu polo" ON alunos;
 CREATE POLICY "Secretários e diretores podem atualizar alunos do seu polo"
   ON alunos FOR UPDATE
   USING (
@@ -616,6 +769,7 @@ CREATE POLICY "Secretários e diretores podem atualizar alunos do seu polo"
   );
 
 -- Policies para MATRICULAS
+DROP POLICY IF EXISTS "Usuários podem ver matrículas do seu polo" ON matriculas;
 CREATE POLICY "Usuários podem ver matrículas do seu polo"
   ON matriculas FOR SELECT
   USING (
@@ -628,6 +782,7 @@ CREATE POLICY "Usuários podem ver matrículas do seu polo"
     )
   );
 
+DROP POLICY IF EXISTS "Secretários podem criar matrículas no seu polo" ON matriculas;
 CREATE POLICY "Secretários podem criar matrículas no seu polo"
   ON matriculas FOR INSERT
   WITH CHECK (
@@ -640,6 +795,7 @@ CREATE POLICY "Secretários podem criar matrículas no seu polo"
   );
 
 -- Policies para PRESENCAS
+DROP POLICY IF EXISTS "Professores podem ver presenças das suas turmas" ON presencas;
 CREATE POLICY "Professores podem ver presenças das suas turmas"
   ON presencas FOR SELECT
   USING (
@@ -653,6 +809,7 @@ CREATE POLICY "Professores podem ver presenças das suas turmas"
     )
   );
 
+DROP POLICY IF EXISTS "Professores podem inserir presenças nas suas turmas" ON presencas;
 CREATE POLICY "Professores podem inserir presenças nas suas turmas"
   ON presencas FOR INSERT
   WITH CHECK (
@@ -666,6 +823,7 @@ CREATE POLICY "Professores podem inserir presenças nas suas turmas"
   );
 
 -- Policies para MENSALIDADES
+DROP POLICY IF EXISTS "Usuários podem ver mensalidades do seu polo" ON mensalidades;
 CREATE POLICY "Usuários podem ver mensalidades do seu polo"
   ON mensalidades FOR SELECT
   USING (
@@ -679,6 +837,7 @@ CREATE POLICY "Usuários podem ver mensalidades do seu polo"
   );
 
 -- Policies para DOCUMENTOS
+DROP POLICY IF EXISTS "Usuários podem ver documentos relacionados ao seu polo" ON documentos;
 CREATE POLICY "Usuários podem ver documentos relacionados ao seu polo"
   ON documentos FOR SELECT
   USING (

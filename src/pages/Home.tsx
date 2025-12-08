@@ -536,5 +536,3 @@ const FAQComponent: React.FC = () => {
 };
 
 export default Home;
-
-export default Home;

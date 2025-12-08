@@ -8,3 +8,8 @@ export class PagamentosController {
   constructor(private readonly service: PagamentosService) {}
 }
 
+
+
+
+
+

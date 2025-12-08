@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { StudentData, Enrollment, Polo, User, AdminUser, AccessLevel } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { StudentData, Enrollment, Polo as UiPolo, User, AdminUser, AccessLevel, Level } from '../types';
+import type { Polo as DbPolo } from '../types/database';
+import { PoloService } from '../services/polo.service';
 
 interface AppContextType {
   // Student registration
@@ -15,14 +17,14 @@ interface AppContextType {
   addEnrollment: (enrollment: Enrollment) => void;
   
   // Polos
-  polos: Polo[];
-  addPolo: (polo: Polo) => void;
-  updatePolo: (id: string, polo: Polo) => void;
+  polos: UiPolo[];
+  addPolo: (polo: UiPolo) => void;
+  updatePolo: (id: string, polo: UiPolo) => void;
   deletePolo: (id: string) => void;
   
   // Authentication
   currentUser: User | null;
-  login: (email: string, password: string, role: 'admin' | 'student') => boolean;
+  login: (email: string, password: string, role: 'admin' | 'student') => Promise<boolean>;
   logout: () => void;
 
   // Admin access control
@@ -39,7 +41,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Mock data
-const mockPolos: Polo[] = [
+const mockPolos: UiPolo[] = [
   {
     id: '1',
     name: 'Igreja Central - Palmas',
@@ -154,13 +156,59 @@ const mockStudents: StudentData[] = [
   }
 ];
 
+const DEFAULT_LEVELS: Level[] = ['NIVEL_I', 'NIVEL_II', 'NIVEL_III', 'NIVEL_IV'];
+
+const mapDbPoloToUiPolo = (polo: DbPolo): UiPolo => ({
+  id: polo.id,
+  name: polo.nome,
+  address: {
+    street: polo.endereco.rua,
+    number: polo.endereco.numero,
+    neighborhood: polo.endereco.bairro,
+    city: polo.endereco.cidade,
+    state: polo.endereco.estado,
+    cep: polo.endereco.cep,
+  },
+  pastor: '',
+  coordinator: {
+    name: '',
+    cpf: '',
+  },
+  director: undefined,
+  teachers: [],
+  assistants: [],
+  secretary: undefined,
+  treasurer: undefined,
+  cafeteriaWorkers: [],
+  availableLevels: DEFAULT_LEVELS,
+  isActive: polo.status === 'ativo',
+  createdAt: polo.created_at,
+  staff: [],
+});
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentStudent, setCurrentStudent] = useState<Partial<StudentData> | null>(null);
   const [students, setStudents] = useState<StudentData[]>(mockStudents);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [polos, setPolos] = useState<Polo[]>(mockPolos);
+  const [polos, setPolos] = useState<UiPolo[]>(mockPolos);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  useEffect(() => {
+    const carregarPolosReais = async () => {
+      try {
+        const polosReais = await PoloService.listarPolos();
+        if (Array.isArray(polosReais) && polosReais.length > 0) {
+          const polosConvertidos = polosReais.map(mapDbPoloToUiPolo);
+          setPolos(polosConvertidos);
+        }
+      } catch (error) {
+        console.error('AppContext - erro ao carregar polos reais, mantendo mockPolos:', error);
+      }
+    };
+
+    carregarPolosReais();
+  }, []);
 
   const addStudent = (student: StudentData) => {
     setStudents(prev => [...prev, student]);
@@ -170,11 +218,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setEnrollments(prev => [...prev, enrollment]);
   };
 
-  const addPolo = (polo: Polo) => {
+  const addPolo = (polo: UiPolo) => {
     setPolos(prev => [...prev, polo]);
   };
 
-  const updatePolo = (id: string, updatedPolo: Polo) => {
+  const updatePolo = (id: string, updatedPolo: UiPolo) => {
     setPolos(prev => prev.map(polo => polo.id === id ? updatedPolo : polo));
   };
 
@@ -182,20 +230,68 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPolos(prev => prev.filter(polo => polo.id !== id));
   };
 
-  const login = (email: string, password: string, role: 'admin' | 'student'): boolean => {
-    // Mock authentication
-    if (role === 'admin' && email === 'admin@ibuc.com.br' && password === 'admin123') {
-      setCurrentUser({ id: '1', email, role: 'admin' });
-      return true;
-    }
-    // For students, check if CPF exists and mock password validation
-    if (role === 'student') {
-      const student = students.find(s => s.cpf === email);
-      if (student && password === 'senha123') {
-        setCurrentUser({ id: '2', email, role: 'student', studentId: student.id });
+  const login = async (email: string, password: string, role: 'admin' | 'student'): Promise<boolean> => {
+    if (role === 'admin') {
+      try {
+        const response = await fetch('http://localhost:3000/usuarios/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const user = await response.json();
+
+        setCurrentUser({
+          id: user.id,
+          email: user.email,
+          role: 'admin',
+          adminUser: {
+            role: user.role,
+            accessLevel: user.polo_id ? 'polo_especifico' : 'geral',
+            poloId: user.polo_id || undefined,
+          } as AdminUser,
+        });
+
         return true;
+      } catch (error) {
+        console.error('Erro ao autenticar admin:', error);
+        return false;
       }
     }
+
+    // Login real de aluno via CPF + senha
+    if (role === 'student') {
+      try {
+        const response = await fetch('http://localhost:3000/usuarios/login-aluno', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cpf: email, password }),
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const user = await response.json();
+
+        setCurrentUser({
+          id: user.id,
+          email: user.email || user.cpf || email,
+          role: 'student',
+          studentId: user.aluno_id || undefined,
+        });
+
+        return true;
+      } catch (error) {
+        console.error('Erro ao autenticar aluno:', error);
+        return false;
+      }
+    }
+
     return false;
   };
 

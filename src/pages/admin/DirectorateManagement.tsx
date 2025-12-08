@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { DiretoriaService } from '../../services/diretoria.service';
+import { UsuarioService } from '../../services/usuario.service';
 import {
   ArrowLeft,
   Crown,
@@ -13,62 +15,96 @@ import {
   Phone,
   Mail,
   User,
-  Shield
+  Shield,
+  Loader2
 } from 'lucide-react';
 
 interface DirectoratePosition {
   id: string;
-  name: string;
-  phone: string;
+  nome_completo: string;
+  telefone?: string;
   email: string;
-  position: 'diretor_geral' | 'coordenador_geral' | 'secretario_geral';
-  startDate: string;
-  isActive: boolean;
+  cargo: 'diretor' | 'vice_diretor' | 'coordenador' | 'vice_coordenador' | 'secretario' | 'tesoureiro';
+  data_inicio: string;
+  data_fim?: string;
+  status: 'ativa' | 'inativa' | 'suspensa';
+  usuario_id?: string;
 }
 
-const DirectorateManagement: React.FC = () => {
-  const [directorate, setDirectorate] = useState<DirectoratePosition[]>([
-    {
-      id: '1',
-      name: 'Dr. João Silva',
-      phone: '(63) 99999-9999',
-      email: 'joao.silva@ibuc.org.br',
-      position: 'diretor_geral',
-      startDate: '2024-01-01',
-      isActive: true
-    },
-    {
-      id: '2',
-      name: 'Ana Costa',
-      phone: '(63) 98888-8888',
-      email: 'ana.costa@ibuc.org.br',
-      position: 'coordenador_geral',
-      startDate: '2024-01-01',
-      isActive: true
-    }
-  ]);
+// Mapeamento de cargos do frontend para o backend
+const cargoMapping: Record<string, 'diretor' | 'coordenador' | 'secretario'> = {
+  diretor_geral: 'diretor',
+  coordenador_geral: 'coordenador',
+  secretario_geral: 'secretario',
+};
 
+const reverseCargoMapping: Record<string, string> = {
+  diretor: 'diretor_geral',
+  coordenador: 'coordenador_geral',
+  secretario: 'secretario_geral',
+};
+
+const DirectorateManagement: React.FC = () => {
+  const [directorate, setDirectorate] = useState<DirectoratePosition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingPosition, setEditingPosition] = useState<DirectoratePosition | null>(null);
-  const [formData, setFormData] = useState<Partial<DirectoratePosition>>({
-    name: '',
-    phone: '',
+  const [formData, setFormData] = useState({
+    nome_completo: '',
+    telefone: '',
     email: '',
-    position: 'secretario_geral',
-    startDate: new Date().toISOString().split('T')[0],
-    isActive: true
+    cargo: 'secretario_geral' as const,
+    data_inicio: new Date().toISOString().split('T')[0],
+    usuario_id: '', // Será preenchido ao buscar/criar usuário
   });
 
-  const positionLabels = {
-    diretor_geral: 'Diretor Geral',
-    coordenador_geral: 'Coordenador Geral',
-    secretario_geral: 'Secretário Geral'
+  // Carregar diretorias ao montar o componente
+  useEffect(() => {
+    carregarDiretorias();
+  }, []);
+
+  const carregarDiretorias = async () => {
+    try {
+      setLoading(true);
+      const data = await DiretoriaService.listarDiretoriaGeral(true);
+      // Mapear dados do banco para o formato esperado pelo componente
+      const formattedData = data.map((item: any) => ({
+        id: item.id,
+        nome_completo: item.nome_completo,
+        telefone: item.telefone,
+        email: item.email,
+        cargo: item.cargo,
+        data_inicio: item.data_inicio,
+        data_fim: item.data_fim,
+        status: item.status,
+        usuario_id: item.usuario_id
+      }));
+      setDirectorate(formattedData);
+    } catch (error) {
+      console.error('Erro ao carregar diretorias:', error);
+      alert('Erro ao carregar diretorias. Verifique o console.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const positionIcons = {
+  const positionLabels: Record<string, string> = {
+    diretor_geral: 'Diretor Geral',
+    coordenador_geral: 'Coordenador Geral',
+    secretario_geral: 'Secretário Geral',
+    diretor: 'Diretor Geral',
+    coordenador: 'Coordenador Geral',
+    secretario: 'Secretário Geral',
+  };
+
+  const positionIcons: Record<string, any> = {
     diretor_geral: Crown,
     coordenador_geral: UserCheck,
-    secretario_geral: FileText
+    secretario_geral: FileText,
+    diretor: Crown,
+    coordenador: UserCheck,
+    secretario: FileText,
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -76,61 +112,132 @@ const DirectorateManagement: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.phone || !formData.email || !formData.position) return;
-
-    if (editingPosition) {
-      // Update existing position
-      setDirectorate(prev => prev.map(pos => 
-        pos.id === editingPosition.id 
-          ? { ...editingPosition, ...formData } as DirectoratePosition
-          : pos
-      ));
-      setEditingPosition(null);
-    } else {
-      // Add new position
-      const newPosition: DirectoratePosition = {
-        id: Date.now().toString(),
-        name: formData.name!,
-        phone: formData.phone!,
-        email: formData.email!,
-        position: formData.position as DirectoratePosition['position'],
-        startDate: formData.startDate!,
-        isActive: true
-      };
-      setDirectorate(prev => [...prev, newPosition]);
+    if (!formData.nome_completo || !formData.email || !formData.cargo) {
+      alert('Preencha todos os campos obrigatórios');
+      return;
     }
 
-    // Reset form
-    setFormData({
-      name: '',
-      phone: '',
-      email: '',
-      position: 'secretario_geral',
-      startDate: new Date().toISOString().split('T')[0],
-      isActive: true
-    });
-    setShowForm(false);
+    try {
+      setSaving(true);
+
+      // Mapear cargo do frontend para o backend
+      const cargoBackend = cargoMapping[formData.cargo] || formData.cargo;
+
+      if (editingPosition) {
+        // Atualizar diretoria existente
+        await DiretoriaService.atualizarDiretoriaGeral(editingPosition.id, {
+          nome_completo: formData.nome_completo,
+          telefone: formData.telefone,
+          email: formData.email,
+          cargo: cargoBackend,
+          data_inicio: formData.data_inicio,
+        });
+        
+        // Também atualizar o usuário vinculado se necessário
+        if (editingPosition.usuario_id) {
+            await UsuarioService.atualizarUsuario(editingPosition.usuario_id, {
+                nome_completo: formData.nome_completo,
+                email: formData.email,
+                telefone: formData.telefone
+            });
+        }
+        
+        alert('Diretoria atualizada com sucesso!');
+      } else {
+        // Criar nova diretoria
+        
+        // 1. Verificar/Criar Usuário
+        let userId = formData.usuario_id;
+        
+        if (!userId) {
+            const existingUser = await UsuarioService.buscarPorEmail(formData.email);
+            if (existingUser) {
+                userId = existingUser.id;
+            } else {
+                // Criar novo usuário
+                const newUser = await UsuarioService.criarUsuario({
+                    nome_completo: formData.nome_completo,
+                    email: formData.email,
+                    telefone: formData.telefone,
+                    role: cargoBackend === 'diretor' ? 'diretor_geral' : 
+                          cargoBackend === 'coordenador' ? 'coordenador_geral' : 'admin_geral', // Default fallback
+                    ativo: true
+                });
+                userId = newUser.id;
+            }
+        }
+
+        // 2. Criar registro na diretoria
+        await DiretoriaService.criarDiretoriaGeral({
+          usuario_id: userId,
+          cargo: cargoBackend,
+          nome_completo: formData.nome_completo,
+          telefone: formData.telefone,
+          email: formData.email,
+          data_inicio: formData.data_inicio,
+        });
+        alert('Diretoria criada com sucesso!');
+      }
+
+      // Recarregar lista
+      await carregarDiretorias();
+
+      // Reset form
+      setFormData({
+        nome_completo: '',
+        telefone: '',
+        email: '',
+        cargo: 'secretario_geral',
+        data_inicio: new Date().toISOString().split('T')[0],
+        usuario_id: '',
+      });
+      setShowForm(false);
+      setEditingPosition(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar diretoria:', error);
+      alert(error.message || 'Erro ao salvar diretoria. Verifique o console.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEdit = (position: DirectoratePosition) => {
     setEditingPosition(position);
-    setFormData(position);
+    // Mapear cargo do backend para o frontend
+    const cargoFrontend = reverseCargoMapping[position.cargo] || position.cargo;
+    setFormData({
+      nome_completo: position.nome_completo,
+      telefone: position.telefone || '',
+      email: position.email,
+      cargo: cargoFrontend as any,
+      data_inicio: position.data_inicio,
+      usuario_id: position.usuario_id || '',
+    });
     setShowForm(true);
   };
 
-  const toggleStatus = (positionId: string) => {
-    setDirectorate(prev => prev.map(pos => 
-      pos.id === positionId 
-        ? { ...pos, isActive: !pos.isActive }
-        : pos
-    ));
+  const toggleStatus = async (positionId: string) => {
+    try {
+      const position = directorate.find(p => p.id === positionId);
+      if (!position) return;
+
+      const newStatus = position.status === 'ativa' ? 'inativa' : 'ativa';
+      await DiretoriaService.atualizarDiretoriaGeral(positionId, { status: newStatus });
+      alert(`Diretoria ${newStatus === 'ativa' ? 'ativada' : 'desativada'} com sucesso!`);
+      await carregarDiretorias();
+    } catch (error: any) {
+      console.error('Erro ao alterar status:', error);
+      alert(error.message || 'Erro ao alterar status. Verifique o console.');
+    }
   };
 
-  const getPositionByType = (positionType: DirectoratePosition['position']) => {
-    return directorate.find(pos => pos.position === positionType && pos.isActive);
+  const getPositionByType = (positionType: string) => {
+    // Mapear do frontend para o backend
+    const cargoBackend = cargoMapping[positionType] || positionType;
+    return directorate.find(pos => pos.cargo === cargoBackend && pos.status === 'ativa');
   };
 
   return (
@@ -160,6 +267,13 @@ const DirectorateManagement: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+            <span className="ml-2 text-gray-600">Carregando diretorias...</span>
+          </div>
+        ) : (
+          <>
         {/* Organizational Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Diretor Geral */}
@@ -173,7 +287,7 @@ const DirectorateManagement: React.FC = () => {
                   <div className="bg-white rounded-lg p-4 text-left">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-900">
-                        {getPositionByType('diretor_geral')!.name}
+                        {getPositionByType('diretor_geral')!.nome_completo}
                       </h4>
                       <Button 
                         variant="outline" 
@@ -184,10 +298,12 @@ const DirectorateManagement: React.FC = () => {
                       </Button>
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Phone className="h-3 w-3 mr-2" />
-                        {getPositionByType('diretor_geral')!.phone}
-                      </div>
+                      {getPositionByType('diretor_geral')!.telefone && (
+                        <div className="flex items-center">
+                          <Phone className="h-3 w-3 mr-2" />
+                          {getPositionByType('diretor_geral')!.telefone}
+                        </div>
+                      )}
                       <div className="flex items-center">
                         <Mail className="h-3 w-3 mr-2" />
                         {getPositionByType('diretor_geral')!.email}
@@ -224,7 +340,7 @@ const DirectorateManagement: React.FC = () => {
                   <div className="bg-white rounded-lg p-4 text-left">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-900">
-                        {getPositionByType('coordenador_geral')!.name}
+                        {getPositionByType('coordenador_geral')!.nome_completo}
                       </h4>
                       <Button 
                         variant="outline" 
@@ -235,10 +351,12 @@ const DirectorateManagement: React.FC = () => {
                       </Button>
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Phone className="h-3 w-3 mr-2" />
-                        {getPositionByType('coordenador_geral')!.phone}
-                      </div>
+                      {getPositionByType('coordenador_geral')!.telefone && (
+                        <div className="flex items-center">
+                          <Phone className="h-3 w-3 mr-2" />
+                          {getPositionByType('coordenador_geral')!.telefone}
+                        </div>
+                      )}
                       <div className="flex items-center">
                         <Mail className="h-3 w-3 mr-2" />
                         {getPositionByType('coordenador_geral')!.email}
@@ -275,7 +393,7 @@ const DirectorateManagement: React.FC = () => {
                   <div className="bg-white rounded-lg p-4 text-left">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-900">
-                        {getPositionByType('secretario_geral')!.name}
+                        {getPositionByType('secretario_geral')!.nome_completo}
                       </h4>
                       <Button 
                         variant="outline" 
@@ -286,10 +404,12 @@ const DirectorateManagement: React.FC = () => {
                       </Button>
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Phone className="h-3 w-3 mr-2" />
-                        {getPositionByType('secretario_geral')!.phone}
-                      </div>
+                      {getPositionByType('secretario_geral')!.telefone && (
+                        <div className="flex items-center">
+                          <Phone className="h-3 w-3 mr-2" />
+                          {getPositionByType('secretario_geral')!.telefone}
+                        </div>
+                      )}
                       <div className="flex items-center">
                         <Mail className="h-3 w-3 mr-2" />
                         {getPositionByType('secretario_geral')!.email}
@@ -349,7 +469,8 @@ const DirectorateManagement: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {directorate.map((position) => {
-                  const Icon = positionIcons[position.position];
+                  const cargoKey = reverseCargoMapping[position.cargo] || position.cargo;
+                  const Icon = positionIcons[cargoKey] || FileText;
                   return (
                     <tr key={position.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -357,7 +478,7 @@ const DirectorateManagement: React.FC = () => {
                           <Icon className="h-5 w-5 text-gray-400 mr-3" />
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {position.name}
+                              {position.nome_completo}
                             </div>
                             <div className="text-sm text-gray-500">
                               {position.email}
@@ -367,22 +488,22 @@ const DirectorateManagement: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {positionLabels[position.position]}
+                          {positionLabels[cargoKey] || positionLabels[position.cargo]}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {position.phone}
+                        {position.telefone || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(position.startDate).toLocaleDateString('pt-BR')}
+                        {new Date(position.data_inicio).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          position.isActive 
+                          position.status === 'ativa'
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {position.isActive ? 'Ativo' : 'Inativo'}
+                          {position.status === 'ativa' ? 'Ativo' : 'Inativo'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -398,7 +519,7 @@ const DirectorateManagement: React.FC = () => {
                           size="sm"
                           onClick={() => toggleStatus(position.id)}
                         >
-                          {position.isActive ? 'Desativar' : 'Ativar'}
+                          {position.status === 'ativa' ? 'Desativar' : 'Ativar'}
                         </Button>
                       </td>
                     </tr>
@@ -408,6 +529,8 @@ const DirectorateManagement: React.FC = () => {
             </table>
           </div>
         </Card>
+          </>
+        )}
       </div>
 
       {/* Form Modal */}
@@ -422,20 +545,19 @@ const DirectorateManagement: React.FC = () => {
               <div className="grid grid-cols-1 gap-4">
                 <Input
                   label="Nome Completo"
-                  name="name"
-                  value={formData.name || ''}
+                  name="nome_completo"
+                  value={formData.nome_completo || ''}
                   onChange={handleInputChange}
                   required
                 />
                 
                 <Input
                   label="Telefone"
-                  name="phone"
+                  name="telefone"
                   type="tel"
                   placeholder="(63) 99999-9999"
-                  value={formData.phone || ''}
+                  value={formData.telefone || ''}
                   onChange={handleInputChange}
-                  required
                 />
                 
                 <Input
@@ -467,18 +589,27 @@ const DirectorateManagement: React.FC = () => {
                 
                 <Input
                   label="Data de Início"
-                  name="startDate"
+                  name="data_inicio"
                   type="date"
-                  value={formData.startDate || ''}
+                  value={formData.data_inicio || ''}
                   onChange={handleInputChange}
                   required
                 />
               </div>
               
               <div className="flex space-x-3 mt-6">
-                <Button type="submit" className="flex-1">
-                  <Save className="h-4 w-4 mr-2" />
-                  {editingPosition ? 'Salvar Alterações' : 'Adicionar Cargo'}
+                <Button type="submit" className="flex-1" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {editingPosition ? 'Salvar Alterações' : 'Adicionar Cargo'}
+                    </>
+                  )}
                 </Button>
                 <Button 
                   type="button"
@@ -488,12 +619,12 @@ const DirectorateManagement: React.FC = () => {
                     setShowForm(false);
                     setEditingPosition(null);
                     setFormData({
-                      name: '',
-                      phone: '',
+                      nome_completo: '',
+                      telefone: '',
                       email: '',
-                      position: 'secretario_geral',
-                      startDate: new Date().toISOString().split('T')[0],
-                      isActive: true
+                      cargo: 'secretario_geral',
+                      data_inicio: new Date().toISOString().split('T')[0],
+                      usuario_id: '',
                     });
                   }}
                 >

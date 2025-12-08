@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
 import {
   ArrowLeft,
   BarChart3,
@@ -19,6 +18,7 @@ import {
   PieChart,
   Activity
 } from 'lucide-react';
+import { RelatoriosAPI } from '../../lib/api';
 
 const EducationalReports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<string>('enrollment');
@@ -27,10 +27,23 @@ const EducationalReports: React.FC = () => {
     end: '2024-12-31'
   });
   const [poloFilter, setPoloFilter] = useState<string>('all');
+  const [boletimAlunoId, setBoletimAlunoId] = useState<string>('');
+  const [boletimStatus, setBoletimStatus] = useState<'idle' | 'loading' | 'processing' | 'error'>('idle');
+  const [boletimErrorMessage, setBoletimErrorMessage] = useState<string>('');
+  const [attendanceTurmaId, setAttendanceTurmaId] = useState<string>('');
+  const [attendanceDate, setAttendanceDate] = useState<string>('2024-01-01');
+  const [attendanceStatus, setAttendanceStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [attendanceErrorMessage, setAttendanceErrorMessage] = useState<string>('');
+  const [historyAlunoId, setHistoryAlunoId] = useState<string>('');
+  const [historyStatus, setHistoryStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [historyErrorMessage, setHistoryErrorMessage] = useState<string>('');
+  const [historyResult, setHistoryResult] = useState<unknown | null>(null);
 
   const reportTypes = [
+    { id: 'boletim', label: 'Boletim do Aluno', icon: FileText },
     { id: 'enrollment', label: 'Relatório de Matrículas', icon: Users },
     { id: 'attendance', label: 'Relatório de Frequência', icon: Clock },
+    { id: 'history', label: 'Histórico do Aluno', icon: FileText },
     { id: 'performance', label: 'Desempenho por Nível', icon: TrendingUp },
     { id: 'certificates', label: 'Certificados Emitidos', icon: Award },
     { id: 'polo-stats', label: 'Estatísticas por Polo', icon: MapPin },
@@ -39,48 +52,94 @@ const EducationalReports: React.FC = () => {
     { id: 'activities', label: 'Atividades e Eventos', icon: Activity }
   ];
 
-  const mockData = {
-    enrollment: {
-      total: 245,
-      byLevel: [
-        { level: 'NÍVEL I', count: 89, percentage: 36.3 },
-        { level: 'NÍVEL II', count: 72, percentage: 29.4 },
-        { level: 'NÍVEL III', count: 54, percentage: 22.0 },
-        { level: 'NÍVEL IV', count: 30, percentage: 12.3 }
-      ],
-      byMonth: [
-        { month: 'Jan', count: 45 },
-        { month: 'Fev', count: 67 },
-        { month: 'Mar', count: 34 },
-        { month: 'Abr', count: 28 },
-        { month: 'Mai', count: 71 }
-      ]
-    },
-    attendance: {
-      average: 87.5,
-      byLevel: [
-        { level: 'NÍVEL I', attendance: 92.1 },
-        { level: 'NÍVEL II', attendance: 88.7 },
-        { level: 'NÍVEL III', attendance: 85.3 },
-        { level: 'NÍVEL IV', attendance: 84.2 }
-      ]
-    },
-    poloStats: [
-      { name: 'Igreja Central', students: 89, teachers: 8, attendance: 91.2 },
-      { name: 'Igreja Norte', students: 67, teachers: 6, attendance: 86.8 },
-      { name: 'Igreja Sul', students: 54, teachers: 5, attendance: 88.9 },
-      { name: 'Igreja Oeste', students: 35, teachers: 4, attendance: 83.7 }
-    ]
-  };
+  const generateReport = async () => {
+    // Boletim: usa endpoint real de geração
+    if (selectedReport === 'boletim') {
+      if (!boletimAlunoId) {
+        alert('Informe o ID do aluno para gerar o boletim.');
+        return;
+      }
 
-  const generateReport = () => {
-    // Simular geração de relatório
-    alert(`Relatório ${reportTypes.find(r => r.id === selectedReport)?.label} gerado com sucesso!`);
+      try {
+        setBoletimStatus('loading');
+        setBoletimErrorMessage('');
+
+        // Período pode ser representado como intervalo de datas "inicio|fim"
+        const periodo = `${dateFilter.start}|${dateFilter.end}`;
+        const response = await RelatoriosAPI.gerarBoletim(boletimAlunoId, periodo);
+
+        if (response && (response as any).status === 'processing') {
+          setBoletimStatus('processing');
+        } else {
+          setBoletimStatus('idle');
+        }
+      } catch (error: any) {
+        console.error('Erro ao gerar boletim:', error);
+        setBoletimStatus('error');
+        setBoletimErrorMessage(error?.message || 'Erro ao gerar boletim.');
+      }
+
+      return;
+    }
+
+    // Frequência: usa endpoint de presença (exportarPresenca)
+    if (selectedReport === 'attendance') {
+      if (!attendanceTurmaId || !attendanceDate) {
+        alert('Informe a Turma e a Data para gerar o relatório de frequência.');
+        return;
+      }
+
+      try {
+        setAttendanceStatus('loading');
+        setAttendanceErrorMessage('');
+
+        await RelatoriosAPI.exportarPresenca(attendanceTurmaId, attendanceDate);
+
+        // Aqui assumimos que o backend pode gerar um arquivo ou registro de presença;
+        // como não há especificação, apenas sinalizamos sucesso na UI.
+        setAttendanceStatus('success');
+      } catch (error: any) {
+        console.error('Erro ao gerar relatório de frequência:', error);
+        setAttendanceStatus('error');
+        setAttendanceErrorMessage(error?.message || 'Erro ao gerar relatório de frequência.');
+      }
+
+      return;
+    }
+
+    // Histórico: usa endpoint de histórico (ainda sem agregação avançada)
+    if (selectedReport === 'history') {
+      if (!historyAlunoId) {
+        alert('Informe o ID do aluno para consultar o histórico.');
+        return;
+      }
+
+      try {
+        setHistoryStatus('loading');
+        setHistoryErrorMessage('');
+        setHistoryResult(null);
+
+        const periodo = `${dateFilter.start}|${dateFilter.end}`;
+        const response = await RelatoriosAPI.historicoAluno(historyAlunoId, periodo);
+
+        setHistoryResult(response as unknown);
+        setHistoryStatus('success');
+      } catch (error: any) {
+        console.error('Erro ao carregar histórico do aluno:', error);
+        setHistoryStatus('error');
+        setHistoryErrorMessage(error?.message || 'Erro ao carregar histórico do aluno.');
+      }
+
+      return;
+    }
+
+    // Demais relatórios ainda são placeholders
+    alert('Geração de relatórios ainda não está integrada a dados reais para este tipo.');
   };
 
   const exportReport = (format: 'pdf' | 'excel') => {
-    // Simular exportação
-    alert(`Relatório exportado em ${format.toUpperCase()} com sucesso!`);
+    // Placeholder até integração com backend de relatórios
+    alert(`Exportação em ${format.toUpperCase()} será habilitada após integração com os relatórios reais.`);
   };
 
   const renderEnrollmentReport = () => (
@@ -88,67 +147,127 @@ const EducationalReports: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="text-center bg-blue-50 border-blue-200">
           <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-blue-900">{mockData.enrollment.total}</h3>
-          <p className="text-blue-700">Total de Matrículas</p>
+          <h3 className="text-2xl font-bold text-blue-900">--</h3>
+          <p className="text-blue-700">Total de Matrículas (aguardando dados reais)</p>
         </Card>
         <Card className="text-center bg-green-50 border-green-200">
           <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-green-900">+23%</h3>
-          <p className="text-green-700">Crescimento vs Ano Anterior</p>
+          <h3 className="text-2xl font-bold text-green-900">--</h3>
+          <p className="text-green-700">Crescimento vs Ano Anterior (em desenvolvimento)</p>
         </Card>
         <Card className="text-center bg-purple-50 border-purple-200">
           <Calendar className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-purple-900">71</h3>
-          <p className="text-purple-700">Matrículas Maio/2024</p>
+          <h3 className="text-2xl font-bold text-purple-900">--</h3>
+          <p className="text-purple-700">Matrículas no período selecionado</p>
         </Card>
         <Card className="text-center bg-orange-50 border-orange-200">
           <Award className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-orange-900">4</h3>
-          <p className="text-orange-700">Polos Ativos</p>
+          <h3 className="text-2xl font-bold text-orange-900">--</h3>
+          <p className="text-orange-700">Polos Ativos (integração pendente)</p>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <h3 className="text-lg font-semibold mb-4">Matrículas por Nível</h3>
-          <div className="space-y-3">
-            {mockData.enrollment.byLevel.map((level, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm font-medium">{level.level}</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full" 
-                      style={{ width: `${level.percentage}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm text-gray-600">{level.count}</span>
-                </div>
-              </div>
-            ))}
+          <div className="space-y-3 text-sm text-gray-600">
+            <p>Os gráficos de matrículas por nível serão exibidos aqui assim que a integração com os dados reais de matrículas for concluída.</p>
           </div>
         </Card>
 
         <Card>
           <h3 className="text-lg font-semibold mb-4">Evolução Mensal</h3>
-          <div className="space-y-3">
-            {mockData.enrollment.byMonth.map((month, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <span className="text-sm font-medium">{month.month}</span>
-                <div className="flex items-center space-x-2">
-                  <div className="w-32 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-green-600 h-2 rounded-full" 
-                      style={{ width: `${(month.count / 80) * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-sm text-gray-600">{month.count}</span>
-                </div>
-              </div>
-            ))}
+          <div className="space-y-3 text-sm text-gray-600">
+            <p>A evolução mensal de matrículas será apresentada aqui após a conexão com o módulo de matrículas.</p>
           </div>
         </Card>
       </div>
+    </div>
+  );
+
+  const renderHistoryReport = () => (
+    <div className="space-y-6">
+      <Card>
+        <h3 className="text-lg font-semibold mb-4">Histórico do Aluno</h3>
+        <div className="space-y-4 text-sm text-gray-700">
+          <p>
+            Este relatório apresentará o histórico acadêmico do aluno ao longo dos períodos (notas, situação final e, opcionalmente, frequência agregada).
+          </p>
+          <p>
+            Por enquanto, o endpoint retorna apenas a estrutura básica. À medida que os dados forem sendo agregados no backend, o histórico detalhado será exibido aqui.
+          </p>
+          <p>
+            Utilize o filtro de <span className="font-semibold">ID do Aluno</span> e o período desejado para definir o escopo do histórico.
+          </p>
+
+          <div className="mt-4">
+            {historyStatus === 'idle' && (
+              <p className="text-gray-600">
+                Aguardando parâmetros para carregar o histórico.
+              </p>
+            )}
+            {historyStatus === 'loading' && (
+              <p className="text-blue-600 font-medium">
+                Carregando histórico do aluno...
+              </p>
+            )}
+            {historyStatus === 'success' && (
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                <p className="text-xs text-gray-500 mb-2">Resposta atual da API (estrutura bruta):</p>
+                <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-all">
+                  {JSON.stringify(historyResult, null, 2)}
+                </pre>
+              </div>
+            )}
+            {historyStatus === 'error' && (
+              <p className="text-red-600 font-medium">
+                Ocorreu um erro ao carregar o histórico: {historyErrorMessage}
+              </p>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
+  const renderBoletimReport = () => (
+    <div className="space-y-6">
+      <Card>
+        <h3 className="text-lg font-semibold mb-4">Boletim do Aluno</h3>
+        <div className="space-y-4 text-sm text-gray-700">
+          <p>
+            Este relatório gera o boletim oficial do aluno para o período selecionado. O processamento é feito
+            pelo backend e pode envolver geração de PDF e registros adicionais.
+          </p>
+          <p>
+            Preencha o <span className="font-semibold">ID do Aluno</span> e o período desejado na barra lateral, depois clique em
+            <span className="font-semibold"> "Gerar Relatório"</span>.
+          </p>
+
+          <div className="mt-4">
+            {boletimStatus === 'idle' && (
+              <p className="text-gray-600">
+                Aguardando parâmetros para gerar o boletim.
+              </p>
+            )}
+            {boletimStatus === 'loading' && (
+              <p className="text-blue-600 font-medium">
+                Enviando solicitação de geração de boletim...
+              </p>
+            )}
+            {boletimStatus === 'processing' && (
+              <p className="text-green-700 font-medium">
+                Boletim em processamento. Assim que estiver pronto, ele estará disponível no módulo de relatórios ou na área do aluno.
+              </p>
+            )}
+            {boletimStatus === 'error' && (
+              <p className="text-red-600 font-medium">
+                Ocorreu um erro ao gerar o boletim: {boletimErrorMessage}
+              </p>
+            )}
+          </div>
+        </div>
+      </Card>
     </div>
   );
 
@@ -157,33 +276,43 @@ const EducationalReports: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="text-center bg-green-50 border-green-200">
           <Clock className="h-8 w-8 text-green-600 mx-auto mb-2" />
-          <h3 className="text-3xl font-bold text-green-900">{mockData.attendance.average}%</h3>
-          <p className="text-green-700">Frequência Média Geral</p>
+          <h3 className="text-3xl font-bold text-green-900">--%</h3>
+          <p className="text-green-700">Frequência Média Geral (em desenvolvimento)</p>
         </Card>
         <Card className="text-center bg-blue-50 border-blue-200">
           <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-          <h3 className="text-3xl font-bold text-blue-900">214</h3>
+          <h3 className="text-3xl font-bold text-blue-900">--</h3>
           <p className="text-blue-700">Alunos Frequentes (&gt;80%)</p>
         </Card>
       </div>
 
       <Card>
         <h3 className="text-lg font-semibold mb-4">Frequência por Nível</h3>
-        <div className="space-y-4">
-          {mockData.attendance.byLevel.map((level, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="font-medium">{level.level}</span>
-              <div className="flex items-center space-x-3">
-                <div className="w-40 bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-green-600 h-3 rounded-full" 
-                    style={{ width: `${level.attendance}%` }}
-                  ></div>
-                </div>
-                <span className="text-sm font-semibold text-green-600">{level.attendance}%</span>
-              </div>
-            </div>
-          ))}
+        <div className="space-y-4 text-sm text-gray-600">
+          <p>Os indicadores de frequência por nível serão carregados aqui quando o módulo de presença estiver integrado.</p>
+
+          <div className="mt-4">
+            {attendanceStatus === 'idle' && (
+              <p className="text-gray-600">
+                Aguardando parâmetros para gerar o relatório de frequência.
+              </p>
+            )}
+            {attendanceStatus === 'loading' && (
+              <p className="text-blue-600 font-medium">
+                Enviando solicitação de geração de relatório de frequência...
+              </p>
+            )}
+            {attendanceStatus === 'success' && (
+              <p className="text-green-700 font-medium">
+                Relatório de frequência gerado com sucesso. Verifique os registros ou arquivos gerados pelo backend.
+              </p>
+            )}
+            {attendanceStatus === 'error' && (
+              <p className="text-red-600 font-medium">
+                Ocorreu um erro ao gerar o relatório de frequência: {attendanceErrorMessage}
+              </p>
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -215,44 +344,11 @@ const EducationalReports: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {mockData.poloStats.map((polo, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-sm font-medium text-gray-900">{polo.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {polo.students}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {polo.teachers}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      polo.attendance >= 90 
-                        ? 'bg-green-100 text-green-800'
-                        : polo.attendance >= 85
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {polo.attendance}%
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
-                          style={{ width: `${polo.attendance}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-xs text-gray-600">Excelente</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              <tr>
+                <td colSpan={5} className="px-6 py-8 whitespace-nowrap text-center text-sm text-gray-600">
+                  As estatísticas por polo serão exibidas aqui assim que forem integradas às informações reais de polos, turmas e presença.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -262,10 +358,14 @@ const EducationalReports: React.FC = () => {
 
   const getCurrentReportContent = () => {
     switch (selectedReport) {
+      case 'boletim':
+        return renderBoletimReport();
       case 'enrollment':
         return renderEnrollmentReport();
       case 'attendance':
         return renderAttendanceReport();
+      case 'history':
+        return renderHistoryReport();
       case 'polo-stats':
         return renderPoloStatsReport();
       default:
@@ -361,6 +461,60 @@ const EducationalReports: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {selectedReport === 'boletim' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID do Aluno
+                    </label>
+                    <Input
+                      type="text"
+                      value={boletimAlunoId}
+                      onChange={(e) => setBoletimAlunoId(e.target.value)}
+                      placeholder="Informe o ID do aluno para gerar o boletim"
+                    />
+                  </div>
+                )}
+
+                {selectedReport === 'attendance' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Turma ID
+                      </label>
+                      <Input
+                        type="text"
+                        value={attendanceTurmaId}
+                        onChange={(e) => setAttendanceTurmaId(e.target.value)}
+                        placeholder="Informe o ID da turma para gerar a frequência"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Data da Aula
+                      </label>
+                      <Input
+                        type="date"
+                        value={attendanceDate}
+                        onChange={(e) => setAttendanceDate(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {selectedReport === 'history' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID do Aluno
+                    </label>
+                    <Input
+                      type="text"
+                      value={historyAlunoId}
+                      onChange={(e) => setHistoryAlunoId(e.target.value)}
+                      placeholder="Informe o ID do aluno para consultar o histórico"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -14,8 +14,11 @@ import {
   Calendar,
   Award,
   BarChart3,
-  Settings
+  Settings,
 } from 'lucide-react';
+import dashboardIcon from '/icons/3d/dashboard.png';
+import equipesPolosIcon from '/icons/3d/equipes_polos.png';
+import studentIcon from '/icons/3d/student.png';
 
 const AdminDashboard: React.FC = () => {
   const { students, enrollments, polos, logout, currentUser } = useApp();
@@ -74,6 +77,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/directorate',
       icon: Settings,
       color: 'bg-red-600 hover:bg-red-700',
+      image: null,
       permission: true
     },
     {
@@ -82,6 +86,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/enhanced-polos',
       icon: MapPin,
       color: 'bg-blue-600 hover:bg-blue-700',
+      image: null,
       permission: true
     },
     {
@@ -90,6 +95,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/users',
       icon: Users,
       color: 'bg-green-600 hover:bg-green-700',
+      image: null,
       permission: true
     },
     {
@@ -98,6 +104,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/staff',
       icon: UserCheck,
       color: 'bg-purple-600 hover:bg-purple-700',
+      image: equipesPolosIcon,
       permission: true
     },
     {
@@ -106,6 +113,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/settings',
       icon: Settings,
       color: 'bg-indigo-600 hover:bg-indigo-700',
+      image: null,
       permission: true
     },
     {
@@ -114,6 +122,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/students',
       icon: BookOpen,
       color: 'bg-orange-600 hover:bg-orange-700',
+      image: studentIcon,
       permission: true
     },
     {
@@ -122,6 +131,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/enrollments',
       icon: BarChart3,
       color: 'bg-yellow-600 hover:bg-yellow-700',
+      image: null,
       permission: true
     },
     {
@@ -130,6 +140,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/reports',
       icon: BarChart3,
       color: 'bg-gray-600 hover:bg-gray-700',
+      image: null,
       permission: true
     }
   ];
@@ -142,14 +153,16 @@ const AdminDashboard: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
-              <img
-                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
-                alt="IBUC Logo"
-                className="h-10 w-auto"
-              />
-              <div>
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <div className="h-40 w-40 flex items-center justify-center bg-white rounded-xl shadow-sm p-3">
+                <img
+                  src={dashboardIcon}
+                  alt="Painel Administrativo"
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <div className="ml-6">
                 <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
                 <p className="text-sm text-gray-600">
                   IBUC - Palmas, TO
@@ -212,9 +225,19 @@ const AdminDashboard: React.FC = () => {
             {quickActions.map((action, index) => (
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <div className="text-center">
-                  <div className={`inline-flex p-3 rounded-full text-white mb-4 ${action.color}`}>
-                    <action.icon className="h-6 w-6" />
-                  </div>
+                  {action.image ? (
+                    <div className="mx-auto mb-4 h-16 w-16 flex items-center justify-center bg-white rounded-xl shadow-sm p-1">
+                      <img
+                        src={action.image}
+                        alt={action.title}
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className={`inline-flex p-3 rounded-full text-white mb-4 ${action.color}`}>
+                      <action.icon className="h-6 w-6" />
+                    </div>
+                  )}
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{action.title}</h3>
                   <p className="text-sm text-gray-600 mb-4">{action.description}</p>
                   <Button asChild size="sm" className="w-full">

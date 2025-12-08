@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Home, Info, BookOpen, ClipboardList, GraduationCap, Shield } from 'lucide-react';
 import ConfirmLink from './ui/ConfirmLink';
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
-    { path: '/', label: 'Início', needsConfirm: true },
-    { path: '/conheca-o-ibuc', label: 'Conheça o IBUC', needsConfirm: false },
-    { path: '/modulos', label: 'Módulos', needsConfirm: false },
-    { path: '/matricula', label: 'Matrícula', needsConfirm: true },
-    { path: '/acesso-aluno', label: 'Área do Aluno', needsConfirm: false },
-    { path: '/admin', label: 'Área Administrativa', needsConfirm: false },
+    { path: '/', label: 'Início', needsConfirm: true, icon: Home },
+    { path: '/conheca-o-ibuc', label: 'Conheça o IBUC', needsConfirm: false, icon: Info },
+    { path: '/modulos', label: 'Módulos', needsConfirm: false, icon: BookOpen },
+    // Pré-matrícula integrada ao Supabase e termo LGPD
+    { path: '/pre-matricula', label: 'Matrícula', needsConfirm: true, icon: ClipboardList },
+    { path: '/acesso-aluno', label: 'Área do Aluno', needsConfirm: false, icon: GraduationCap },
+    { path: '/admin', label: 'Área Administrativa', needsConfirm: false, icon: Shield },
   ];
 
   return (
@@ -35,53 +37,65 @@ const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-6">
-            {navItems.map((item) => {
+          {/* Desktop Navigation - oculto em rotas administrativas */}
+          {!isAdminRoute && (
+            <nav className="hidden md:flex space-x-6">
+              {navItems.map((item) => {
+              const Icon = item.icon;
               const className = `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 isActive(item.path)
                   ? 'bg-red-100 text-red-700'
                   : 'text-gray-700 hover:text-red-600 hover:bg-red-50'
               }`;
 
-              return item.needsConfirm ? (
-                <ConfirmLink
-                  key={item.path}
-                  to={item.path}
-                  className={className}
-                  message={`Você tem certeza que deseja navegar para ${item.label}?`}
-                  title="Confirmar navegação"
-                >
-                  {item.label}
-                </ConfirmLink>
-              ) : (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={className}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+                return item.needsConfirm ? (
+                  <ConfirmLink
+                    key={item.path}
+                    to={item.path}
+                    className={className}
+                    message={`Você tem certeza que deseja navegar para ${item.label}?`}
+                    title="Confirmar navegação"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {Icon && <Icon className="h-4 w-4" />}
+                      <span>{item.label}</span>
+                    </span>
+                  </ConfirmLink>
+                ) : (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={className}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {Icon && <Icon className="h-4 w-4" />}
+                      <span>{item.label}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-md text-gray-700 hover:text-red-600 hover:bg-red-50"
-            >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
+          {/* Mobile menu button - oculto em rotas administrativas */}
+          {!isAdminRoute && (
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-md text-gray-700 hover:text-red-600 hover:bg-red-50"
+              >
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
+        {/* Mobile Navigation - oculto em rotas administrativas */}
+        {!isAdminRoute && isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200">
             <nav className="py-2">
               {navItems.map((item) => {
+                const Icon = item.icon;
                 const className = `block px-4 py-2 text-sm font-medium transition-colors ${
                   isActive(item.path)
                     ? 'bg-red-100 text-red-700'
@@ -97,7 +111,10 @@ const Header: React.FC = () => {
                     message={`Você tem certeza que deseja navegar para ${item.label}?`}
                     title="Confirmar navegação"
                   >
-                    {item.label}
+                    <span className="inline-flex items-center gap-2">
+                      {Icon && <Icon className="h-4 w-4" />}
+                      <span>{item.label}</span>
+                    </span>
                   </ConfirmLink>
                 ) : (
                   <Link
@@ -106,7 +123,10 @@ const Header: React.FC = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={className}
                   >
-                    {item.label}
+                    <span className="inline-flex items-center gap-2">
+                      {Icon && <Icon className="h-4 w-4" />}
+                      <span>{item.label}</span>
+                    </span>
                   </Link>
                 );
               })}

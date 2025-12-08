@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import { AlunoService } from '../../services/aluno.service';
 import { 
   ArrowLeft,
   Users, 
@@ -24,13 +25,17 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
-  GraduationCap
+  GraduationCap,
+  Loader2
 } from 'lucide-react';
 import type { StudentData, Level } from '../../types';
 import { LEVELS } from '../../types';
 
 const StudentManagement: React.FC = () => {
-  const { students, addStudent, polos } = useApp();
+  const { polos } = useApp();
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLevel, setFilterLevel] = useState<Level | 'all'>('all');
   const [filterPolo, setFilterPolo] = useState<string>('all');
@@ -39,108 +44,130 @@ const StudentManagement: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<StudentData | null>(null);
   const [viewingStudent, setViewingStudent] = useState<StudentData | null>(null);
 
-  // Mock student data - em um sistema real viria do backend
-  const [mockStudents] = useState<(StudentData & { 
-    status: 'active' | 'inactive';
-    enrollmentDate: string;
-    level: Level;
-    polo: string;
-    attendance: number;
-    lastActivity: string;
-  })[]>([
-    {
-      id: '1',
-      name: 'Ana Silva Santos',
-      birthDate: '2010-05-15',
-      cpf: '123.456.789-00',
-      gender: 'female',
-      address: {
-        cep: '77000-000',
-        street: 'Rua das Flores',
-        number: '123',
-        neighborhood: 'Centro',
-        city: 'Palmas',
-        state: 'TO'
-      },
-      phone: '(63) 99999-1111',
-      email: 'ana.santos@email.com',
-      parents: {
-        fatherName: 'João Santos',
-        motherName: 'Maria Santos',
-        phone: '(63) 98888-2222',
-        email: 'pais.santos@email.com',
-        fatherCpf: '111.222.333-44',
-        motherCpf: '555.666.777-88'
-      },
-      status: 'active',
-      enrollmentDate: '2024-02-01',
-      level: 'NIVEL_II',
-      polo: '1',
-      attendance: 92.5,
-      lastActivity: '2024-01-14'
-    },
-    {
-      id: '2',
-      name: 'Pedro Lima Costa',
-      birthDate: '2012-08-22',
-      cpf: '987.654.321-00',
-      gender: 'male',
-      address: {
-        cep: '77001-000',
-        street: 'Avenida Norte',
-        number: '456',
-        neighborhood: 'Plano Diretor Norte',
-        city: 'Palmas',
-        state: 'TO'
-      },
-      phone: '(63) 99999-3333',
-      email: 'pedro.costa@email.com',
-      parents: {
-        fatherName: 'Carlos Costa',
-        motherName: 'Lucia Costa',
-        phone: '(63) 98888-4444',
-        email: 'pais.costa@email.com',
-        fatherCpf: '222.333.444-55',
-        motherCpf: '666.777.888-99'
-      },
-      status: 'active',
-      enrollmentDate: '2024-01-15',
-      level: 'NIVEL_I',
-      polo: '2',
-      attendance: 87.3,
-      lastActivity: '2024-01-13'
-    }
-  ]);
+  // Carregar alunos ao montar
+  useEffect(() => {
+    carregarAlunos();
+  }, []);
 
-  const filteredStudents = mockStudents.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.cpf.includes(searchTerm) ||
-                         student.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLevel = filterLevel === 'all' || student.level === filterLevel;
-    const matchesPolo = filterPolo === 'all' || student.polo === filterPolo;
-    const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
-    
-    return matchesSearch && matchesLevel && matchesPolo && matchesStatus;
-  });
+  // Recarregar quando filtros mudarem
+  useEffect(() => {
+    if (!loading) {
+      carregarAlunos();
+    }
+  }, [filterPolo, filterLevel, filterStatus, searchTerm]);
+
+  const carregarAlunos = async () => {
+    try {
+      setLoading(true);
+      const filtros: any = {};
+      if (filterPolo !== 'all') filtros.poloId = filterPolo;
+      if (filterStatus !== 'all') {
+        filtros.status = filterStatus === 'active' ? 'ativo' : 'inativo';
+      }
+      if (searchTerm) filtros.search = searchTerm;
+
+      const data = await AlunoService.listarAlunos(filtros);
+      
+      const reverseLevelMap: Record<string, Level> = {
+        'Nível I': 'NIVEL_I',
+        'Nível II': 'NIVEL_II',
+        'Nível III': 'NIVEL_III',
+        'Nível IV': 'NIVEL_IV',
+      };
+      
+      // Mapear dados da API para o formato do componente
+      const alunosMapeados = data.map((a: any) => ({
+        id: a.id,
+        name: a.nome,
+        birthDate: a.data_nascimento,
+        cpf: a.cpf || '',
+        gender: a.sexo === 'M' ? 'male' : a.sexo === 'F' ? 'female' : 'other',
+        address: a.endereco || {},
+        phone: a.usuario?.telefone || '',
+        email: a.usuario?.email || '',
+        status: a.status === 'ativo' ? 'active' : 'inactive',
+        enrollmentDate: a.data_criacao?.split('T')[0] || new Date().toISOString().split('T')[0],
+        level: (a.nivel?.nome && reverseLevelMap[a.nivel.nome]) ? reverseLevelMap[a.nivel.nome] : 'NIVEL_I',
+        polo: a.polo_id,
+        attendance: 0, // Será calculado depois
+        lastActivity: a.data_atualizacao?.split('T')[0] || a.data_criacao?.split('T')[0] || new Date().toISOString().split('T')[0],
+        parents: {}, // Será carregado separadamente se necessário
+      }));
+
+      // Aplicar filtros locais
+      let alunosFiltrados = alunosMapeados;
+      if (filterLevel !== 'all') {
+        alunosFiltrados = alunosFiltrados.filter(a => a.level === filterLevel);
+      }
+
+      setStudents(alunosFiltrados);
+    } catch (error) {
+      console.error('Erro ao carregar alunos:', error);
+      alert('Erro ao carregar alunos. Verifique o console.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredStudents = students;
 
   const handleEdit = (student: any) => {
     setEditingStudent(student);
     setShowForm(true);
   };
 
-  const handleView = (student: any) => {
-    setViewingStudent(student);
+  const handleView = async (student: any) => {
+    try {
+      const data = await AlunoService.buscarAlunoPorId(student.id);
+
+      if (!data) throw new Error('Aluno não encontrado');
+
+      const reverseLevelMap: Record<string, Level> = {
+        'Nível I': 'NIVEL_I',
+        'Nível II': 'NIVEL_II',
+        'Nível III': 'NIVEL_III',
+        'Nível IV': 'NIVEL_IV',
+      };
+
+      const mappedStudent = {
+        id: data.id,
+        name: data.nome,
+        birthDate: data.data_nascimento,
+        cpf: data.cpf || '',
+        gender: data.sexo === 'M' ? 'male' : data.sexo === 'F' ? 'female' : 'other',
+        address: data.endereco || {},
+        phone: (data as any).usuario?.telefone || '',
+        email: (data as any).usuario?.email || '',
+        status: data.status === 'ativo' ? 'active' : 'inactive',
+        enrollmentDate: data.data_criacao?.split('T')[0] || new Date().toISOString().split('T')[0],
+        level: ((data as any).nivel?.nome && reverseLevelMap[(data as any).nivel.nome]) ? reverseLevelMap[(data as any).nivel.nome] : 'NIVEL_I',
+        polo: data.polo_id,
+        attendance: 0,
+        parents: {},
+      };
+
+      setViewingStudent(mappedStudent as any);
+    } catch (error: any) {
+      console.error('Erro ao buscar aluno:', error);
+      alert(error.message || 'Erro ao buscar aluno. Verifique o console.');
+    }
   };
 
-  const handleDelete = (studentId: string) => {
-    if (confirm('Tem certeza que deseja excluir este aluno?')) {
-      // Em um sistema real, faria a chamada para API
-      console.log('Deletar aluno:', studentId);
+  const handleDelete = async (studentId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este aluno?')) return;
+
+    try {
+      await AlunoService.deletarAluno(studentId);
+      alert('Aluno deletado com sucesso!');
+      await carregarAlunos();
+    } catch (error: any) {
+      console.error('Erro ao deletar aluno:', error);
+      alert(error.message || 'Erro ao deletar aluno. Verifique o console.');
     }
   };
 
   const exportStudents = () => {
-    // Simulação de exportação
+    // TODO: Implementar exportação real
     alert('Lista de alunos exportada com sucesso!');
   };
 
@@ -194,31 +221,38 @@ const StudentManagement: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+            <span className="ml-2 text-gray-600">Carregando alunos...</span>
+          </div>
+        ) : (
+          <>
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="text-center bg-blue-50 border-blue-200">
             <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <h3 className="text-2xl font-bold text-blue-900">{mockStudents.length}</h3>
+            <h3 className="text-2xl font-bold text-blue-900">{students.length}</h3>
             <p className="text-blue-700">Total de Alunos</p>
           </Card>
           <Card className="text-center bg-green-50 border-green-200">
             <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
             <h3 className="text-2xl font-bold text-green-900">
-              {mockStudents.filter(s => s.status === 'active').length}
+              {students.filter(s => s.status === 'active').length}
             </h3>
             <p className="text-green-700">Alunos Ativos</p>
           </Card>
           <Card className="text-center bg-purple-50 border-purple-200">
             <GraduationCap className="h-8 w-8 text-purple-600 mx-auto mb-2" />
             <h3 className="text-2xl font-bold text-purple-900">
-              {Math.round(mockStudents.reduce((acc, s) => acc + s.attendance, 0) / mockStudents.length)}%
+              {students.length > 0 ? Math.round(students.reduce((acc, s) => acc + (s.attendance || 0), 0) / students.length) : 0}%
             </h3>
             <p className="text-purple-700">Frequência Média</p>
           </Card>
           <Card className="text-center bg-orange-50 border-orange-200">
             <Clock className="h-8 w-8 text-orange-600 mx-auto mb-2" />
             <h3 className="text-2xl font-bold text-orange-900">
-              {mockStudents.filter(s => {
+              {students.filter(s => {
                 const daysDiff = Math.floor((new Date().getTime() - new Date(s.lastActivity).getTime()) / (1000 * 3600 * 24));
                 return daysDiff <= 7;
               }).length}
@@ -361,6 +395,8 @@ const StudentManagement: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum aluno encontrado</h3>
             <p className="text-gray-600">Ajuste os filtros ou cadastre um novo aluno.</p>
           </Card>
+        )}
+          </>
         )}
       </div>
 

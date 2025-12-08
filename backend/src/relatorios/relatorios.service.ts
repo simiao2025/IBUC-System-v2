@@ -10,8 +10,25 @@ export class RelatoriosService {
   ) {}
 
   async gerarBoletim(alunoId: string, periodo: string) {
-    const job = await this.workers.gerarBoletim(alunoId, periodo);
-    return { jobId: job.id, status: 'processing' };
+    await this.workers.gerarBoletim(alunoId, periodo);
+    return { status: 'processing' };
+  }
+
+  async historicoAluno(alunoId: string, periodo?: string) {
+    // Contrato inicial para o histórico do aluno.
+    // No futuro, este método poderá agregar dados de boletins, notas e frequência
+    // a partir das tabelas correspondentes no Supabase.
+
+    return {
+      alunoId,
+      periodo: periodo || null,
+      periodos: [],
+    };
   }
 }
+
+
+
+
+
 

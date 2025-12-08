@@ -5,13 +5,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlunoService } from '../services/aluno.service';
-import { MatriculaService } from '../services/matricula.service';
+import { DocumentoService } from '../services/documento.service';
 import { PoloService } from '../services/polo.service';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
-import type { Aluno, Matricula, Polo, Nivel } from '../types/database';
+import type { Aluno, Matricula, Polo, Nivel, TipoDocumento } from '../types/database';
+import { FileUpload } from '../components/ui/FileUpload';
 
 const PreMatricula: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const PreMatricula: React.FC = () => {
   const [niveis, setNiveis] = useState<Nivel[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [protocolo, setProtocolo] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string; tipo: TipoDocumento }[]>([]);
 
   const [formData, setFormData] = useState({
     // Dados do Aluno
@@ -48,6 +50,15 @@ const PreMatricula: React.FC = () => {
     // Termos
     aceite_termo: false,
   });
+
+  const [selectedDocType, setSelectedDocType] = useState<TipoDocumento>('cpf');
+
+  const REQUIRED_DOCUMENTS: { type: TipoDocumento; label: string }[] = [
+    { type: 'cpf', label: 'CPF do Responsável ou do Aluno' },
+    { type: 'rg', label: 'Documento de Identidade (RG)' },
+    { type: 'certidao', label: 'Certidão de Nascimento' },
+    { type: 'comprovante_residencia', label: 'Comprovante de Residência' },
+  ];
 
   React.useEffect(() => {
     carregarDados();
@@ -101,6 +112,10 @@ const PreMatricula: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: checked }));
   };
 
+  const handleUploadComplete = (fileUrl: string, originalName: string) => {
+    setUploadedFiles(prev => [...prev, { url: fileUrl, name: originalName, tipo: selectedDocType }]);
+  };
+
   const buscarCEP = async (cep: string) => {
     const cepLimpo = cep.replace(/\D/g, '');
     if (cepLimpo.length !== 8) return;
@@ -140,6 +155,14 @@ const PreMatricula: React.FC = () => {
     if (!formData.email_responsavel) newErrors.email_responsavel = 'E-mail do responsável é obrigatório';
     if (!formData.polo_id) newErrors.polo_id = 'Polo é obrigatório';
     if (!formData.aceite_termo) newErrors.aceite_termo = 'É necessário aceitar os termos';
+
+    // Validação de documentos obrigatórios
+    REQUIRED_DOCUMENTS.forEach((doc) => {
+      const hasDoc = uploadedFiles.some((file) => file.tipo === doc.type);
+      if (!hasDoc) {
+        newErrors.documentos = 'Envie todos os documentos obrigatórios: CPF, RG, Certidão e Comprovante de Residência.';
+      }
+    });
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (formData.email_responsavel && !emailRegex.test(formData.email_responsavel)) {
@@ -192,6 +215,23 @@ const PreMatricula: React.FC = () => {
 
       // Criar pré-matrícula
       const resultado = await AlunoService.criarPreMatricula(aluno, matricula);
+
+      // Registrar documentos enviados (se houver) vinculados ao aluno criado
+      if (uploadedFiles.length > 0) {
+        for (const file of uploadedFiles) {
+          try {
+            await DocumentoService.registrarDocumentoExistente(
+              file.url,
+              'aluno',
+              resultado.aluno.id,
+              file.tipo,
+              file.name
+            );
+          } catch (docError) {
+            console.error('Erro ao registrar documento da pré-matrícula:', docError);
+          }
+        }
+      }
 
       setProtocolo(resultado.matricula.protocolo);
 
@@ -288,6 +328,81 @@ const PreMatricula: React.FC = () => {
                 </Button>
               </div>
             </div>
+          </Card>
+
+          <Card className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload de Documentos</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Envie cópias digitais dos documentos do aluno e do responsável (RG, CPF, certidão de nascimento,
+              comprovante de residência, laudos médicos, se houver). Esses arquivos serão armazenados com
+              segurança no Supabase e usados exclusivamente para análise e comprovação da matrícula.
+            </p>
+
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Documento
+                </label>
+                <select
+                  className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-ibuc-blue focus:border-ibuc-blue"
+                  value={selectedDocType}
+                  onChange={(e) => setSelectedDocType(e.target.value as TipoDocumento)}
+                >
+                  {REQUIRED_DOCUMENTS.map((doc) => (
+                    <option key={doc.type} value={doc.type}>{doc.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <FileUpload
+                  folder={`pre-matriculas/${formData.cpf_responsavel || formData.cpf || 'sem-identificacao'}`}
+                  onUploadComplete={handleUploadComplete}
+                  accept="image/*,.pdf"
+                  maxSizeMB={10}
+                  label="Arraste e solte o arquivo aqui ou clique para selecionar (PDF, JPG, PNG)"
+                />
+              </div>
+            </div>
+
+            {uploadedFiles.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">Checklist de documentos obrigatórios</h3>
+                  <ul className="text-xs text-gray-700 space-y-1">
+                    {REQUIRED_DOCUMENTS.map((doc) => {
+                      const hasDoc = uploadedFiles.some((file) => file.tipo === doc.type);
+                      return (
+                        <li key={doc.type} className="flex items-center">
+                          <span className={`inline-flex items-center justify-center h-4 w-4 rounded-full mr-2 text-[10px] ${hasDoc ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                            {hasDoc ? '✓' : '!'}
+                          </span>
+                          <span className={hasDoc ? 'text-green-700' : 'text-red-700'}>{doc.label}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">Documentos enviados nesta sessão</h3>
+                  <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 max-h-32 overflow-y-auto">
+                    {uploadedFiles.map((file) => (
+                      <li key={file.url} className="truncate">
+                        <span className="font-semibold mr-1">[{REQUIRED_DOCUMENTS.find(d => d.type === file.tipo)?.label || file.tipo}]</span>
+                        <a href={file.url} target="_blank" rel="noreferrer" className="text-ibuc-blue hover:underline">
+                          {file.name}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {errors.documentos && (
+              <p className="mt-2 text-sm text-red-600">{errors.documentos}</p>
+            )}
           </Card>
         </div>
       </div>
@@ -520,7 +635,9 @@ const PreMatricula: React.FC = () => {
                 required
               />
               <label className="text-sm text-gray-700">
-                Aceito os termos de uso e a política de privacidade. Concordo com o tratamento dos dados pessoais conforme a LGPD.
+                Declaro, na qualidade de responsável legal pelo menor, que li e concordo com os termos de uso e a
+                política de privacidade da IBUC, autorizando o tratamento dos dados pessoais do aluno e dos
+                responsáveis exclusivamente para fins de gestão da Escola Bíblica Dominical, em conformidade com a LGPD.
                 {errors.aceite_termo && (
                   <span className="block text-red-600 mt-1">{errors.aceite_termo}</span>
                 )}

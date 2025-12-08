@@ -2,87 +2,55 @@
 // IBUC System - Serviço de Alunos
 // ============================================
 
-import { supabase } from '../lib/supabase';
 import type { Aluno, Matricula, StatusMatricula } from '../types/database';
+import { AlunosAPI, MatriculaAPI } from '../lib/api';
 
 export class AlunoService {
   /**
    * Lista alunos (respeitando RLS por polo)
    */
-  static async listarAlunos(poloId?: string, status?: string): Promise<Aluno[]> {
-    let query = supabase.from('alunos').select('*');
+  static async listarAlunos(filtros: {
+    poloId?: string;
+    status?: string;
+    search?: string;
+  } = {}): Promise<any[]> {
+    const filtrosApi: any = {};
+    if (filtros.poloId) filtrosApi.polo_id = filtros.poloId;
+    if (filtros.status) filtrosApi.status = filtros.status;
+    if (filtros.search) filtrosApi.search = filtros.search;
+    const data = await AlunosAPI.listar(filtrosApi);
+    return data as any[];
+  }
 
-    if (poloId) {
-      query = query.eq('polo_id', poloId);
-    }
-
-    if (status) {
-      query = query.eq('status', status);
-    }
-
-    const { data, error } = await query.order('nome');
-
-    if (error) {
-      console.error('Erro ao listar alunos:', error);
-      throw error;
-    }
-
-    return data || [];
+  /**
+   * Deleta um aluno
+   */
+  static async deletarAluno(id: string): Promise<void> {
+    await AlunosAPI.deletar(id);
   }
 
   /**
    * Busca aluno por ID
    */
-  static async buscarAlunoPorId(id: string): Promise<Aluno | null> {
-    const { data, error } = await supabase
-      .from('alunos')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Erro ao buscar aluno:', error);
-      throw error;
-    }
-
-    return data;
+  static async buscarAlunoPorId(id: string): Promise<any | null> {
+    const data = await AlunosAPI.buscarPorId(id);
+    return data as any;
   }
 
   /**
    * Cria um novo aluno
    */
   static async criarAluno(aluno: Omit<Aluno, 'id' | 'data_criacao' | 'data_atualizacao'>): Promise<Aluno> {
-    const { data, error } = await supabase
-      .from('alunos')
-      .insert(aluno)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao criar aluno:', error);
-      throw error;
-    }
-
-    return data;
+    const data = await AlunosAPI.criar(aluno);
+    return data as Aluno;
   }
 
   /**
    * Atualiza um aluno
    */
   static async atualizarAluno(id: string, updates: Partial<Aluno>): Promise<Aluno> {
-    const { data, error } = await supabase
-      .from('alunos')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao atualizar aluno:', error);
-      throw error;
-    }
-
-    return data;
+    const data = await AlunosAPI.atualizar(id, updates);
+    return data as Aluno;
   }
 
   /**
@@ -92,32 +60,23 @@ export class AlunoService {
     aluno: Omit<Aluno, 'id' | 'data_criacao' | 'data_atualizacao'>,
     matricula: Omit<Matricula, 'id' | 'created_at' | 'protocolo'>
   ): Promise<{ aluno: Aluno; matricula: Matricula }> {
-    // Criar aluno com status pendente
+    // Criar aluno com status pendente via API
     const alunoCriado = await this.criarAluno({
       ...aluno,
       status: 'pendente',
     });
 
-    // Criar matrícula com status pendente
-    const { data: matriculaData, error: matriculaError } = await supabase
-      .from('matriculas')
-      .insert({
-        ...matricula,
-        aluno_id: alunoCriado.id,
-        status: 'pendente',
-        tipo: 'online',
-      })
-      .select()
-      .single();
-
-    if (matriculaError) {
-      console.error('Erro ao criar pré-matrícula:', matriculaError);
-      throw matriculaError;
-    }
+    // Criar matrícula com status pendente via API
+    const matriculaCriada = await MatriculaAPI.criar({
+      ...matricula,
+      aluno_id: alunoCriado.id,
+      status: 'pendente',
+      tipo: 'online',
+    });
 
     return {
       aluno: alunoCriado,
-      matricula: matriculaData,
+      matricula: matriculaCriada as Matricula,
     };
   }
 
@@ -129,41 +88,25 @@ export class AlunoService {
     approvedBy: string,
     turmaId?: string
   ): Promise<Matricula> {
-    const { data: matricula, error: matriculaError } = await supabase
-      .from('matriculas')
-      .select('*')
-      .eq('id', matriculaId)
-      .single();
+    // Buscar matrícula atual via API
+    const matricula = (await MatriculaAPI.buscarPorId(matriculaId)) as Matricula;
 
-    if (matriculaError || !matricula) {
+    if (!matricula) {
       throw new Error('Matrícula não encontrada');
     }
 
-    // Atualizar matrícula
-    const { data: matriculaAtualizada, error: updateError } = await supabase
-      .from('matriculas')
-      .update({
-        status: 'ativa',
-        approved_by: approvedBy,
-        approved_at: new Date().toISOString(),
-        turma_id: turmaId || matricula.turma_id,
-      })
-      .eq('id', matriculaId)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Erro ao efetivar matrícula:', updateError);
-      throw updateError;
-    }
-
-    // Atualizar status do aluno
-    await this.atualizarAluno(matricula.aluno_id, {
-      status: 'ativo',
-      turma_id: turmaId || matricula.turma_id,
+    // Atualizar matrícula para ativa via API genérica de aprovação
+    const matriculaAtualizada = await MatriculaAPI.aprovar(matriculaId, {
+      approved_by: approvedBy,
     });
 
-    return matriculaAtualizada;
+    // Atualizar status do aluno via API de alunos
+    await this.atualizarAluno(matricula.aluno_id, {
+      status: 'ativo',
+      turma_id: turmaId || (matricula as any).turma_id,
+    });
+
+    return matriculaAtualizada as Matricula;
   }
 
   /**
@@ -174,24 +117,10 @@ export class AlunoService {
     motivoRecusa: string,
     approvedBy: string
   ): Promise<Matricula> {
-    const { data, error } = await supabase
-      .from('matriculas')
-      .update({
-        status: 'recusada',
-        motivo_recusa: motivoRecusa,
-        approved_by: approvedBy,
-        approved_at: new Date().toISOString(),
-      })
-      .eq('id', matriculaId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Erro ao rejeitar matrícula:', error);
-      throw error;
-    }
-
-    return data;
+    const data = await MatriculaAPI.recusar(matriculaId, {
+      motivo: motivoRecusa,
+      user_id: approvedBy,
+    });
+    return data as Matricula;
   }
 }
-

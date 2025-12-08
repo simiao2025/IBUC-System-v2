@@ -7,6 +7,7 @@ import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { BookOpen, MapPin, Calendar, FileText, CheckCircle, ArrowLeft } from 'lucide-react';
+import { MatriculaAPI } from '../lib/api';
 
 const EnrollmentPage: React.FC = () => {
   const { currentStudent, polos, addEnrollment } = useApp();
@@ -67,26 +68,39 @@ const EnrollmentPage: React.FC = () => {
 
     setLoading(true);
 
-    // Generate enrollment number
-    const newEnrollmentNumber = generateEnrollmentNumber();
-    setEnrollmentNumber(newEnrollmentNumber);
+    try {
+      const payload = {
+        aluno_id: currentStudent.id!,
+        polo_id: formData.polo,
+        tipo: 'online' as const,
+        origem: 'site',
+        status: 'pendente',
+      };
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+      const created: any = await MatriculaAPI.criar(payload);
+      const protocolo: string | undefined = created?.protocolo;
 
-    const enrollment: Enrollment = {
-      id: Math.random().toString(36).substr(2, 9),
-      studentId: currentStudent.id!,
-      studentName: currentStudent.name!,
-      level: formData.level as Level,
-      polo: formData.polo,
-      enrollmentDate: formData.enrollmentDate,
-      observations: formData.observations,
-    };
+      const newEnrollmentNumber = protocolo || generateEnrollmentNumber();
+      setEnrollmentNumber(newEnrollmentNumber);
 
-    addEnrollment(enrollment);
-    setLoading(false);
-    setSuccess(true);
+      const enrollment: Enrollment = {
+        id: created?.id || Math.random().toString(36).substr(2, 9),
+        studentId: currentStudent.id!,
+        studentName: currentStudent.name!,
+        level: formData.level as Level,
+        polo: formData.polo,
+        enrollmentDate: formData.enrollmentDate,
+        observations: formData.observations,
+      };
+
+      addEnrollment(enrollment);
+      setSuccess(true);
+    } catch (error) {
+      console.error('Erro ao criar matrícula:', error);
+      alert('Erro ao processar a matrícula. Por favor, tente novamente.');
+    } finally {
+      setLoading(false);
+    }
 
     // Redirect after success
     setTimeout(() => {
