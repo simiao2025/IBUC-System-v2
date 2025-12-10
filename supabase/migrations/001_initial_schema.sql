@@ -659,6 +659,11 @@ FROM alunos a
 LEFT JOIN mensalidades m ON m.aluno_id = a.id
 GROUP BY a.id, a.nome, a.polo_id;
 
+-- Campos adicionais em MATRICULAS para período letivo e módulo
+ALTER TABLE IF EXISTS matriculas
+  ADD COLUMN IF NOT EXISTS periodo_letivo TEXT,
+  ADD COLUMN IF NOT EXISTS modulo_numero INTEGER;
+
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================

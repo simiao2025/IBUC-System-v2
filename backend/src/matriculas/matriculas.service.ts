@@ -23,6 +23,8 @@ export class MatriculasService {
         tipo: dto.tipo,
         status: dto.status || 'pendente',
         origem: dto.origem || 'site',
+        periodo_letivo: dto.periodo_letivo,
+        modulo_numero: dto.modulo_numero,
         created_by: dto.created_by,
       })
       .select()
@@ -44,7 +46,11 @@ export class MatriculasService {
     const { data: matricula, error: fetchError } = await this.supabase
       .getAdminClient()
       .from('matriculas')
-      .select('*, alunos(*), polos(*)')
+      .select(`
+        *,
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo)
+      `)
       .eq('id', id)
       .single();
 
@@ -107,7 +113,12 @@ export class MatriculasService {
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('matriculas')
-      .select('*, alunos(*), polos(*), turmas(*)')
+      .select(`
+        *,
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo),
+        turma:turmas!fk_turma(id, nome)
+      `)
       .eq('protocolo', protocolo)
       .single();
 
@@ -122,7 +133,12 @@ export class MatriculasService {
     let query = this.supabase
       .getAdminClient()
       .from('matriculas')
-      .select('*, alunos(*), polos(*), turmas(*)')
+      .select(`
+        *,
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo),
+        turma:turmas!fk_turma(id, nome)
+      `)
       .order('created_at', { ascending: false });
 
     if (poloId) query = query.eq('polo_id', poloId);

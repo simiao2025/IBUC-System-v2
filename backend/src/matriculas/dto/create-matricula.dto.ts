@@ -1,4 +1,4 @@
-import { IsUUID, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsUUID, IsEnum, IsOptional, IsString, IsInt } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateMatriculaDto {
@@ -28,6 +28,16 @@ export class CreateMatriculaDto {
   @IsString()
   @IsOptional()
   origem?: string;
+
+  @ApiProperty({ required: false, description: 'Período letivo, ex: 2025.1, 2025.2' })
+  @IsString()
+  @IsOptional()
+  periodo_letivo?: string;
+
+  @ApiProperty({ required: false, description: 'Número do módulo (1 a 10) associado à matrícula' })
+  @IsInt()
+  @IsOptional()
+  modulo_numero?: number;
 
   @ApiProperty({ required: false })
   @IsUUID()

@@ -18,6 +18,7 @@ import SystemSettings from './pages/admin/SystemSettings';
 import EducationalReports from './pages/admin/EducationalReports';
 import StudentManagement from './pages/admin/StudentManagement';
 import EnrollmentManagement from './pages/admin/EnrollmentManagement';
+import MatriculaDocuments from './pages/admin/MatriculaDocuments';
 import AttendanceByStudent from './pages/admin/AttendanceByStudent';
 import AttendanceByClass from './pages/admin/AttendanceByClass';
 import DracmasLaunch from './pages/admin/DracmasLaunch';
@@ -66,6 +67,16 @@ export const router = createBrowserRouter([
       <Layout>
         <ProtectedRoute adminOnly>
           <DracmasLaunch />
+        </ProtectedRoute>
+      </Layout>
+    ),
+  },
+  {
+    path: '/admin/enrollments/:id/documentos',
+    element: (
+      <Layout>
+        <ProtectedRoute adminOnly>
+          <MatriculaDocuments />
         </ProtectedRoute>
       </Layout>
     ),

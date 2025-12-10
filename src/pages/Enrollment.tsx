@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { LEVELS, Level, Enrollment } from '../types';
@@ -13,11 +13,15 @@ const EnrollmentPage: React.FC = () => {
   const { currentStudent, polos, addEnrollment } = useApp();
   const navigate = useNavigate();
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [formData, setFormData] = useState({
     level: '',
     polo: '',
     enrollmentDate: new Date().toISOString().split('T')[0],
     observations: '',
+    academicPeriod: '',
+    moduleNumber: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -75,9 +79,11 @@ const EnrollmentPage: React.FC = () => {
         tipo: 'online' as const,
         origem: 'site',
         status: 'pendente',
+        periodo_letivo: formData.academicPeriod || undefined,
+        modulo_numero: formData.moduleNumber ? Number(formData.moduleNumber) : undefined,
       };
 
-      const created: any = await MatriculaAPI.criar(payload);
+      const created = await MatriculaAPI.criar(payload) as { id?: string; protocolo?: string };
       const protocolo: string | undefined = created?.protocolo;
 
       const newEnrollmentNumber = protocolo || generateEnrollmentNumber();
@@ -94,6 +100,20 @@ const EnrollmentPage: React.FC = () => {
       };
 
       addEnrollment(enrollment);
+
+      if (created?.id && fileInputRef.current && fileInputRef.current.files && fileInputRef.current.files.length > 0) {
+        const formData = new FormData();
+        Array.from(fileInputRef.current.files).forEach((file) => {
+          formData.append('files', file);
+        });
+
+        try {
+          await MatriculaAPI.uploadDocumentos(created.id, formData);
+        } catch (uploadError) {
+          console.error('Erro ao enviar documentos da matrícula:', uploadError);
+        }
+      }
+
       setSuccess(true);
     } catch (error) {
       console.error('Erro ao criar matrícula:', error);
@@ -240,6 +260,15 @@ const EnrollmentPage: React.FC = () => {
                   error={errors.enrollmentDate}
                   required
                 />
+
+                <Input
+                  label="Período Letivo"
+                  name="academicPeriod"
+                  type="text"
+                  value={formData.academicPeriod}
+                  onChange={handleInputChange}
+                  placeholder="Ex: 2025.1, 2025.2"
+                />
               </div>
 
               <div className="space-y-4">
@@ -277,6 +306,18 @@ const EnrollmentPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                <Select
+                  label="Módulo do Curso"
+                  name="moduleNumber"
+                  value={formData.moduleNumber}
+                  onChange={handleInputChange}
+                  options={Array.from({ length: 10 }, (_, i) => ({
+                    value: String(i + 1),
+                    label: `Módulo ${i + 1}`,
+                  }))}
+                  helperText="Informe em qual módulo o aluno irá ingressar (quando aplicável)"
+                />
               </div>
             </div>
 
@@ -293,6 +334,25 @@ const EnrollmentPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
                 placeholder="Informações adicionais, necessidades especiais, etc."
               />
+            </div>
+          </Card>
+
+          <Card>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="documentos">
+                Documentos e Foto 3x4 do Aluno
+              </label>
+              <input
+                id="documentos"
+                name="files"
+                type="file"
+                multiple
+                ref={fileInputRef}
+                className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Anexe os documentos necessários (RG, CPF, certidão, comprovante de endereço, etc.) e a foto 3x4 em formato digital.
+              </p>
             </div>
           </Card>
 
@@ -398,7 +458,7 @@ const EnrollmentPage: React.FC = () => {
               disabled={!agreementAccepted || loading}
               className={`min-w-[200px] ${!agreementAccepted ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {loading ? 'Processando Matrícula...' : 'Finalizar Matrícula'}
+              {loading ? 'Processando Pré-Matrícula...' : 'Enviar Pré-Matrícula'}
             </Button>
           </div>
         </form>

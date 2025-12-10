@@ -11,6 +11,13 @@ const AttendanceByStudent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any | null>(null);
+  const [summary, setSummary] = useState<{
+    totalAulas: number;
+    presencas: number;
+    faltas: number;
+    frequenciaPercentual: number;
+    aptoCertificacao: boolean;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +32,21 @@ const AttendanceByStudent: React.FC = () => {
     try {
       const response = await PresencasAPI.porAluno(alunoId, inicio || undefined, fim || undefined);
       setData(response.data);
+
+      const presencas = response.data.registros;
+      const totalAulas = presencas.length;
+      const presencasCount = presencas.filter((p) => p.status === 'presente').length;
+      const faltasCount = totalAulas - presencasCount;
+      const frequenciaPercentual = totalAulas > 0 ? (presencasCount / totalAulas) * 100 : 0;
+      const aptoCertificacao = frequenciaPercentual >= 75;
+
+      setSummary({
+        totalAulas,
+        presencas: presencasCount,
+        faltas: faltasCount,
+        frequenciaPercentual,
+        aptoCertificacao,
+      });
     } catch (err) {
       console.error('Erro ao buscar frequência do aluno:', err);
       setError('Não foi possível carregar a frequência do aluno.');
@@ -68,20 +90,28 @@ const AttendanceByStudent: React.FC = () => {
         <div className="space-y-4">
           <Card className="p-4">
             <h2 className="text-lg font-semibold mb-2">Resumo</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Total de registros</p>
-                <p className="text-lg font-bold">{data.resumo?.total ?? 0}</p>
+            {summary && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <p className="text-xs text-gray-500">Total de Aulas</p>
+                  <p className="text-lg font-semibold text-gray-900">{summary.totalAulas}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">Presenças</p>
+                  <p className="text-lg font-bold text-green-600">{data.resumo?.presentes ?? 0}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <p className="text-xs text-gray-500">Faltas</p>
+                  <p className="text-lg font-semibold text-red-700">{summary.faltas}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <p className="text-xs text-gray-500">Frequência / Certificação</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {summary.frequenciaPercentual.toFixed(1)}% - {summary.aptoCertificacao ? 'Apto à certificação (>= 75%)' : 'Não apto (frequência abaixo de 75%)'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-gray-600">Presenças</p>
-                <p className="text-lg font-bold text-green-600">{data.resumo?.presentes ?? 0}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Faltas</p>
-                <p className="text-lg font-bold text-red-600">{data.resumo?.faltas ?? 0}</p>
-              </div>
-            </div>
+            )}
           </Card>
 
           <Card className="p-4">

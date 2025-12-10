@@ -23,7 +23,11 @@ export class NotificacoesService {
     const { data: matricula } = await this.supabase
       .getAdminClient()
       .from('matriculas')
-      .select('*, alunos(*), polos(*)')
+      .select(`
+        *,
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo, email)
+      `)
       .eq('id', matriculaId)
       .single();
 
@@ -32,13 +36,13 @@ export class NotificacoesService {
     // Enviar email para o polo
     await this.transporter.sendMail({
       from: process.env.SMTP_FROM,
-      to: matricula.polos.email,
+      to: matricula.polo?.email,
       subject: 'Nova Pré-matrícula Recebida',
       html: `
         <h2>Nova Pré-matrícula Recebida</h2>
         <p>Protocolo: ${matricula.protocolo}</p>
-        <p>Aluno: ${matricula.alunos.nome}</p>
-        <p>Polo: ${matricula.polos.nome}</p>
+        <p>Aluno: ${matricula.aluno?.nome}</p>
+        <p>Polo: ${matricula.polo?.nome}</p>
       `,
     });
   }

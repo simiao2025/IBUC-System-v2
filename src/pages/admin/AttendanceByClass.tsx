@@ -67,7 +67,7 @@ const AttendanceByClass: React.FC = () => {
       {data && (
         <div className="space-y-4">
           <Card className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Resumo por Aluno</h2>
+            <h2 className="text-lg font-semibold mb-2">Resumo por Aluno / Certificação</h2>
             {(!data.resumoPorAluno || data.resumoPorAluno.length === 0) && (
               <p className="text-sm text-gray-600">Nenhum registro encontrado para o período informado.</p>
             )}
@@ -80,6 +80,8 @@ const AttendanceByClass: React.FC = () => {
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Total</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Presenças</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Faltas</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Frequência</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Certificação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -89,6 +91,16 @@ const AttendanceByClass: React.FC = () => {
                         <td className="px-4 py-2">{item.total}</td>
                         <td className="px-4 py-2 text-green-600">{item.presentes}</td>
                         <td className="px-4 py-2 text-red-600">{item.faltas}</td>
+                        <td className="px-4 py-2">
+                          {item.total > 0
+                            ? `${((item.presentes / item.total) * 100).toFixed(1)}%`
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-2">
+                          {item.total > 0 && (item.presentes / item.total) * 100 >= 75
+                            ? 'Apto (>= 75%)'
+                            : 'Não apto (< 75%)'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

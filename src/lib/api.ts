@@ -15,13 +15,21 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
     const token = localStorage.getItem('auth_token');
 
+    const isFormData = options.body instanceof FormData;
+
+    const headers: HeadersInit = {
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers,
+    };
+
+    if (!isFormData) {
+      // Para JSON definimos Content-Type explicitamente
+      (headers as any)['Content-Type'] = 'application/json';
+    }
+
     const config: RequestInit = {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
+      headers,
     };
 
     const response = await fetch(url, config);
@@ -45,6 +53,13 @@ class ApiClient {
     });
   }
 
+  async upload<T>(endpoint: string, formData: FormData): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
   async put<T>(endpoint: string, data?: any): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
@@ -62,6 +77,7 @@ export const api = new ApiClient(API_BASE_URL);
 // Serviços específicos
 export const MatriculaAPI = {
   criar: (data: any) => api.post('/matriculas', data),
+  uploadDocumentos: (id: string, formData: FormData) => api.upload(`/documentos/matriculas/${id}`, formData),
   listar: (params?: { polo_id?: string; status?: string }) => {
     const query = new URLSearchParams(params as any).toString();
     return api.get(`/matriculas?${query}`);
@@ -69,6 +85,10 @@ export const MatriculaAPI = {
   buscarPorProtocolo: (protocolo: string) => api.get(`/matriculas/protocolo/${protocolo}`),
   aprovar: (id: string, data: { approved_by: string }) => api.put(`/matriculas/${id}/aprovar`, data),
   recusar: (id: string, data: { motivo: string; user_id: string }) => api.put(`/matriculas/${id}/recusar`, data),
+};
+
+export const DocumentosAPI = {
+  listarPorMatricula: (matriculaId: string) => api.get(`/documentos/matriculas/${matriculaId}`),
 };
 
 export const TurmasAPI = {

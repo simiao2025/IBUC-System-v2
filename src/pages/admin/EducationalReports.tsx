@@ -18,7 +18,7 @@ import {
   PieChart,
   Activity
 } from 'lucide-react';
-import { RelatoriosAPI } from '../../lib/api';
+import { RelatoriosAPI, PresencasAPI, DracmasAPI, MatriculaAPI } from '../../lib/api';
 
 const EducationalReports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<string>('enrollment');
@@ -34,16 +34,100 @@ const EducationalReports: React.FC = () => {
   const [attendanceDate, setAttendanceDate] = useState<string>('2024-01-01');
   const [attendanceStatus, setAttendanceStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [attendanceErrorMessage, setAttendanceErrorMessage] = useState<string>('');
+  const [attendanceSummary, setAttendanceSummary] = useState<{
+    totalAlunos: number;
+    presentes: number;
+    faltantes: number;
+    frequenciaMedia: number; // 0-100
+    alunosAltaFrequencia: number;
+  } | null>(null);
+  const [certTurmaId, setCertTurmaId] = useState<string>('');
+  const [certStatus, setCertStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [certErrorMessage, setCertErrorMessage] = useState<string>('');
+  const [certResumoPorAluno, setCertResumoPorAluno] = useState<{
+    alunoId: string;
+    totalAulas: number;
+    presencas: number;
+    faltas: number;
+    frequenciaPercentual: number;
+    aptoCertificacao: boolean;
+  }[]>([]);
   const [historyAlunoId, setHistoryAlunoId] = useState<string>('');
   const [historyStatus, setHistoryStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [historyErrorMessage, setHistoryErrorMessage] = useState<string>('');
   const [historyResult, setHistoryResult] = useState<unknown | null>(null);
 
+  const [dracmasAlunoId, setDracmasAlunoId] = useState<string>('');
+  const [dracmasStatus, setDracmasStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [dracmasErrorMessage, setDracmasErrorMessage] = useState<string>('');
+  const [dracmasResumo, setDracmasResumo] = useState<{
+    saldoAtual: number;
+    totalGanhoPeriodo: number;
+    totalTransacoes: number;
+  } | null>(null);
+  const [dracmasTransacoes, setDracmasTransacoes] = useState<{
+    id: string;
+    data: string;
+    tipo: string;
+    descricao?: string;
+    quantidade: number;
+  }[]>([]);
+
+  const [enrollmentStatus, setEnrollmentStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [enrollmentErrorMessage, setEnrollmentErrorMessage] = useState<string>('');
+  const [enrollmentSummary, setEnrollmentSummary] = useState<{
+    totalMatriculas: number;
+    matriculasNoPeriodo: number;
+    porStatus: Record<string, number>;
+    porNivel: Record<string, number>;
+  } | null>(null);
+
+  type BoletimResponse = {
+    status?: string;
+    [key: string]: unknown;
+  };
+
+  type HistoricoAlunoPeriodo = {
+    periodo?: string;
+    turma?: string;
+    situacao?: string;
+    observacoes?: string;
+  };
+
+  type HistoricoAlunoResponse = {
+    aluno?: {
+      id?: string;
+      nome?: string;
+    } | null;
+    periodos?: HistoricoAlunoPeriodo[];
+    [key: string]: unknown;
+  };
+
+  type DracmaTransacaoApi = {
+    id?: string | number;
+    data?: string;
+    created_at?: string;
+    tipo?: string;
+    descricao?: string;
+    quantidade?: number;
+  };
+
+  type MatriculaApiItem = {
+    id?: string | number;
+    created_at?: string;
+    status?: string;
+    nivel?: string;
+    nivel_id?: string | number;
+    [key: string]: unknown;
+  };
+
   const reportTypes = [
     { id: 'boletim', label: 'Boletim do Aluno', icon: FileText },
     { id: 'enrollment', label: 'Relatório de Matrículas', icon: Users },
     { id: 'attendance', label: 'Relatório de Frequência', icon: Clock },
+    { id: 'certification', label: 'Certificação por Turma', icon: Award },
     { id: 'history', label: 'Histórico do Aluno', icon: FileText },
+    { id: 'dracmas', label: 'Relatório de Drácmas', icon: Award },
     { id: 'performance', label: 'Desempenho por Nível', icon: TrendingUp },
     { id: 'certificates', label: 'Certificados Emitidos', icon: Award },
     { id: 'polo-stats', label: 'Estatísticas por Polo', icon: MapPin },
@@ -53,6 +137,114 @@ const EducationalReports: React.FC = () => {
   ];
 
   const generateReport = async () => {
+    // Matrículas: usa lista de matrículas com filtro de polo e período
+    if (selectedReport === 'enrollment') {
+      try {
+        setEnrollmentStatus('loading');
+        setEnrollmentErrorMessage('');
+        setEnrollmentSummary(null);
+
+        const params: { polo_id?: string } = {};
+        if (poloFilter !== 'all') {
+          params.polo_id = poloFilter;
+        }
+
+        const matriculas = await MatriculaAPI.listar(params) as MatriculaApiItem[];
+
+        const totalMatriculas = Array.isArray(matriculas) ? matriculas.length : 0;
+
+        const inicio = dateFilter.start ? new Date(dateFilter.start) : null;
+        const fim = dateFilter.end ? new Date(dateFilter.end) : null;
+
+        const dentroDoPeriodo = (m: MatriculaApiItem) => {
+          if (!m.created_at || !inicio || !fim) return true;
+          const data = new Date(m.created_at);
+          return data >= inicio && data <= fim;
+        };
+
+        const matriculasNoPeriodoLista = (Array.isArray(matriculas) ? matriculas : []).filter(dentroDoPeriodo);
+        const matriculasNoPeriodo = matriculasNoPeriodoLista.length;
+
+        const porStatus: Record<string, number> = {};
+        const porNivel: Record<string, number> = {};
+
+        matriculasNoPeriodoLista.forEach((m) => {
+          const status = (m.status || 'desconhecido').toString();
+          porStatus[status] = (porStatus[status] || 0) + 1;
+
+          const nivelLabel =
+            (typeof m.nivel === 'string' && m.nivel) ||
+            (m.nivel_id !== undefined ? `Nível ${m.nivel_id}` : 'Nível não informado');
+          porNivel[nivelLabel] = (porNivel[nivelLabel] || 0) + 1;
+        });
+
+        setEnrollmentSummary({
+          totalMatriculas,
+          matriculasNoPeriodo,
+          porStatus,
+          porNivel,
+        });
+
+        setEnrollmentStatus('success');
+      } catch (error: unknown) {
+        console.error('Erro ao carregar relatório de matrículas:', error);
+        setEnrollmentStatus('error');
+        const message = error instanceof Error ? error.message : 'Erro ao carregar relatório de matrículas.';
+        setEnrollmentErrorMessage(message);
+      }
+
+      return;
+    }
+
+    // Certificação por turma: usa presenças agregadas por aluno e calcula regra de 75%
+    if (selectedReport === 'certification') {
+      if (!certTurmaId) {
+        alert('Informe o ID da turma para consultar a certificação.');
+        return;
+      }
+
+      try {
+        setCertStatus('loading');
+        setCertErrorMessage('');
+        setCertResumoPorAluno([]);
+
+        const inicio = dateFilter.start || undefined;
+        const fim = dateFilter.end || undefined;
+        const response = await PresencasAPI.porTurma(certTurmaId, inicio, fim) as any;
+
+        const resumoPorAluno = Array.isArray(response?.data?.resumoPorAluno)
+          ? response.data.resumoPorAluno
+          : [];
+
+        const mapped = resumoPorAluno.map((item: any) => {
+          const total = item.total || 0;
+          const presentes = item.presentes || 0;
+          const faltas = item.faltas || Math.max(total - presentes, 0);
+          const frequenciaPercentual = total > 0 ? (presentes / total) * 100 : 0;
+          const aptoCertificacao = frequenciaPercentual >= 75;
+
+          return {
+            alunoId: String(item.aluno_id ?? ''),
+            totalAulas: total,
+            presencas: presentes,
+            faltas,
+            frequenciaPercentual,
+            aptoCertificacao,
+          };
+        });
+
+        setCertResumoPorAluno(mapped);
+        setCertStatus('success');
+      } catch (error: unknown) {
+        console.error('Erro ao carregar relatório de certificação:', error);
+        setCertStatus('error');
+        const message = error instanceof Error ? error.message : 'Erro ao carregar relatório de certificação.';
+        setCertErrorMessage(message);
+      }
+
+      return;
+    }
+
     // Boletim: usa endpoint real de geração
     if (selectedReport === 'boletim') {
       if (!boletimAlunoId) {
@@ -66,23 +258,72 @@ const EducationalReports: React.FC = () => {
 
         // Período pode ser representado como intervalo de datas "inicio|fim"
         const periodo = `${dateFilter.start}|${dateFilter.end}`;
-        const response = await RelatoriosAPI.gerarBoletim(boletimAlunoId, periodo);
+        const response = await RelatoriosAPI.gerarBoletim(boletimAlunoId, periodo) as BoletimResponse;
 
-        if (response && (response as any).status === 'processing') {
+        if (response && response.status === 'processing') {
           setBoletimStatus('processing');
         } else {
           setBoletimStatus('idle');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Erro ao gerar boletim:', error);
         setBoletimStatus('error');
-        setBoletimErrorMessage(error?.message || 'Erro ao gerar boletim.');
+        const message = error instanceof Error ? error.message : 'Erro ao gerar boletim.';
+        setBoletimErrorMessage(message);
       }
 
       return;
     }
 
-    // Frequência: usa endpoint de presença (exportarPresenca)
+    // Drácmas: saldo e transações por aluno no período
+    if (selectedReport === 'dracmas') {
+      if (!dracmasAlunoId) {
+        alert('Informe o ID do aluno para consultar os Drácmas.');
+        return;
+      }
+
+      try {
+        setDracmasStatus('loading');
+        setDracmasErrorMessage('');
+        setDracmasResumo(null);
+        setDracmasTransacoes([]);
+
+        // Saldo atual
+        const saldoResponse = await DracmasAPI.saldoPorAluno(dracmasAlunoId) as { saldo: number };
+
+        // Transações no período
+        const periodoInicio = dateFilter.start;
+        const periodoFim = dateFilter.end;
+        const transacoesResponse = await DracmasAPI.porAluno(dracmasAlunoId, periodoInicio, periodoFim) as DracmaTransacaoApi[];
+
+        const totalGanhoPeriodo = transacoesResponse.reduce((acc, t) => acc + (t.quantidade || 0), 0);
+
+        const transacoesMapeadas = transacoesResponse.map((t) => ({
+          id: String(t.id ?? ''),
+          data: t.data || t.created_at || '',
+          tipo: t.tipo || '',
+          descricao: t.descricao,
+          quantidade: t.quantidade ?? 0,
+        }));
+
+        setDracmasResumo({
+          saldoAtual: saldoResponse?.saldo ?? 0,
+          totalGanhoPeriodo,
+          totalTransacoes: transacoesMapeadas.length,
+        });
+        setDracmasTransacoes(transacoesMapeadas);
+        setDracmasStatus('success');
+      } catch (error: unknown) {
+        console.error('Erro ao carregar relatório de Drácmas:', error);
+        setDracmasStatus('error');
+        const message = error instanceof Error ? error.message : 'Erro ao carregar relatório de Drácmas.';
+        setDracmasErrorMessage(message);
+      }
+
+      return;
+    }
+
+    // Frequência: usa dados reais de presença por turma
     if (selectedReport === 'attendance') {
       if (!attendanceTurmaId || !attendanceDate) {
         alert('Informe a Turma e a Data para gerar o relatório de frequência.');
@@ -92,16 +333,31 @@ const EducationalReports: React.FC = () => {
       try {
         setAttendanceStatus('loading');
         setAttendanceErrorMessage('');
+        setAttendanceSummary(null);
 
-        await RelatoriosAPI.exportarPresenca(attendanceTurmaId, attendanceDate);
+        // Usa a mesma data como início/fim para obter as presenças daquele dia
+        const presencas = await PresencasAPI.porTurma(attendanceTurmaId, attendanceDate, attendanceDate) as any[];
 
-        // Aqui assumimos que o backend pode gerar um arquivo ou registro de presença;
-        // como não há especificação, apenas sinalizamos sucesso na UI.
+        const totalAlunos = presencas.length;
+        const presentes = presencas.filter((p) => p.status === 'presente').length;
+        const faltantes = totalAlunos - presentes;
+        const frequenciaMedia = totalAlunos > 0 ? (presentes / totalAlunos) * 100 : 0;
+        const alunosAltaFrequencia = presentes; // no contexto de um único dia, presentes = alta frequência
+
+        setAttendanceSummary({
+          totalAlunos,
+          presentes,
+          faltantes,
+          frequenciaMedia,
+          alunosAltaFrequencia,
+        });
+
         setAttendanceStatus('success');
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Erro ao gerar relatório de frequência:', error);
         setAttendanceStatus('error');
-        setAttendanceErrorMessage(error?.message || 'Erro ao gerar relatório de frequência.');
+        const message = error instanceof Error ? error.message : 'Erro ao gerar relatório de frequência.';
+        setAttendanceErrorMessage(message);
       }
 
       return;
@@ -122,12 +378,13 @@ const EducationalReports: React.FC = () => {
         const periodo = `${dateFilter.start}|${dateFilter.end}`;
         const response = await RelatoriosAPI.historicoAluno(historyAlunoId, periodo);
 
-        setHistoryResult(response as unknown);
+        setHistoryResult(response as HistoricoAlunoResponse);
         setHistoryStatus('success');
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Erro ao carregar histórico do aluno:', error);
         setHistoryStatus('error');
-        setHistoryErrorMessage(error?.message || 'Erro ao carregar histórico do aluno.');
+        const message = error instanceof Error ? error.message : 'Erro ao carregar histórico do aluno.';
+        setHistoryErrorMessage(message);
       }
 
       return;
@@ -144,91 +401,268 @@ const EducationalReports: React.FC = () => {
 
   const renderEnrollmentReport = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="text-center bg-blue-50 border-blue-200">
           <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-blue-900">--</h3>
-          <p className="text-blue-700">Total de Matrículas (aguardando dados reais)</p>
-        </Card>
-        <Card className="text-center bg-green-50 border-green-200">
-          <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-green-900">--</h3>
-          <p className="text-green-700">Crescimento vs Ano Anterior (em desenvolvimento)</p>
+          <h3 className="text-2xl font-bold text-blue-900">
+            {enrollmentSummary ? enrollmentSummary.totalMatriculas : '--'}
+          </h3>
+          <p className="text-blue-700">Total de Matrículas (filtro de polo aplicado)</p>
         </Card>
         <Card className="text-center bg-purple-50 border-purple-200">
           <Calendar className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-purple-900">--</h3>
+          <h3 className="text-2xl font-bold text-purple-900">
+            {enrollmentSummary ? enrollmentSummary.matriculasNoPeriodo : '--'}
+          </h3>
           <p className="text-purple-700">Matrículas no período selecionado</p>
         </Card>
-        <Card className="text-center bg-orange-50 border-orange-200">
-          <Award className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-          <h3 className="text-2xl font-bold text-orange-900">--</h3>
-          <p className="text-orange-700">Polos Ativos (integração pendente)</p>
+        <Card className="text-center bg-green-50 border-green-200">
+          <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+          <h3 className="text-2xl font-bold text-green-900">
+            {enrollmentSummary && enrollmentSummary.totalMatriculas > 0
+              ? `${((enrollmentSummary.matriculasNoPeriodo / enrollmentSummary.totalMatriculas) * 100).toFixed(1)}%`
+              : '--'}
+          </h3>
+          <p className="text-green-700">Percentual de matrículas no período</p>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <h3 className="text-lg font-semibold mb-4">Matrículas por Nível</h3>
+          <h3 className="text-lg font-semibold mb-4">Matrículas por Status (no período)</h3>
           <div className="space-y-3 text-sm text-gray-600">
-            <p>Os gráficos de matrículas por nível serão exibidos aqui assim que a integração com os dados reais de matrículas for concluída.</p>
+            {enrollmentStatus === 'idle' && (
+              <p className="text-gray-600">Aguardando geração do relatório de matrículas.</p>
+            )}
+            {enrollmentStatus === 'loading' && (
+              <p className="text-blue-600 font-medium">Carregando dados de matrículas...</p>
+            )}
+            {enrollmentStatus === 'success' && enrollmentSummary && (
+              <ul className="space-y-1">
+                {Object.entries(enrollmentSummary.porStatus).map(([status, quantidade]) => (
+                  <li key={status} className="flex justify-between">
+                    <span className="capitalize text-gray-700">{status.toLowerCase()}</span>
+                    <span className="font-semibold text-gray-900">{quantidade}</span>
+                  </li>
+                ))}
+                {Object.keys(enrollmentSummary.porStatus).length === 0 && (
+                  <p className="text-gray-600">Nenhuma matrícula encontrada no período informado.</p>
+                )}
+              </ul>
+            )}
+            {enrollmentStatus === 'error' && (
+              <p className="text-red-600 font-medium">
+                Ocorreu um erro ao carregar o relatório de matrículas: {enrollmentErrorMessage}
+              </p>
+            )}
           </div>
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold mb-4">Evolução Mensal</h3>
+          <h3 className="text-lg font-semibold mb-4">Matrículas por Nível (no período)</h3>
           <div className="space-y-3 text-sm text-gray-600">
-            <p>A evolução mensal de matrículas será apresentada aqui após a conexão com o módulo de matrículas.</p>
+            {enrollmentStatus === 'idle' && (
+              <p className="text-gray-600">Aguardando geração do relatório de matrículas.</p>
+            )}
+            {enrollmentStatus === 'loading' && (
+              <p className="text-blue-600 font-medium">Carregando dados de matrículas...</p>
+            )}
+            {enrollmentStatus === 'success' && enrollmentSummary && (
+              <ul className="space-y-1">
+                {Object.entries(enrollmentSummary.porNivel).map(([nivel, quantidade]) => (
+                  <li key={nivel} className="flex justify-between">
+                    <span className="text-gray-700">{nivel}</span>
+                    <span className="font-semibold text-gray-900">{quantidade}</span>
+                  </li>
+                ))}
+                {Object.keys(enrollmentSummary.porNivel).length === 0 && (
+                  <p className="text-gray-600">Nenhuma matrícula encontrada no período informado.</p>
+                )}
+              </ul>
+            )}
+            {enrollmentStatus === 'error' && (
+              <p className="text-red-600 font-medium">
+                Ocorreu um erro ao carregar o relatório de matrículas: {enrollmentErrorMessage}
+              </p>
+            )}
           </div>
         </Card>
       </div>
     </div>
   );
 
-  const renderHistoryReport = () => (
+  const renderCertificationReport = () => (
     <div className="space-y-6">
       <Card>
-        <h3 className="text-lg font-semibold mb-4">Histórico do Aluno</h3>
-        <div className="space-y-4 text-sm text-gray-700">
-          <p>
-            Este relatório apresentará o histórico acadêmico do aluno ao longo dos períodos (notas, situação final e, opcionalmente, frequência agregada).
-          </p>
-          <p>
-            Por enquanto, o endpoint retorna apenas a estrutura básica. À medida que os dados forem sendo agregados no backend, o histórico detalhado será exibido aqui.
-          </p>
-          <p>
-            Utilize o filtro de <span className="font-semibold">ID do Aluno</span> e o período desejado para definir o escopo do histórico.
-          </p>
+        <h3 className="text-lg font-semibold mb-4">Certificação por Turma</h3>
+        <p className="text-sm text-gray-700 mb-4">
+          Este relatório mostra, para a turma e período selecionados, a frequência de cada aluno e se ele está
+          <span className="font-semibold"> apto à certificação</span> com base na frequência mínima de 75%.
+        </p>
 
-          <div className="mt-4">
-            {historyStatus === 'idle' && (
-              <p className="text-gray-600">
-                Aguardando parâmetros para carregar o histórico.
-              </p>
-            )}
-            {historyStatus === 'loading' && (
-              <p className="text-blue-600 font-medium">
-                Carregando histórico do aluno...
-              </p>
-            )}
-            {historyStatus === 'success' && (
-              <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                <p className="text-xs text-gray-500 mb-2">Resposta atual da API (estrutura bruta):</p>
-                <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-all">
-                  {JSON.stringify(historyResult, null, 2)}
-                </pre>
-              </div>
-            )}
-            {historyStatus === 'error' && (
-              <p className="text-red-600 font-medium">
-                Ocorreu um erro ao carregar o histórico: {historyErrorMessage}
-              </p>
-            )}
-          </div>
+        <div className="space-y-3 text-sm text-gray-700">
+          {certStatus === 'idle' && (
+            <p className="text-gray-600">Aguardando parâmetros para gerar o relatório de certificação.</p>
+          )}
+          {certStatus === 'loading' && (
+            <p className="text-blue-600 font-medium">Carregando dados de certificação da turma...</p>
+          )}
+          {certStatus === 'success' && certResumoPorAluno.length === 0 && (
+            <p className="text-gray-600">Nenhum registro encontrado para o período informado.</p>
+          )}
+          {certStatus === 'success' && certResumoPorAluno.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Aluno</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Total Aulas</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Presenças</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Faltas</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Frequência</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Certificação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {certResumoPorAluno.map((item) => (
+                    <tr key={item.alunoId}>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-800">{item.alunoId}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-800">{item.totalAulas}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-green-700">{item.presencas}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-red-700">{item.faltas}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-800">
+                        {item.totalAulas > 0 ? `${item.frequenciaPercentual.toFixed(1)}%` : '—'}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-800">
+                        {item.aptoCertificacao ? 'Apto (>= 75%)' : 'Não apto (< 75%)'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {certStatus === 'error' && (
+            <p className="text-red-600 font-medium">
+              Ocorreu um erro ao carregar o relatório de certificação: {certErrorMessage}
+            </p>
+          )}
         </div>
       </Card>
     </div>
   );
+
+  const renderHistoryReport = () => {
+    const typed = (historyResult || {}) as HistoricoAlunoResponse;
+    const periodos = Array.isArray(typed.periodos) ? typed.periodos : [];
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <h3 className="text-lg font-semibold mb-4">Histórico do Aluno</h3>
+          <div className="space-y-4 text-sm text-gray-700">
+            <p>
+              Este relatório apresenta um resumo dos períodos cursados pelo aluno, incluindo turma, situação final e observações.
+            </p>
+            <p>
+              Utilize o filtro de <span className="font-semibold">ID do Aluno</span> e o período desejado para definir o escopo do histórico.
+            </p>
+
+            <div className="mt-4">
+              {historyStatus === 'idle' && (
+                <p className="text-gray-600">
+                  Aguardando parâmetros para carregar o histórico.
+                </p>
+              )}
+              {historyStatus === 'loading' && (
+                <p className="text-blue-600 font-medium">
+                  Carregando histórico do aluno...
+                </p>
+              )}
+              {historyStatus === 'success' && (
+                <div className="space-y-4">
+                  {/* Cabeçalho do aluno, se disponível */}
+                  {typed.aluno && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                      <p className="text-sm text-gray-800">
+                        <span className="font-semibold">Aluno:</span> {typed.aluno.nome || typed.aluno.id}
+                      </p>
+                      {typed.aluno.id && (
+                        <p className="text-xs text-gray-500">ID: {typed.aluno.id}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tabela de períodos */}
+                  {periodos.length > 0 ? (
+                    <div className="border border-gray-200 rounded-md overflow-hidden">
+                      <table className="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                              Período
+                            </th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                              Turma
+                            </th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                              Situação
+                            </th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                              Observações
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                          {periodos.map((p, index) => (
+                            <tr key={index}>
+                              <td className="px-3 py-2 whitespace-nowrap text-gray-800">
+                                {p.periodo || '-'}
+                              </td>
+                              <td className="px-3 py-2 whitespace-nowrap text-gray-800">
+                                {p.turma || '-'}
+                              </td>
+                              <td className="px-3 py-2 whitespace-nowrap text-gray-800">
+                                {p.situacao || '-'}
+                              </td>
+                              <td className="px-3 py-2 text-gray-800">
+                                {p.observacoes || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">
+                      Nenhum período encontrado para o filtro informado.
+                    </p>
+                  )}
+
+                  {/* Detalhes técnicos (JSON bruto) */}
+                  <details className="mt-4">
+                    <summary className="text-xs text-gray-500 cursor-pointer select-none">
+                      Ver detalhes técnicos (JSON bruto)
+                    </summary>
+                    <div className="mt-2 bg-gray-50 border border-gray-200 rounded-md p-3">
+                      <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap break-all">
+                        {JSON.stringify(historyResult, null, 2)}
+                      </pre>
+                    </div>
+                  </details>
+                </div>
+              )}
+              {historyStatus === 'error' && (
+                <p className="text-red-600 font-medium">
+                  Ocorreu um erro ao carregar o histórico: {historyErrorMessage}
+                </p>
+              )}
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  };
 
   const renderBoletimReport = () => (
     <div className="space-y-6">
@@ -271,27 +705,115 @@ const EducationalReports: React.FC = () => {
     </div>
   );
 
+  const renderDracmasReport = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="text-center bg-yellow-50 border-yellow-200">
+          <Award className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
+          <h3 className="text-2xl font-bold text-yellow-900">
+            {dracmasResumo ? dracmasResumo.saldoAtual : '--'}
+          </h3>
+          <p className="text-yellow-700">Saldo Atual de Drácmas</p>
+        </Card>
+        <Card className="text-center bg-green-50 border-green-200">
+          <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+          <h3 className="text-2xl font-bold text-green-900">
+            {dracmasResumo ? dracmasResumo.totalGanhoPeriodo : '--'}
+          </h3>
+          <p className="text-green-700">Total Ganho no Período</p>
+        </Card>
+        <Card className="text-center bg-blue-50 border-blue-200">
+          <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+          <h3 className="text-2xl font-bold text-blue-900">
+            {dracmasResumo ? dracmasResumo.totalTransacoes : '--'}
+          </h3>
+          <p className="text-blue-700">Transações Registradas</p>
+        </Card>
+      </div>
+
+      <Card>
+        <h3 className="text-lg font-semibold mb-4">Transações de Drácmas</h3>
+        <div className="space-y-4 text-sm text-gray-600">
+          {dracmasStatus === 'idle' && (
+            <p className="text-gray-600">
+              Aguardando parâmetros para carregar o relatório de Drácmas.
+            </p>
+          )}
+          {dracmasStatus === 'loading' && (
+            <p className="text-blue-600 font-medium">
+              Carregando transações de Drácmas do aluno...
+            </p>
+          )}
+          {dracmasStatus === 'success' && dracmasTransacoes.length === 0 && (
+            <p className="text-gray-600">
+              Nenhuma transação encontrada para o período informado.
+            </p>
+          )}
+          {dracmasStatus === 'success' && dracmasTransacoes.length > 0 && (
+            <div className="border border-gray-200 rounded-md overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                    <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase tracking-wider">Quantidade</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {dracmasTransacoes.map((t) => (
+                    <tr key={t.id}>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-800">
+                        {t.data ? new Date(t.data).toLocaleDateString('pt-BR') : '-'}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-800">
+                        {t.tipo || '-'}
+                      </td>
+                      <td className="px-3 py-2 text-gray-800">
+                        {t.descricao || '-'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-800">
+                        {t.quantidade}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {dracmasStatus === 'error' && (
+            <p className="text-red-600 font-medium">
+              Ocorreu um erro ao carregar o relatório de Drácmas: {dracmasErrorMessage}
+            </p>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+
   const renderAttendanceReport = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="text-center bg-green-50 border-green-200">
           <Clock className="h-8 w-8 text-green-600 mx-auto mb-2" />
-          <h3 className="text-3xl font-bold text-green-900">--%</h3>
-          <p className="text-green-700">Frequência Média Geral (em desenvolvimento)</p>
+          <h3 className="text-3xl font-bold text-green-900">
+            {attendanceSummary ? `${attendanceSummary.frequenciaMedia.toFixed(1)}%` : '--%'}
+          </h3>
+          <p className="text-green-700">Frequência Média da Turma na Data Selecionada</p>
         </Card>
         <Card className="text-center bg-blue-50 border-blue-200">
           <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-          <h3 className="text-3xl font-bold text-blue-900">--</h3>
-          <p className="text-blue-700">Alunos Frequentes (&gt;80%)</p>
+          <h3 className="text-3xl font-bold text-blue-900">
+            {attendanceSummary ? attendanceSummary.alunosAltaFrequencia : '--'}
+          </h3>
+          <p className="text-blue-700">Alunos Presentes (considerados com alta frequência neste dia)</p>
         </Card>
       </div>
 
       <Card>
-        <h3 className="text-lg font-semibold mb-4">Frequência por Nível</h3>
+        <h3 className="text-lg font-semibold mb-4">Detalhes da Frequência</h3>
         <div className="space-y-4 text-sm text-gray-600">
-          <p>Os indicadores de frequência por nível serão carregados aqui quando o módulo de presença estiver integrado.</p>
-
-          <div className="mt-4">
+          <div className="mt-2">
             {attendanceStatus === 'idle' && (
               <p className="text-gray-600">
                 Aguardando parâmetros para gerar o relatório de frequência.
@@ -299,12 +821,28 @@ const EducationalReports: React.FC = () => {
             )}
             {attendanceStatus === 'loading' && (
               <p className="text-blue-600 font-medium">
-                Enviando solicitação de geração de relatório de frequência...
+                Carregando dados de frequência da turma...
               </p>
             )}
-            {attendanceStatus === 'success' && (
-              <p className="text-green-700 font-medium">
-                Relatório de frequência gerado com sucesso. Verifique os registros ou arquivos gerados pelo backend.
+            {attendanceStatus === 'success' && attendanceSummary && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <p className="text-xs text-gray-500">Total de Alunos</p>
+                  <p className="text-lg font-semibold text-gray-900">{attendanceSummary.totalAlunos}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <p className="text-xs text-gray-500">Presentes</p>
+                  <p className="text-lg font-semibold text-green-700">{attendanceSummary.presentes}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <p className="text-xs text-gray-500">Faltantes</p>
+                  <p className="text-lg font-semibold text-red-700">{attendanceSummary.faltantes}</p>
+                </div>
+              </div>
+            )}
+            {attendanceStatus === 'success' && !attendanceSummary && (
+              <p className="text-gray-600">
+                Nenhuma presença encontrada para a turma e data informadas.
               </p>
             )}
             {attendanceStatus === 'error' && (
@@ -364,8 +902,12 @@ const EducationalReports: React.FC = () => {
         return renderEnrollmentReport();
       case 'attendance':
         return renderAttendanceReport();
+      case 'certification':
+        return renderCertificationReport();
       case 'history':
         return renderHistoryReport();
+      case 'dracmas':
+        return renderDracmasReport();
       case 'polo-stats':
         return renderPoloStatsReport();
       default:
@@ -502,6 +1044,20 @@ const EducationalReports: React.FC = () => {
                   </>
                 )}
 
+                {selectedReport === 'certification' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Turma ID
+                    </label>
+                    <Input
+                      type="text"
+                      value={certTurmaId}
+                      onChange={(e) => setCertTurmaId(e.target.value)}
+                      placeholder="Informe o ID da turma para verificar certificação"
+                    />
+                  </div>
+                )}
+
                 {selectedReport === 'history' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -512,6 +1068,20 @@ const EducationalReports: React.FC = () => {
                       value={historyAlunoId}
                       onChange={(e) => setHistoryAlunoId(e.target.value)}
                       placeholder="Informe o ID do aluno para consultar o histórico"
+                    />
+                  </div>
+                )}
+
+                {selectedReport === 'dracmas' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID do Aluno
+                    </label>
+                    <Input
+                      type="text"
+                      value={dracmasAlunoId}
+                      onChange={(e) => setDracmasAlunoId(e.target.value)}
+                      placeholder="Informe o ID do aluno para consultar os Drácmas"
                     />
                   </div>
                 )}

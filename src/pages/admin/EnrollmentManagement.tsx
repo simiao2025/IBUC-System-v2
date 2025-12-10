@@ -52,8 +52,8 @@ export const EnrollmentManagement: React.FC = () => {
         setMatriculasAtivas(matriculasAtivasData);
         
         // Seleciona a primeira matrícula se houver
-        if (matriculasData.length > 0) {
-          setSelectedMatricula(matriculasData[0].id);
+        if (matriculasPendentes.length > 0) {
+          setSelectedMatricula(matriculasPendentes[0].id);
         }
       } catch (error) {
         console.error('Erro ao carregar matrículas:', error);
@@ -512,6 +512,15 @@ export const EnrollmentManagement: React.FC = () => {
                   <h3 className="text-lg font-medium text-gray-900">Ações</h3>
                 </div>
                 <div className="px-4 py-5 sm:p-6 flex justify-end space-x-4">
+                  <Button
+                    asChild
+                    variant="outline"
+                    disabled={!selectedMatricula}
+                  >
+                    <Link to={selectedMatricula ? `/admin/enrollments/${selectedMatricula}/documentos` : '#'}>
+                      Ver documentos (site)
+                    </Link>
+                  </Button>
                   <Button
                     variant="danger"
                     onClick={handleRejectEnrollment}

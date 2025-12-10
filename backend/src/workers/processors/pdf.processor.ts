@@ -18,7 +18,12 @@ export class PdfProcessor {
     const { data: matricula } = await this.supabase
       .getAdminClient()
       .from('matriculas')
-      .select('*, alunos(*), polos(*), turmas(*)')
+      .select(`
+        *,
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo),
+        turma:turmas!fk_turma(id, nome)
+      `)
       .eq('id', matriculaId)
       .single();
 
@@ -47,10 +52,10 @@ export class PdfProcessor {
     doc.text(`Protocolo: ${matricula.protocolo}`);
     doc.text(`Data: ${new Date(matricula.data_matricula).toLocaleDateString('pt-BR')}`);
     doc.moveDown();
-    doc.text(`Aluno: ${matricula.alunos.nome}`);
-    doc.text(`Polo: ${matricula.polos.nome}`);
-    if (matricula.turmas) {
-      doc.text(`Turma: ${matricula.turmas.nome}`);
+    doc.text(`Aluno: ${matricula.aluno?.nome}`);
+    doc.text(`Polo: ${matricula.polo?.nome}`);
+    if (matricula.turma) {
+      doc.text(`Turma: ${matricula.turma?.nome}`);
     }
     doc.moveDown();
     doc.text('Termos e Condições:');
@@ -61,7 +66,7 @@ export class PdfProcessor {
     // Gerar QR Code
     const qrData = JSON.stringify({
       protocolo: matricula.protocolo,
-      aluno: matricula.alunos.nome,
+      aluno: matricula.aluno?.nome,
       status: matricula.status,
     });
     const qrCodeBuffer = await QRCode.toBuffer(qrData);

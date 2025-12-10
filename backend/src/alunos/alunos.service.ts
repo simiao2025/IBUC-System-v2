@@ -156,9 +156,8 @@ export class AlunosService {
       .from('alunos')
       .select(`
         *,
-        polo:polos(id, nome, codigo),
-        turma:turmas(id, nome),
-        nivel:niveis(id, nome, ordem)
+        turma:turmas!fk_turma(id, nome),
+        nivel:niveis!fk_nivel(id, nome, ordem)
       `)
       .order('nome');
 
@@ -199,9 +198,8 @@ export class AlunosService {
       .from('alunos')
       .select(`
         *,
-        polo:polos(id, nome, codigo),
-        turma:turmas(id, nome),
-        nivel:niveis(id, nome, ordem)
+        turma:turmas!fk_turma(id, nome),
+        nivel:niveis!fk_nivel(id, nome, ordem)
       `)
       .eq('id', id)
       .single();
