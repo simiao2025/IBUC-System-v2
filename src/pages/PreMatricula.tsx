@@ -58,6 +58,7 @@ const PreMatricula: React.FC = () => {
     { type: 'rg', label: 'Documento de Identidade (RG)' },
     { type: 'certidao', label: 'Certidão de Nascimento' },
     { type: 'comprovante_residencia', label: 'Comprovante de Residência' },
+    { type: 'foto', label: 'Foto 3x4' },
   ];
 
   React.useEffect(() => {

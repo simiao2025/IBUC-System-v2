@@ -19,6 +19,11 @@ export class RelatoriosController {
   ) {
     return this.service.historicoAluno(alunoId, periodo);
   }
+
+  @Get('estatisticas-por-polo')
+  async estatisticasPorPolo(@Query('periodo') periodo?: string) {
+    return this.service.estatisticasPorPolo(periodo);
+  }
 }
 
 

@@ -24,7 +24,7 @@ class ApiClient {
 
     if (!isFormData) {
       // Para JSON definimos Content-Type explicitamente
-      (headers as any)['Content-Type'] = 'application/json';
+      (headers as Record<string, string>)['Content-Type'] = 'application/json';
     }
 
     const config: RequestInit = {
@@ -46,7 +46,7 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -60,7 +60,7 @@ class ApiClient {
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -76,10 +76,10 @@ export const api = new ApiClient(API_BASE_URL);
 
 // Serviços específicos
 export const MatriculaAPI = {
-  criar: (data: any) => api.post('/matriculas', data),
+  criar: (data: unknown) => api.post('/matriculas', data),
   uploadDocumentos: (id: string, formData: FormData) => api.upload(`/documentos/matriculas/${id}`, formData),
   listar: (params?: { polo_id?: string; status?: string }) => {
-    const query = new URLSearchParams(params as any).toString();
+    const query = new URLSearchParams(params as Record<string, string>).toString();
     return api.get(`/matriculas?${query}`);
   },
   buscarPorProtocolo: (protocolo: string) => api.get(`/matriculas/protocolo/${protocolo}`),
@@ -105,7 +105,7 @@ export const TurmasAPI = {
 };
 
 export const PresencasAPI = {
-  lancarLote: (presencas: any[]) => api.post('/presencas/batch', { presencas }),
+  lancarLote: (presencas: unknown[]) => api.post('/presencas/batch', { presencas }),
   porAluno: (alunoId: string, inicio?: string, fim?: string) => {
     const params = new URLSearchParams();
     params.append('aluno_id', alunoId);
@@ -153,8 +153,6 @@ export const DracmasAPI = {
 
 export const RelatoriosAPI = {
   gerarBoletim: (alunoId: string, periodo: string) => api.get(`/relatorios/boletim?aluno_id=${alunoId}&periodo=${periodo}`),
-  exportarPresenca: (turmaId: string, data: string) => api.get(`/relatorios/presenca?turma_id=${turmaId}&data=${data}`),
-  relatorioFinanceiro: (poloId: string, periodo: string) => api.get(`/relatorios/financeiro?polo_id=${poloId}&periodo=${periodo}`),
   historicoAluno: (alunoId: string, periodo?: string) => {
     const params = new URLSearchParams();
     params.append('aluno_id', alunoId);
@@ -162,6 +160,18 @@ export const RelatoriosAPI = {
     const query = params.toString();
     return api.get(`/relatorios/historico?${query}`);
   },
+  estatisticasPorPolo: (periodo?: string) => {
+    const params = new URLSearchParams();
+    if (periodo) params.append('periodo', periodo);
+    const query = params.toString();
+    return api.get(`/relatorios/estatisticas-por-polo${query ? `?${query}` : ''}`);
+  },
+  // Endpoints em desenvolvimento (não existem no backend ainda)
+  // desempenhoPorNivel: (poloId?: string, periodo?: string) => { /* em desenvolvimento */ },
+  // certificadosEmitidos: (poloId?: string, periodo?: string) => { /* em desenvolvimento */ },
+  // relatorioProfessores: (poloId?: string) => { /* em desenvolvimento */ },
+  // atividadesEventos: (poloId?: string, periodo?: string) => { /* em desenvolvimento */ },
+  // relatorioFinanceiro: (poloId?: string, periodo?: string) => { /* em desenvolvimento */ },
 };
 
 export const LgpdAPI = {
@@ -171,17 +181,17 @@ export const LgpdAPI = {
 
 export const DiretoriaAPI = {
   // Diretoria Geral
-  criarGeral: (data: any) => api.post('/diretoria/geral', data),
+  criarGeral: (data: unknown) => api.post('/diretoria/geral', data),
   listarGeral: (ativo?: boolean) => {
     const query = ativo !== undefined ? `?ativo=${ativo}` : '';
     return api.get(`/diretoria/geral${query}`);
   },
   buscarGeralPorId: (id: string) => api.get(`/diretoria/geral/${id}`),
-  atualizarGeral: (id: string, data: any) => api.put(`/diretoria/geral/${id}`, data),
+  atualizarGeral: (id: string, data: unknown) => api.put(`/diretoria/geral/${id}`, data),
   desativarGeral: (id: string) => api.put(`/diretoria/geral/${id}/desativar`),
   
   // Diretoria Polo
-  criarPolo: (poloId: string, data: any) => api.post(`/diretoria/polo/${poloId}`, data),
+  criarPolo: (poloId: string, data: unknown) => api.post(`/diretoria/polo/${poloId}`, data),
   listarPolo: (poloId?: string, ativo?: boolean) => {
     const params = new URLSearchParams();
     if (poloId) params.append('polo_id', poloId);
@@ -190,12 +200,12 @@ export const DiretoriaAPI = {
     return api.get(`/diretoria/polo${query}`);
   },
   buscarPoloPorId: (id: string) => api.get(`/diretoria/polo/${id}`),
-  atualizarPolo: (id: string, data: any) => api.put(`/diretoria/polo/${id}`, data),
+  atualizarPolo: (id: string, data: unknown) => api.put(`/diretoria/polo/${id}`, data),
   desativarPolo: (id: string) => api.put(`/diretoria/polo/${id}/desativar`),
 };
 
 export const UsuariosAPI = {
-  criar: (data: any) => api.post('/usuarios', data),
+  criar: (data: unknown) => api.post('/usuarios', data),
   listar: (filtros?: { role?: string; polo_id?: string; ativo?: boolean; search?: string }) => {
     const params = new URLSearchParams();
     if (filtros?.role) params.append('role', filtros.role);
@@ -207,26 +217,26 @@ export const UsuariosAPI = {
   },
   buscarPorId: (id: string) => api.get(`/usuarios/${id}`),
   buscarPorEmail: (email: string) => api.get(`/usuarios/email/${email}`),
-  atualizar: (id: string, data: any) => api.put(`/usuarios/${id}`, data),
+  atualizar: (id: string, data: unknown) => api.put(`/usuarios/${id}`, data),
   ativar: (id: string) => api.put(`/usuarios/${id}/ativar`),
   desativar: (id: string) => api.put(`/usuarios/${id}/desativar`),
   deletar: (id: string) => api.delete(`/usuarios/${id}`),
 };
 
 export const PolosAPI = {
-  criar: (data: any) => api.post('/polos', data),
+  criar: (data: unknown) => api.post('/polos', data),
   listar: (ativo?: boolean) => {
     const query = ativo !== undefined ? `?ativo=${ativo}` : '';
     return api.get(`/polos${query}`);
   },
   buscarPorId: (id: string) => api.get(`/polos/${id}`),
   buscarPorCodigo: (codigo: string) => api.get(`/polos/codigo/${codigo}`),
-  atualizar: (id: string, data: any) => api.put(`/polos/${id}`, data),
+  atualizar: (id: string, data: unknown) => api.put(`/polos/${id}`, data),
   deletar: (id: string) => api.delete(`/polos/${id}`),
 };
 
 export const AlunosAPI = {
-  criar: (data: any) => api.post('/alunos', data),
+  criar: (data: unknown) => api.post('/alunos', data),
   listar: (params?: { polo_id?: string; turma_id?: string; nivel_id?: string; status?: string; search?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.polo_id) searchParams.append('polo_id', params.polo_id);
@@ -239,6 +249,6 @@ export const AlunosAPI = {
     return api.get(`/alunos${query ? `?${query}` : ''}`);
   },
   buscarPorId: (id: string) => api.get(`/alunos/${id}`),
-  atualizar: (id: string, data: any) => api.put(`/alunos/${id}`, data),
+  atualizar: (id: string, data: unknown) => api.put(`/alunos/${id}`, data),
   deletar: (id: string) => api.delete(`/alunos/${id}`),
 };

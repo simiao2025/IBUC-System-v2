@@ -6,7 +6,6 @@ import Input from '../../components/ui/Input';
 import {
   ArrowLeft,
   BarChart3,
-  Download,
   Calendar,
   Users,
   TrendingUp,
@@ -16,7 +15,8 @@ import {
   BookOpen,
   FileText,
   PieChart,
-  Activity
+  Activity,
+  Eye
 } from 'lucide-react';
 import { RelatoriosAPI, PresencasAPI, DracmasAPI, MatriculaAPI } from '../../lib/api';
 
@@ -30,8 +30,7 @@ const EducationalReports: React.FC = () => {
   const [boletimAlunoId, setBoletimAlunoId] = useState<string>('');
   const [boletimStatus, setBoletimStatus] = useState<'idle' | 'loading' | 'processing' | 'error'>('idle');
   const [boletimErrorMessage, setBoletimErrorMessage] = useState<string>('');
-  const [attendanceTurmaId, setAttendanceTurmaId] = useState<string>('');
-  const [attendanceDate, setAttendanceDate] = useState<string>('2024-01-01');
+  const [attendanceDate, setAttendanceDate] = useState<string>('');
   const [attendanceStatus, setAttendanceStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [attendanceErrorMessage, setAttendanceErrorMessage] = useState<string>('');
   const [attendanceSummary, setAttendanceSummary] = useState<{
@@ -82,6 +81,11 @@ const EducationalReports: React.FC = () => {
     porNivel: Record<string, number>;
   } | null>(null);
 
+  // Estados para estatísticas por polo
+  const [poloStatsStatus, setPoloStatsStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [poloStatsErrorMessage, setPoloStatsErrorMessage] = useState<string>('');
+  const [poloStatsData, setPoloStatsData] = useState<PoloStatsResponse | null>(null);
+
   type BoletimResponse = {
     status?: string;
     [key: string]: unknown;
@@ -119,6 +123,40 @@ const EducationalReports: React.FC = () => {
     nivel?: string;
     nivel_id?: string | number;
     [key: string]: unknown;
+  };
+
+  type PresencaTurmaResponse = {
+    data: {
+      resumoPorAluno: Array<{
+        aluno_id: string;
+        total: number;
+        presentes: number;
+        faltas?: number;
+      }>;
+    };
+  };
+
+  type PoloStatsResponse = {
+    porPolo: Array<{
+      poloId: string;
+      poloNome: string;
+      poloCodigo: string;
+      totalAlunos: number;
+      totalMatriculas: number;
+      totalProfessores: number;
+      mediaFrequencia: number;
+    }>;
+    resumoGeral: {
+      totalPolos: number;
+      totalAlunos: number;
+      totalMatriculas: number;
+      totalProfessores: number;
+      mediaFrequenciaGeral: number;
+    };
+  };
+
+  type SaldoResponse = {
+    saldo: number;
   };
 
   const reportTypes = [
@@ -210,13 +248,13 @@ const EducationalReports: React.FC = () => {
 
         const inicio = dateFilter.start || undefined;
         const fim = dateFilter.end || undefined;
-        const response = await PresencasAPI.porTurma(certTurmaId, inicio, fim) as any;
+        const response = await PresencasAPI.porTurma(certTurmaId, inicio, fim) as PresencaTurmaResponse;
 
         const resumoPorAluno = Array.isArray(response?.data?.resumoPorAluno)
           ? response.data.resumoPorAluno
           : [];
 
-        const mapped = resumoPorAluno.map((item: any) => {
+        const mapped = resumoPorAluno.map((item) => {
           const total = item.total || 0;
           const presentes = item.presentes || 0;
           const faltas = item.faltas || Math.max(total - presentes, 0);
@@ -289,7 +327,7 @@ const EducationalReports: React.FC = () => {
         setDracmasTransacoes([]);
 
         // Saldo atual
-        const saldoResponse = await DracmasAPI.saldoPorAluno(dracmasAlunoId) as { saldo: number };
+        const saldoResponse = await DracmasAPI.saldoPorAluno(dracmasAlunoId) as SaldoResponse;
 
         // Transações no período
         const periodoInicio = dateFilter.start;
@@ -336,7 +374,7 @@ const EducationalReports: React.FC = () => {
         setAttendanceSummary(null);
 
         // Usa a mesma data como início/fim para obter as presenças daquele dia
-        const presencas = await PresencasAPI.porTurma(attendanceTurmaId, attendanceDate, attendanceDate) as any[];
+        const presencas = await PresencasAPI.porTurma(attendanceTurmaId, attendanceDate, attendanceDate) as Array<{ status: string }>;
 
         const totalAlunos = presencas.length;
         const presentes = presencas.filter((p) => p.status === 'presente').length;
@@ -390,13 +428,399 @@ const EducationalReports: React.FC = () => {
       return;
     }
 
-    // Demais relatórios ainda são placeholders
-    alert('Geração de relatórios ainda não está integrada a dados reais para este tipo.');
+    // Demais relatórios agora integrados com dados reais (apenas endpoints existentes)
+    if (selectedReport === 'performance') {
+      // Endpoint não existe ainda - mostrar mensagem informativa
+      alert('Relatório de desempenho por nível ainda não está disponível. Funcionalidade em desenvolvimento.');
+      return;
+    }
+
+    if (selectedReport === 'certificates') {
+      // Endpoint não existe ainda - mostrar mensagem informativa
+      alert('Relatório de certificados emitidos ainda não está disponível. Funcionalidade em desenvolvimento.');
+      return;
+    }
+
+    if (selectedReport === 'polo-stats') {
+      try {
+        setPoloStatsStatus('loading');
+        setPoloStatsErrorMessage('');
+        setPoloStatsData(null);
+
+        const periodo = `${dateFilter.start}|${dateFilter.end}`;
+        const response = await RelatoriosAPI.estatisticasPorPolo(periodo);
+        setPoloStatsData(response as PoloStatsResponse);
+        setPoloStatsStatus('success');
+      } catch (error: unknown) {
+        console.error('Erro ao carregar estatísticas por polo:', error);
+        setPoloStatsStatus('error');
+        const message = error instanceof Error ? error.message : 'Erro ao carregar estatísticas por polo.';
+        setPoloStatsErrorMessage(message);
+      }
+      return;
+    }
+
+    if (selectedReport === 'teachers') {
+      // Endpoint não existe ainda - mostrar mensagem informativa
+      alert('Relatório de professores ainda não está disponível. Funcionalidade em desenvolvimento.');
+      return;
+    }
+
+    if (selectedReport === 'activities') {
+      // Endpoint não existe ainda - mostrar mensagem informativa
+      alert('Relatório de atividades e eventos ainda não está disponível. Funcionalidade em desenvolvimento.');
+      return;
+    }
+
+    if (selectedReport === 'financial') {
+      // Endpoint não existe ainda - mostrar mensagem informativa
+      alert('Relatório financeiro ainda não está disponível. Funcionalidade em desenvolvimento.');
+      return;
+    }
+
+    alert('Tipo de relatório não reconhecido.');
   };
 
-  const exportReport = (format: 'pdf' | 'excel') => {
-    // Placeholder até integração com backend de relatórios
-    alert(`Exportação em ${format.toUpperCase()} será habilitada após integração com os relatórios reais.`);
+  const exportReport = () => {
+    // Gerar relatório em nova aba com opção de impressão
+    const reportWindow = window.open('', '_blank');
+    
+    if (!reportWindow) {
+      alert('Não foi possível abrir nova janela. Verifique se o bloqueador de pop-ups está desativado.');
+      return;
+    }
+
+    // Gerar conteúdo HTML do relatório baseado; no tipo selecionado
+    let reportContent = '';
+    
+    switch (selectedReport) {
+      case 'enrollment':
+        reportContent = generateEnrollmentHTML();
+        break;
+      case 'attendance':
+        reportContent = generateAttendanceHTML();
+        break;
+      case 'certification':
+        reportContent = generateCertificationHTML();
+        break;
+      case 'boletim':
+        reportContent = generateBoletimHTML();
+        break;
+      case 'history':
+        reportContent = generateHistoryHTML();
+        break;
+      case 'dracmas':
+        reportContent = generateDracmasHTML();
+        break;
+      case 'polo-stats':
+        reportContent = generatePoloStatsHTML();
+        break;
+      default:
+        alert('Relatório selecionado não possui visualização disponível.');
+        reportWindow.close();
+        return;
+    }
+
+    // Escrever conteúdo na nova janela
+    reportWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatório - ${reportTypes.find(r => r.id === selectedReport)?.label}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .header h1 { color: #1f2937; }
+          .header p { color: #6b7280; }
+          .filters { background: #f3f4f6; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+          .content { margin-bottom: 30px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+          th { background: #f9fafb; font-weight: bold; }
+          .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+          .summary-card { background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center; }
+          .summary-card h3 { margin: 0 0 10px 0; color: #1f2937; }
+          .summary-card .value { font-size: 24px; font-weight: bold; color: #3b82f6; }
+          @media print { .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        ${reportContent}
+        <div class="no-print" style="margin-top: 30px; text-align: center;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            Imprimir Relatório
+          </button>
+        </div>
+      </body>
+      </html>
+    `);
+    
+    reportWindow.document.close();
+  };
+
+  const generateEnrollmentHTML = () => {
+    const summary = enrollmentSummary;
+    if (!summary) return '<p>Nenhum dado disponível</p>';
+
+    return `
+      <div class="header">
+        <h1>Relatório de Matrículas</h1>
+        <p>Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      <div class="filters">
+        <h3>Filtros Aplicados:</h3>
+        <p><strong>Polo:</strong> ${poloFilter === 'all' ? 'Todos' : poloFilter}</p>
+        <p><strong>Período:</strong> ${dateFilter.start} a ${dateFilter.end}</p>
+      </div>
+
+      <div class="summary">
+        <div class="summary-card">
+          <h3>Total de Matrículas</h3>
+          <div class="value">${summary.totalMatriculas}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Matrículas no Período</h3>
+          <div class="value">${summary.matriculasNoPeriodo}</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <h3>Matrículas por Status</h3>
+        <table>
+          <tr><th>Status</th><th>Quantidade</th></tr>
+          ${Object.entries(summary.porStatus).map(([status, count]) => 
+            `<tr><td>${status}</td><td>${count}</td></tr>`
+          ).join('')}
+        </table>
+
+        <h3>Matrículas por Nível</h3>
+        <table>
+          <tr><th>Nível</th><th>Quantidade</th></tr>
+          ${Object.entries(summary.porNivel).map(([nivel, count]) => 
+            `<tr><td>${nivel}</td><td>${count}</td></tr>`
+          ).join('')}
+        </table>
+      </div>
+    `;
+  };
+
+  const generateAttendanceHTML = () => {
+    const summary = attendanceSummary;
+    if (!summary) return '<p>Nenhum dado disponível</p>';
+
+    return `
+      <div class="header">
+        <h1>Relatório de Frequência</h1>
+        <p>Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      <div class="filters">
+        <h3>Filtros Aplicados:</h3>
+        <p><strong>Data:</strong> ${attendanceDate}</p>
+        <p><strong>Polo:</strong> ${poloFilter === 'all' ? 'Todos' : poloFilter}</p>
+      </div>
+
+      <div class="summary">
+        <div class="summary-card">
+          <h3>Total de Alunos</h3>
+          <div class="value">${summary.totalAlunos}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Presentes</h3>
+          <div class="value">${summary.presentes}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Faltantes</h3>
+          <div class="value">${summary.faltantes}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Frequência Média</h3>
+          <div class="value">${summary.frequenciaMedia.toFixed(1)}%</div>
+        </div>
+      </div>
+    `;
+  };
+
+  const generateCertificationHTML = () => {
+    if (certResumoPorAluno.length === 0) return '<p>Nenhum dado disponível</p>';
+
+    return `
+      <div class="header">
+        <h1>Relatório de Certificação por Turma</h1>
+        <p>Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      <div class="filters">
+        <h3>Filtros Aplicados:</h3>
+        <p><strong>Turma:</strong> ${certTurmaId}</p>
+        <p><strong>Período:</strong> ${dateFilter.start} a ${dateFilter.end}</p>
+      </div>
+
+      <div class="content">
+        <h3>Resumo por Aluno</h3>
+        <table>
+          <tr><th>Aluno</th><th>Total Aulas</th><th>Presenças</th><th>Faltas</th><th>Frequência</th><th>Certificação</th></tr>
+          ${certResumoPorAluno.map(item => 
+            `<tr>
+              <td>${item.alunoId}</td>
+              <td>${item.totalAulas}</td>
+              <td>${item.presencas}</td>
+              <td>${item.faltas}</td>
+              <td>${item.totalAulas > 0 ? item.frequenciaPercentual.toFixed(1) + '%' : '—'}</td>
+              <td>${item.aptoCertificacao ? 'Apto (>= 75%)' : 'Não apto (< 75%)'}</td>
+            </tr>`
+          ).join('')}
+        </table>
+      </div>
+    `;
+  };
+
+  const generateBoletimHTML = () => {
+    if (!boletimData) return '<p>Nenhum dado disponível</p>';
+
+    return `
+      <div class="header">
+        <h1>Boletim do Aluno</h1>
+        <p>Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      <div class="filters">
+        <h3>Informações:</h3>
+        <p><strong>Aluno ID:</strong> ${boletimAlunoId}</p>
+        <p><strong>Período:</strong> ${boletimPeriodo}</p>
+      </div>
+
+      <div class="content">
+        <h3>Boletim</h3>
+        <pre>${JSON.stringify(boletimData, null, 2)}</pre>
+      </div>
+    `;
+  };
+
+  const generateHistoryHTML = () => {
+    if (!historyResult) return '<p>Nenhum dado disponível</p>';
+
+    return `
+      <div class="header">
+        <h1>Histórico do Aluno</h1>
+        <p>Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      <div class="filters">
+        <h3>Informações:</h3>
+        <p><strong>Aluno ID:</strong> ${historyAlunoId}</p>
+        <p><strong>Período:</strong> ${historyPeriodo || 'Todos'}</p>
+      </div>
+
+      <div class="content">
+        <h3>Histórico</h3>
+        <pre>${JSON.stringify(historyResult, null, 2)}</pre>
+      </div>
+    `;
+  };
+
+  const generatePoloStatsHTML = () => {
+    if (!poloStatsData) return '<p>Nenhum dado disponível</p>';
+
+    return `
+      <div class="header">
+        <h1>Estatísticas por Polo</h1>
+        <p>Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      <div class="filters">
+        <h3>Filtros Aplicados:</h3>
+        <p><strong>Período:</strong> ${dateFilter.start} a ${dateFilter.end}</p>
+      </div>
+
+      <div class="summary">
+        <div class="summary-card">
+          <h3>Total de Polos</h3>
+          <div class="value">${poloStatsData.resumoGeral.totalPolos}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total de Alunos</h3>
+          <div class="value">${poloStatsData.resumoGeral.totalAlunos}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total de Matrículas</h3>
+          <div class="value">${poloStatsData.resumoGeral.totalMatriculas}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total de Professores</h3>
+          <div class="value">${poloStatsData.resumoGeral.totalProfessores}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Média Frequência Geral</h3>
+          <div class="value">${poloStatsData.resumoGeral.mediaFrequenciaGeral.toFixed(1)}%</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <h3>Estatísticas Detalhadas por Polo</h3>
+        <table>
+          <tr><th>Polo</th><th>Código</th><th>Total Alunos</th><th>Total Matrículas</th><th>Total Professores</th><th>Média Frequência</th></tr>
+          ${poloStatsData.porPolo.map(polo => 
+            `<tr>
+              <td>${polo.poloNome}</td>
+              <td>${polo.poloCodigo}</td>
+              <td>${polo.totalAlunos}</td>
+              <td>${polo.totalMatriculas}</td>
+              <td>${polo.totalProfessores}</td>
+              <td>${polo.mediaFrequencia.toFixed(1)}%</td>
+            </tr>`
+          ).join('')}
+        </table>
+      </div>
+    `;
+  };
+
+  const generateDracmasHTML = () => {
+    if (!dracmasResumo) return '<p>Nenhum dado disponível</p>';
+
+    return `
+      <div class="header">
+        <h1>Relatório de Drácmas</h1>
+        <p>Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+      
+      <div class="filters">
+        <h3>Informações:</h3>
+        <p><strong>Aluno ID:</strong> ${dracmasAlunoId}</p>
+        <p><strong>Período:</strong> ${dateFilter.start} a ${dateFilter.end}</p>
+      </div>
+
+      <div class="summary">
+        <div class="summary-card">
+          <h3>Saldo Atual</h3>
+          <div class="value">${dracmasResumo.saldoAtual}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total Ganho no Período</h3>
+          <div class="value">${dracmasResumo.totalGanhoPeriodo}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total de Transações</h3>
+          <div class="value">${dracmasResumo.totalTransacoes}</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <h3>Transações</h3>
+        <table>
+          <tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Quantidade</th></tr>
+          ${dracmasTransacoes.map(trans => 
+            `<tr>
+              <td>${trans.data}</td>
+              <td>${trans.tipo}</td>
+              <td>${trans.descricao || '—'}</td>
+              <td>${trans.quantidade}</td>
+            </tr>`
+          ).join('')}
+        </table>
+      </div>
+    `;
   };
 
   const renderEnrollmentReport = () => (
@@ -705,6 +1129,119 @@ const EducationalReports: React.FC = () => {
     </div>
   );
 
+  const renderPoloStatsReport = () => (
+    <div className="space-y-6">
+      {poloStatsStatus === 'loading' && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando estatísticas por polo...</p>
+        </div>
+      )}
+      
+      {poloStatsStatus === 'error' && (
+        <Card className="text-center py-12">
+          <MapPin className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao Carregar Estatísticas</h3>
+          <p className="text-red-600">{poloStatsErrorMessage}</p>
+        </Card>
+      )}
+      
+      {poloStatsStatus === 'success' && poloStatsData && (
+        <div className="space-y-6">
+          {/* Resumo Geral */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <Card className="text-center bg-blue-50 border-blue-200">
+              <MapPin className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+              <h3 className="text-2xl font-bold text-blue-900">
+                {poloStatsData.resumoGeral.totalPolos}
+              </h3>
+              <p className="text-blue-700">Total de Polos</p>
+            </Card>
+            <Card className="text-center bg-green-50 border-green-200">
+              <Users className="h-8 w-8 text-green-600 mx-auto mb-2" />
+              <h3 className="text-2xl font-bold text-green-900">
+                {poloStatsData.resumoGeral.totalAlunos}
+              </h3>
+              <p className="text-green-700">Total de Alunos</p>
+            </Card>
+            <Card className="text-center bg-purple-50 border-purple-200">
+              <BarChart3 className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+              <h3 className="text-2xl font-bold text-purple-900">
+                {poloStatsData.resumoGeral.totalMatriculas}
+              </h3>
+              <p className="text-purple-700">Total de Matrículas</p>
+            </Card>
+            <Card className="text-center bg-orange-50 border-orange-200">
+              <BookOpen className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+              <h3 className="text-2xl font-bold text-orange-900">
+                {poloStatsData.resumoGeral.totalProfessores}
+              </h3>
+              <p className="text-orange-700">Total de Professores</p>
+            </Card>
+            <Card className="text-center bg-teal-50 border-teal-200">
+              <TrendingUp className="h-8 w-8 text-teal-600 mx-auto mb-2" />
+              <h3 className="text-2xl font-bold text-teal-900">
+                {poloStatsData.resumoGeral.mediaFrequenciaGeral.toFixed(1)}%
+              </h3>
+              <p className="text-teal-700">Média Frequência Geral</p>
+            </Card>
+          </div>
+
+          {/* Tabela Detalhada */}
+          <Card>
+            <h3 className="text-lg font-semibold mb-4">Estatísticas Detalhadas por Polo</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Polo</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Alunos</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Matrículas</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Professores</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Média Frequência</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {poloStatsData.porPolo.map((polo) => (
+                    <tr key={polo.poloId} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {polo.poloNome}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {polo.poloCodigo}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {polo.totalAlunos}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {polo.totalMatriculas}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {polo.totalProfessores}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          polo.mediaFrequencia >= 75 
+                            ? 'bg-green-100 text-green-800' 
+                            : polo.mediaFrequencia >= 50 
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {polo.mediaFrequencia.toFixed(1)}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+
   const renderDracmasReport = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -856,44 +1393,6 @@ const EducationalReports: React.FC = () => {
     </div>
   );
 
-  const renderPoloStatsReport = () => (
-    <div className="space-y-6">
-      <Card>
-        <h3 className="text-lg font-semibold mb-4">Estatísticas por Polo</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Polo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Alunos
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Professores
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Frequência
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Performance
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              <tr>
-                <td colSpan={5} className="px-6 py-8 whitespace-nowrap text-center text-sm text-gray-600">
-                  As estatísticas por polo serão exibidas aqui assim que forem integradas às informações reais de polos, turmas e presença.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-
   const getCurrentReportContent = () => {
     switch (selectedReport) {
       case 'boletim':
@@ -939,16 +1438,6 @@ const EducationalReports: React.FC = () => {
                 <p className="text-sm text-gray-600">Análises e estatísticas do Instituto Bíblico</p>
               </div>
             </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => exportReport('excel')}>
-                <Download className="h-4 w-4 mr-2" />
-                Excel
-              </Button>
-              <Button onClick={() => exportReport('pdf')}>
-                <Download className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -958,34 +1447,32 @@ const EducationalReports: React.FC = () => {
           {/* Sidebar - Report Types */}
           <div className="lg:col-span-1">
             <Card>
-              <h3 className="text-lg font-semibold mb-4">Tipos de Relatório</h3>
+              <h3 className="text-lg font-semibold mb-4">Tipo de Relatório</h3>
               <div className="space-y-2">
-                {reportTypes.map((report) => {
-                  const Icon = report.icon;
-                  return (
-                    <button
-                      key={report.id}
-                      onClick={() => setSelectedReport(report.id)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        selectedReport === report.id
-                          ? 'bg-blue-100 text-blue-900 border border-blue-300'
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Icon className="h-4 w-4" />
-                        <span className="text-sm font-medium">{report.label}</span>
-                      </div>
-                    </button>
-                  );
-                })}
+                {reportTypes.map((type) => (
+                  <button
+                    key={type.id}
+                    onClick={() => setSelectedReport(type.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      selectedReport === type.id
+                        ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-700'
+                        : 'hover:bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <type.icon className="h-4 w-4" />
+                      <span className="text-sm">{type.label}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
             </Card>
 
-            {/* Filters */}
+            {/* Filters Card */}
             <Card className="mt-6">
               <h3 className="text-lg font-semibold mb-4">Filtros</h3>
               <div className="space-y-4">
+                {/* Date Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Período
@@ -994,16 +1481,37 @@ const EducationalReports: React.FC = () => {
                     <Input
                       type="date"
                       value={dateFilter.start}
-                      onChange={(e) => setDateFilter(prev => ({ ...prev, start: e.target.value }))}
+                      onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
+                      className="w-full"
                     />
                     <Input
                       type="date"
                       value={dateFilter.end}
-                      onChange={(e) => setDateFilter(prev => ({ ...prev, end: e.target.value }))}
+                      onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
+                      className="w-full"
                     />
                   </div>
                 </div>
 
+                {/* Polo Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Polo
+                  </label>
+                  <select
+                    value={poloFilter}
+                    onChange={(e) => setPoloFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Todos os Polos</option>
+                    {/* TODO: Buscar polos da API */}
+                    <option value="polo-1">Polo São Paulo</option>
+                    <option value="polo-2">Polo Rio de Janeiro</option>
+                    <option value="polo-3">Polo Brasília</option>
+                  </select>
+                </div>
+
+                {/* Specific filters for certain reports */}
                 {selectedReport === 'boletim' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1013,47 +1521,8 @@ const EducationalReports: React.FC = () => {
                       type="text"
                       value={boletimAlunoId}
                       onChange={(e) => setBoletimAlunoId(e.target.value)}
-                      placeholder="Informe o ID do aluno para gerar o boletim"
-                    />
-                  </div>
-                )}
-
-                {selectedReport === 'attendance' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Turma ID
-                      </label>
-                      <Input
-                        type="text"
-                        value={attendanceTurmaId}
-                        onChange={(e) => setAttendanceTurmaId(e.target.value)}
-                        placeholder="Informe o ID da turma para gerar a frequência"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Data da Aula
-                      </label>
-                      <Input
-                        type="date"
-                        value={attendanceDate}
-                        onChange={(e) => setAttendanceDate(e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {selectedReport === 'certification' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Turma ID
-                    </label>
-                    <Input
-                      type="text"
-                      value={certTurmaId}
-                      onChange={(e) => setCertTurmaId(e.target.value)}
-                      placeholder="Informe o ID da turma para verificar certificação"
+                      placeholder="Digite o ID do aluno"
+                      className="w-full"
                     />
                   </div>
                 )}
@@ -1067,7 +1536,37 @@ const EducationalReports: React.FC = () => {
                       type="text"
                       value={historyAlunoId}
                       onChange={(e) => setHistoryAlunoId(e.target.value)}
-                      placeholder="Informe o ID do aluno para consultar o histórico"
+                      placeholder="Digite o ID do aluno"
+                      className="w-full"
+                    />
+                  </div>
+                )}
+
+                {selectedReport === 'attendance' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Data da Frequência
+                    </label>
+                    <Input
+                      type="date"
+                      value={attendanceDate}
+                      onChange={(e) => setAttendanceDate(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+
+                {selectedReport === 'certification' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID da Turma
+                    </label>
+                    <Input
+                      type="text"
+                      value={certTurmaId}
+                      onChange={(e) => setCertTurmaId(e.target.value)}
+                      placeholder="Digite o ID da turma"
+                      className="w-full"
                     />
                   </div>
                 )}
@@ -1081,32 +1580,22 @@ const EducationalReports: React.FC = () => {
                       type="text"
                       value={dracmasAlunoId}
                       onChange={(e) => setDracmasAlunoId(e.target.value)}
-                      placeholder="Informe o ID do aluno para consultar os Drácmas"
+                      placeholder="Digite o ID do aluno"
+                      className="w-full"
                     />
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Polo
-                  </label>
-                  <select
-                    value={poloFilter}
-                    onChange={(e) => setPoloFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="all">Todos os Polos</option>
-                    <option value="central">Igreja Central</option>
-                    <option value="norte">Igreja Norte</option>
-                    <option value="sul">Igreja Sul</option>
-                    <option value="oeste">Igreja Oeste</option>
-                  </select>
+                <div className="flex space-x-2">
+                  <Button onClick={generateReport} className="flex-1">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Gerar Relatório
+                  </Button>
+                  <Button onClick={() => exportReport()} variant="outline">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Visualizar
+                  </Button>
                 </div>
-
-                <Button onClick={generateReport} className="w-full">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Gerar Relatório
-                </Button>
               </div>
             </Card>
           </div>
