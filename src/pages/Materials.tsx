@@ -8,12 +8,7 @@ import {
   ExternalLink,
   GraduationCap,
   Users,
-  Clock,
-  Star,
-  Award,
-  Heart,
-  Target,
-  Eye
+  Award
 } from 'lucide-react';
 
 const Materials: React.FC = () => {
@@ -325,10 +320,10 @@ const Materials: React.FC = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button 
-                onClick={() => navigate('/matricula')}
+                onClick={() => navigate('/pre-matricula')}
                 className="bg-white text-red-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors"
               >
-                Fazer Matrícula
+                Fazer pré-matrícula
               </button>
               <a 
                 href="https://ibuc.com.br" 

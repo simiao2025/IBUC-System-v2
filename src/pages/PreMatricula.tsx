@@ -7,21 +7,22 @@ import { useNavigate } from 'react-router-dom';
 import { AlunoService } from '../services/aluno.service';
 import { DocumentoService } from '../services/documento.service';
 import { PoloService } from '../services/polo.service';
+import { MatriculaAPI } from '../lib/api';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
-import type { Aluno, Matricula, Polo, Nivel, TipoDocumento } from '../types/database';
+import type { Aluno, Matricula, Polo, TipoDocumento } from '../types/database';
 import { FileUpload } from '../components/ui/FileUpload';
 
 const PreMatricula: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [polos, setPolos] = useState<Polo[]>([]);
-  const [niveis, setNiveis] = useState<Nivel[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [protocolo, setProtocolo] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string; tipo: TipoDocumento }[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Partial<Record<TipoDocumento, File>>>({});
 
   const [formData, setFormData] = useState({
     // Dados do Aluno
@@ -67,13 +68,8 @@ const PreMatricula: React.FC = () => {
 
   const carregarDados = async () => {
     try {
-      const [polosData, niveisData] = await Promise.all([
-        PoloService.listarPolos(),
-        // TODO: Implementar NivelService
-        Promise.resolve([]),
-      ]);
+      const polosData = await PoloService.listarPolos();
       setPolos(polosData);
-      // setNiveis(niveisData);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     }
@@ -115,6 +111,16 @@ const PreMatricula: React.FC = () => {
 
   const handleUploadComplete = (fileUrl: string, originalName: string) => {
     setUploadedFiles(prev => [...prev, { url: fileUrl, name: originalName, tipo: selectedDocType }]);
+  };
+
+  const handleFileSelected = (file: File) => {
+    setSelectedFiles((prev) => ({
+      ...prev,
+      [selectedDocType]: file,
+    }));
+    if (errors.documentos) {
+      setErrors((prev) => ({ ...prev, documentos: '' }));
+    }
   };
 
   const buscarCEP = async (cep: string) => {
@@ -159,7 +165,7 @@ const PreMatricula: React.FC = () => {
 
     // Validação de documentos obrigatórios
     REQUIRED_DOCUMENTS.forEach((doc) => {
-      const hasDoc = uploadedFiles.some((file) => file.tipo === doc.type);
+      const hasDoc = Boolean(selectedFiles[doc.type]);
       if (!hasDoc) {
         newErrors.documentos = 'Envie todos os documentos obrigatórios: CPF, RG, Certidão e Comprovante de Residência.';
       }
@@ -217,9 +223,40 @@ const PreMatricula: React.FC = () => {
       // Criar pré-matrícula
       const resultado = await AlunoService.criarPreMatricula(aluno, matricula);
 
+      const uploadedDocs: { url: string; name: string; tipo: TipoDocumento }[] = [];
+
+      type UploadDocumentosResponse = {
+        arquivos?: Array<{ url?: string; name?: string }>;
+      };
+
+      // Enviar documentos via backend (evita problemas de permissão/RLS no upload direto)
+      const matriculaId = resultado.matricula.id;
+      const selectedEntries = Object.entries(selectedFiles) as [TipoDocumento, File][];
+      if (selectedEntries.length > 0) {
+        for (const [tipo, file] of selectedEntries) {
+          const formData = new FormData();
+          formData.append('files', file);
+
+          const response = (await MatriculaAPI.uploadDocumentos(
+            matriculaId,
+            formData,
+          )) as UploadDocumentosResponse;
+          const arquivo = response?.arquivos?.[0];
+          if (!arquivo?.url) {
+            throw new Error('Upload não retornou URL do arquivo');
+          }
+
+          uploadedDocs.push({ url: arquivo.url, name: arquivo.name || file.name, tipo });
+        }
+      }
+
+      if (uploadedDocs.length > 0) {
+        setUploadedFiles(uploadedDocs);
+      }
+
       // Registrar documentos enviados (se houver) vinculados ao aluno criado
-      if (uploadedFiles.length > 0) {
-        for (const file of uploadedFiles) {
+      if (uploadedDocs.length > 0) {
+        for (const file of uploadedDocs) {
           try {
             await DocumentoService.registrarDocumentoExistente(
               file.url,
@@ -294,6 +331,7 @@ const PreMatricula: React.FC = () => {
     { value: 'outro', label: 'Outro' },
   ];
 
+  // Seção de confirmação de pré-matrícula
   if (protocolo) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
@@ -329,81 +367,6 @@ const PreMatricula: React.FC = () => {
                 </Button>
               </div>
             </div>
-          </Card>
-
-          <Card className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload de Documentos</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Envie cópias digitais dos documentos do aluno e do responsável (RG, CPF, certidão de nascimento,
-              comprovante de residência, laudos médicos, se houver). Esses arquivos serão armazenados com
-              segurança no Supabase e usados exclusivamente para análise e comprovação da matrícula.
-            </p>
-
-            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-              <div className="md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Documento
-                </label>
-                <select
-                  className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-ibuc-blue focus:border-ibuc-blue"
-                  value={selectedDocType}
-                  onChange={(e) => setSelectedDocType(e.target.value as TipoDocumento)}
-                >
-                  {REQUIRED_DOCUMENTS.map((doc) => (
-                    <option key={doc.type} value={doc.type}>{doc.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <FileUpload
-                  folder={`pre-matriculas/${formData.cpf_responsavel || formData.cpf || 'sem-identificacao'}`}
-                  onUploadComplete={handleUploadComplete}
-                  accept="image/*,.pdf"
-                  maxSizeMB={10}
-                  label="Arraste e solte o arquivo aqui ou clique para selecionar (PDF, JPG, PNG)"
-                />
-              </div>
-            </div>
-
-            {uploadedFiles.length > 0 && (
-              <div className="mt-4 space-y-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-800 mb-1">Checklist de documentos obrigatórios</h3>
-                  <ul className="text-xs text-gray-700 space-y-1">
-                    {REQUIRED_DOCUMENTS.map((doc) => {
-                      const hasDoc = uploadedFiles.some((file) => file.tipo === doc.type);
-                      return (
-                        <li key={doc.type} className="flex items-center">
-                          <span className={`inline-flex items-center justify-center h-4 w-4 rounded-full mr-2 text-[10px] ${hasDoc ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                            {hasDoc ? '✓' : '!'}
-                          </span>
-                          <span className={hasDoc ? 'text-green-700' : 'text-red-700'}>{doc.label}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-800 mb-1">Documentos enviados nesta sessão</h3>
-                  <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 max-h-32 overflow-y-auto">
-                    {uploadedFiles.map((file) => (
-                      <li key={file.url} className="truncate">
-                        <span className="font-semibold mr-1">[{REQUIRED_DOCUMENTS.find(d => d.type === file.tipo)?.label || file.tipo}]</span>
-                        <a href={file.url} target="_blank" rel="noreferrer" className="text-ibuc-blue hover:underline">
-                          {file.name}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {errors.documentos && (
-              <p className="mt-2 text-sm text-red-600">{errors.documentos}</p>
-            )}
           </Card>
         </div>
       </div>
@@ -646,6 +609,74 @@ const PreMatricula: React.FC = () => {
             </div>
           </Card>
 
+          {/* Seção de Upload de Documentos */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Documentos Obrigatórios</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Envie cópias digitais dos documentos do aluno e do responsável. 
+              Formatos aceitos: JPG, PNG, PDF (Máx. 10MB cada).
+            </p>
+
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+              <div className="md:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Documento
+                </label>
+                <select
+                  className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-ibuc-blue focus:border-ibuc-blue"
+                  value={selectedDocType}
+                  onChange={(e) => setSelectedDocType(e.target.value as TipoDocumento)}
+                >
+                  {REQUIRED_DOCUMENTS.map((doc) => (
+                    <option key={doc.type} value={doc.type}>
+                      {doc.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <FileUpload
+                  folder="pre-matriculas"
+                  sessionId={formData.cpf_responsavel || formData.cpf || undefined}
+                  onUploadComplete={handleUploadComplete}
+                  onFileSelected={handleFileSelected}
+                  autoUpload={false}
+                  accept="image/*,.pdf"
+                  maxSizeMB={10}
+                  label="Arraste e solte o arquivo aqui ou clique para selecionar"
+                  metadata={{
+                    tipoDocumento: selectedDocType,
+                    cpfAluno: formData.cpf,
+                    cpfResponsavel: formData.cpf_responsavel,
+                    nomeAluno: formData.nome,
+                    dataUpload: new Date().toISOString()
+                  }}
+                />
+              </div>
+            </div>
+
+            {(Object.keys(selectedFiles).length > 0 || uploadedFiles.length > 0) && (
+              <div className="mt-4 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">Documentos Enviados</h3>
+                  <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 max-h-32 overflow-y-auto">
+                    {REQUIRED_DOCUMENTS.filter((doc) => selectedFiles[doc.type]).map((doc) => (
+                      <li key={doc.type} className="truncate">
+                        <span className="font-medium">{doc.label}:</span>{' '}
+                        {selectedFiles[doc.type]?.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {errors.documentos && (
+              <p className="mt-2 text-sm text-red-600">{errors.documentos}</p>
+            )}
+          </div>
+
           <div className="flex gap-4">
             <Button
               type="button"
@@ -670,4 +701,3 @@ const PreMatricula: React.FC = () => {
 };
 
 export default PreMatricula;
-

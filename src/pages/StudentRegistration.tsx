@@ -173,7 +173,7 @@ const StudentRegistration: React.FC = () => {
     alert("Aluno cadastrado com sucesso!");
     
     setLoading(false);
-    navigate('/matricula');
+    navigate('/pre-matricula');
   };
 
   const genderOptions = [
@@ -197,7 +197,7 @@ const StudentRegistration: React.FC = () => {
             Cadastro de Aluno
           </h1>
           <p className="text-lg text-gray-600">
-            Preencha os dados do aluno e dos responsáveis para iniciar o processo de matrícula
+            Preencha os dados do aluno e dos responsáveis para iniciar o processo de pré-matrícula
           </p>
         </div>
 
@@ -433,7 +433,7 @@ const StudentRegistration: React.FC = () => {
               loading={loading}
               className="min-w-[200px]"
             >
-              Avançar para Matrícula
+              Avançar para pré-matrícula
             </Button>
           </div>
         </form>

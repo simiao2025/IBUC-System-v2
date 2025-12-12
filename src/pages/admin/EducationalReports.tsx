@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import StudentSearch from '../../components/admin/StudentSearch';
 import {
   ArrowLeft,
   BarChart3,
@@ -286,7 +287,7 @@ const EducationalReports: React.FC = () => {
     // Boletim: usa endpoint real de geração
     if (selectedReport === 'boletim') {
       if (!boletimAlunoId) {
-        alert('Informe o ID do aluno para gerar o boletim.');
+        alert('Selecione um aluno para gerar o boletim.');
         return;
       }
 
@@ -316,7 +317,7 @@ const EducationalReports: React.FC = () => {
     // Drácmas: saldo e transações por aluno no período
     if (selectedReport === 'dracmas') {
       if (!dracmasAlunoId) {
-        alert('Informe o ID do aluno para consultar os Drácmas.');
+        alert('Selecione um aluno para consultar os Drácmas.');
         return;
       }
 
@@ -404,7 +405,7 @@ const EducationalReports: React.FC = () => {
     // Histórico: usa endpoint de histórico (ainda sem agregação avançada)
     if (selectedReport === 'history') {
       if (!historyAlunoId) {
-        alert('Informe o ID do aluno para consultar o histórico.');
+        alert('Selecione um aluno para consultar o histórico.');
         return;
       }
 
@@ -989,7 +990,7 @@ const EducationalReports: React.FC = () => {
               Este relatório apresenta um resumo dos períodos cursados pelo aluno, incluindo turma, situação final e observações.
             </p>
             <p>
-              Utilize o filtro de <span className="font-semibold">ID do Aluno</span> e o período desejado para definir o escopo do histórico.
+              Utilize o filtro de <span className="font-semibold">Aluno</span> e o período desejado para definir o escopo do histórico.
             </p>
 
             <div className="mt-4">
@@ -1098,7 +1099,7 @@ const EducationalReports: React.FC = () => {
             pelo backend e pode envolver geração de PDF e registros adicionais.
           </p>
           <p>
-            Preencha o <span className="font-semibold">ID do Aluno</span> e o período desejado na barra lateral, depois clique em
+            Preencha o <span className="font-semibold">Aluno</span> e o período desejado na barra lateral, depois clique em
             <span className="font-semibold"> "Gerar Relatório"</span>.
           </p>
 
@@ -1515,13 +1516,12 @@ const EducationalReports: React.FC = () => {
                 {selectedReport === 'boletim' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ID do Aluno
+                      Aluno
                     </label>
-                    <Input
-                      type="text"
+                    <StudentSearch
                       value={boletimAlunoId}
-                      onChange={(e) => setBoletimAlunoId(e.target.value)}
-                      placeholder="Digite o ID do aluno"
+                      onChange={setBoletimAlunoId}
+                      placeholder="Buscar aluno para boletim..."
                       className="w-full"
                     />
                   </div>
@@ -1530,13 +1530,12 @@ const EducationalReports: React.FC = () => {
                 {selectedReport === 'history' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ID do Aluno
+                      Aluno
                     </label>
-                    <Input
-                      type="text"
+                    <StudentSearch
                       value={historyAlunoId}
-                      onChange={(e) => setHistoryAlunoId(e.target.value)}
-                      placeholder="Digite o ID do aluno"
+                      onChange={setHistoryAlunoId}
+                      placeholder="Buscar aluno para histórico..."
                       className="w-full"
                     />
                   </div>
@@ -1574,13 +1573,12 @@ const EducationalReports: React.FC = () => {
                 {selectedReport === 'dracmas' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ID do Aluno
+                      Aluno
                     </label>
-                    <Input
-                      type="text"
+                    <StudentSearch
                       value={dracmasAlunoId}
-                      onChange={(e) => setDracmasAlunoId(e.target.value)}
-                      placeholder="Digite o ID do aluno"
+                      onChange={setDracmasAlunoId}
+                      placeholder="Buscar aluno para drácmas..."
                       className="w-full"
                     />
                   </div>

@@ -1,25 +1,48 @@
 import React, { useCallback, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Button } from './Button';
+import { uploadFile } from '../../services/upload.service';
+
+// Função para gerar um ID de sessão único
+const generateSessionId = (): string => {
+  // Tenta usar o sessionStorage se disponível
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    let sessionId = sessionStorage.getItem('fileUploadSessionId');
+    if (!sessionId) {
+      sessionId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      sessionStorage.setItem('fileUploadSessionId', sessionId);
+    }
+    return sessionId;
+  }
+  // Fallback para geração sem sessionStorage
+  return `temp-${Math.random().toString(36).substring(2, 15)}`;
+};
 
 type FileUploadProps = {
   folder: string;
   onUploadComplete: (fileUrl: string, originalName: string) => void;
+  onFileSelected?: (file: File) => void;
+  autoUpload?: boolean;
   accept?: string;
   maxSizeMB?: number;
   label?: string;
+  sessionId?: string; // ID de sessão opcional
+  metadata?: Record<string, unknown>;
 };
 
 export const FileUpload: React.FC<FileUploadProps> = ({
   folder,
   onUploadComplete,
+  onFileSelected,
+  autoUpload = true,
   accept = 'image/*,.pdf,.doc,.docx',
   maxSizeMB = 5,
   label = 'Arraste e solte seus arquivos aqui ou clique para selecionar',
+  sessionId,
+  metadata = {},
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -34,7 +57,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setIsDragging(false);
   }, []);
 
-  const validateFile = (file: File): { valid: boolean; error?: string } => {
+  const validateFile = useCallback((file: File): { valid: boolean; error?: string } => {
     const maxSize = maxSizeMB * 1024 * 1024; // Convert MB to bytes
     
     if (file.size > maxSize) {
@@ -45,70 +68,70 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
     
     return { valid: true };
-  };
+  }, [maxSizeMB]);
 
-  const uploadFile = async (file: File) => {
-    setIsUploading(true);
-    setError(null);
-    setProgress(0);
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}-${Date.now()}.${fileExt}`;
-      const filePath = `${folder}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('matriculas')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('matriculas')
-        .getPublicUrl(filePath);
-
-      onUploadComplete(publicUrl, file.name);
-      setProgress(100);
-      return publicUrl;
-    } catch (err: any) {
-      console.error('Erro ao fazer upload do arquivo:', err);
-      setError(err.message || 'Erro ao fazer upload do arquivo');
-      throw err;
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  // Função removida pois sua lógica foi incorporada nos handlers específicos
 
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
+      setIsUploading(true);
+      setError(null);
 
       const files = e.dataTransfer.files;
-      if (files.length === 0) return;
+      if (files.length === 0) {
+        setIsUploading(false);
+        return;
+      }
 
       const file = files[0];
       const validation = validateFile(file);
       
       if (!validation.valid) {
-        setError(validation.error);
+        setError(validation.error || 'Erro de validação do arquivo');
+        setIsUploading(false);
+        return;
+      }
+
+      if (!autoUpload) {
+        onFileSelected?.(file);
+        setProgress(0);
+        setSuccess('Arquivo selecionado com sucesso!');
+        setError(null);
+        setIsUploading(false);
         return;
       }
 
       try {
-        await uploadFile(file);
-      } catch (err) {
-        // Error is already handled in uploadFile
+        setProgress(0);
+        // Usa o sessionId fornecido ou gera um novo
+        const uploadSessionId = sessionId || generateSessionId();
+        const uploadFolder = `${folder}/${uploadSessionId}`;
+        
+        const { publicUrl } = await uploadFile({
+          folder: uploadFolder,
+          file,
+          metadata: {
+            ...metadata,
+            uploadedBy: uploadSessionId,
+          },
+        });
+
+        onUploadComplete(publicUrl, file.name);
+        setProgress(100);
+        setSuccess('Arquivo enviado com sucesso!');
+        setError(null);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        setError(errorMessage);
+        setSuccess(null);
+      } finally {
+        setIsUploading(false);
       }
     },
-    [folder, onUploadComplete, maxSizeMB]
+    [folder, sessionId, metadata, maxSizeMB, onUploadComplete, onFileSelected, autoUpload]
   );
 
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,14 +142,41 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     const validation = validateFile(file);
     
     if (!validation.valid) {
-      setError(validation.error);
+      setError(validation.error || null);
+      return;
+    }
+
+    if (!autoUpload) {
+      onFileSelected?.(file);
+      setProgress(0);
+      setSuccess('Arquivo selecionado com sucesso!');
+      setError(null);
       return;
     }
 
     try {
-      await uploadFile(file);
-    } catch (err) {
-      // Error is already handled in uploadFile
+      setProgress(0);
+      // Usa o sessionId fornecido ou gera um novo
+      const uploadSessionId = sessionId || generateSessionId();
+      const uploadFolder = `${folder}/${uploadSessionId}`;
+      
+      const { publicUrl } = await uploadFile({
+        folder: uploadFolder,
+        file,
+        metadata: {
+          ...metadata,
+          uploadedBy: uploadSessionId,
+        },
+      });
+
+      onUploadComplete(publicUrl, file.name);
+      setProgress(100);
+      setSuccess('Arquivo enviado com sucesso!');
+      setError(null);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setError(errorMessage);
+      setSuccess(null);
     }
   };
 
@@ -178,6 +228,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           </div>
           {error && (
             <div className="mt-2 text-sm text-red-600">{error}</div>
+          )}
+          {success && (
+            <div className="mt-2 text-sm text-green-600">{success}</div>
           )}
         </label>
       </div>

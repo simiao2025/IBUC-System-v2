@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useAccessControl } from '../../components/AccessControl';
 import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
+import { AlunoService } from '../../services/aluno.service';
+import { MatriculaService } from '../../services/matricula.service';
+import type { Aluno, Matricula } from '../../types/database';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -21,7 +24,11 @@ import equipesPolosIcon from '/icons/3d/equipes_polos.png';
 import studentIcon from '/icons/3d/student.png';
 
 const AdminDashboard: React.FC = () => {
-  const { students, enrollments, polos, logout, currentUser } = useApp();
+  const { polos, logout, currentUser } = useApp();
+  const [realStudents, setRealStudents] = useState<Aluno[]>([]);
+  const [realEnrollments, setRealEnrollments] = useState<Matricula[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const {
     canManageUsers,
     canManageStaff,
@@ -33,8 +40,30 @@ const AdminDashboard: React.FC = () => {
 
   const { isDialogOpen, confirmNavigation, handleConfirm, handleCancel } = useNavigationConfirm({
     title: 'Confirmar saída',
-    message: 'Você tem certeza que deseja sair do sistema?'
+    message: 'Você tem certeza que deseja sair do Ambiente Administrativo?'
   });
+
+  // Carregar dados reais do banco
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        const [studentsData, enrollmentsData] = await Promise.all([
+          AlunoService.listarAlunos({}),
+          MatriculaService.listarMatriculas({})
+        ]);
+        setRealStudents(studentsData || []);
+        setRealEnrollments(enrollmentsData || []);
+      } catch (error) {
+        console.error('Erro ao carregar dados do dashboard:', error);
+        setRealStudents([]);
+        setRealEnrollments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    carregarDados();
+  }, []);
 
   // Filtra polos baseado no nível de acesso do usuário
   const accessiblePolos = getFilteredPolos(polos);
@@ -42,14 +71,14 @@ const AdminDashboard: React.FC = () => {
   const stats = [
     {
       title: 'Total de Alunos',
-      value: students.length,
+      value: loading ? '...' : realStudents.length,
       icon: Users,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
     },
     {
       title: 'Matrículas Ativas',
-      value: enrollments.length,
+      value: loading ? '...' : realEnrollments.filter(e => e.status === 'ativo').length,
       icon: BookOpen,
       color: 'text-green-600',
       bgColor: 'bg-green-50'
@@ -63,7 +92,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Certificados Emitidos',
-      value: '12', // Mock data
+      value: '0', // Será calculado do banco
       icon: Award,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50'
@@ -257,17 +286,17 @@ const AdminDashboard: React.FC = () => {
               <UserCheck className="inline h-5 w-5 mr-2 text-green-600" />
               Matrículas Recentes
             </h3>
-            {enrollments.length > 0 ? (
+            {realEnrollments.length > 0 ? (
               <div className="space-y-3">
-                {enrollments.slice(-5).map((enrollment) => (
+                {realEnrollments.slice(-5).map((enrollment) => (
                   <div key={enrollment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
-                      <p className="font-medium text-gray-900">{enrollment.studentName}</p>
-                      <p className="text-sm text-gray-600">{enrollment.level}</p>
+                      <p className="font-medium text-gray-900">Aluno ID: {enrollment.aluno_id}</p>
+                      <p className="text-sm text-gray-600">Status: {enrollment.status}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">
-                        {new Date(enrollment.enrollmentDate).toLocaleDateString('pt-BR')}
+                        {new Date(enrollment.data_matricula).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                   </div>

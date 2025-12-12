@@ -5,6 +5,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import StudentForm from '../../components/admin/StudentForm';
 import { AlunoService } from '../../services/aluno.service';
 import { 
   ArrowLeft,
@@ -21,7 +22,6 @@ import {
   Phone,
   MapPin,
   User,
-  BookOpen,
   CheckCircle,
   AlertCircle,
   Clock,
@@ -30,6 +30,19 @@ import {
 } from 'lucide-react';
 import type { StudentData, Level } from '../../types';
 import { LEVELS } from '../../types';
+
+interface ExtendedStudentData extends StudentData {
+  level: keyof typeof LEVELS;
+  polo: string;
+  enrollmentDate: string;
+  status: 'active' | 'inactive';
+  attendance: number;
+  parents: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+}
 
 const StudentManagement: React.FC = () => {
   const { polos } = useApp();
@@ -42,7 +55,7 @@ const StudentManagement: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentData | null>(null);
-  const [viewingStudent, setViewingStudent] = useState<StudentData | null>(null);
+  const [viewingStudent, setViewingStudent] = useState<ExtendedStudentData | null>(null);
 
   // Carregar alunos ao montar
   useEffect(() => {
@@ -447,14 +460,14 @@ const StudentManagement: React.FC = () => {
 
                 <h3 className="text-lg font-semibold text-gray-900">Informações Acadêmicas</h3>
                 <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p><strong>Nível:</strong> {LEVELS[(viewingStudent as any).level]}</p>
-                  <p><strong>Polo:</strong> {polos.find(p => p.id === (viewingStudent as any).polo)?.name}</p>
-                  <p><strong>Data de Matrícula:</strong> {new Date((viewingStudent as any).enrollmentDate).toLocaleDateString('pt-BR')}</p>
-                  <p><strong>Status:</strong> <span className={`px-2 py-1 rounded text-xs ${getStatusColor((viewingStudent as any).status)}`}>
-                    {(viewingStudent as any).status === 'active' ? 'Ativo' : 'Inativo'}
+                  <p><strong>Nível:</strong> {LEVELS[viewingStudent.level]}</p>
+                  <p><strong>Polo:</strong> {polos.find(p => p.id === viewingStudent.polo)?.name}</p>
+                  <p><strong>Data de Matrícula:</strong> {new Date(viewingStudent.enrollmentDate).toLocaleDateString('pt-BR')}</p>
+                  <p><strong>Status:</strong> <span className={`px-2 py-1 rounded text-xs ${getStatusColor(viewingStudent.status)}`}>
+                    {viewingStudent.status === 'active' ? 'Ativo' : 'Inativo'}
                   </span></p>
-                  <p><strong>Frequência:</strong> <span className={getAttendanceColor((viewingStudent as any).attendance)}>
-                    {(viewingStudent as any).attendance}%
+                  <p><strong>Frequência:</strong> <span className={getAttendanceColor(viewingStudent.attendance)}>
+                    {viewingStudent.attendance}%
                   </span></p>
                 </div>
               </div>
@@ -463,36 +476,37 @@ const StudentManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Add/Edit Student Form Modal - Simplified for now */}
+      {/* Student Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              {editingStudent ? 'Editar Aluno' : 'Novo Aluno'}
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Para cadastrar um novo aluno, utilize o formulário de matrícula no menu principal.
-            </p>
-            <div className="flex space-x-3">
-              <Button asChild className="flex-1">
-                <Link to="/matricula">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Ir para Matrícula
-                </Link>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="flex-1" 
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingStudent(null);
-                }}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </Card>
-        </div>
+        <StudentForm
+          student={editingStudent}
+          polos={polos}
+          onSave={async (studentData) => {
+            try {
+              setSaving(true);
+              if (editingStudent) {
+                await AlunoService.atualizarAluno(editingStudent.id, studentData);
+                alert('Aluno atualizado com sucesso!');
+              } else {
+                await AlunoService.criarAluno(studentData);
+                alert('Aluno cadastrado com sucesso!');
+              }
+              setShowForm(false);
+              setEditingStudent(null);
+              carregarAlunos();
+            } catch (error) {
+              console.error('Erro ao salvar aluno:', error);
+              alert('Erro ao salvar aluno. Tente novamente.');
+            } finally {
+              setSaving(false);
+            }
+          }}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingStudent(null);
+          }}
+          loading={saving}
+        />
       )}
     </div>
   );

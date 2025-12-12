@@ -519,11 +519,11 @@ const AboutIBUC: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <a 
-              href="/matricula"
+              href="/pre-matricula"
               className="inline-flex items-center justify-center px-10 py-4 bg-white text-blue-600 hover:bg-gray-100 text-lg font-semibold rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200"
             >
               <GraduationCap className="mr-2 h-5 w-5" />
-              Fazer Matrícula Agora
+              Fazer pré-matrícula Agora
             </a>
             <a 
               href="/contato"

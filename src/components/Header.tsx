@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Info, BookOpen, ClipboardList, GraduationCap, Shield } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import ConfirmLink from './ui/ConfirmLink';
 
 const Header: React.FC = () => {
@@ -11,13 +11,13 @@ const Header: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
-    { path: '/', label: 'Início', needsConfirm: true, icon: Home },
-    { path: '/conheca-o-ibuc', label: 'Conheça o IBUC', needsConfirm: false, icon: Info },
-    { path: '/modulos', label: 'Módulos', needsConfirm: false, icon: BookOpen },
+    { path: '/', label: 'Início', needsConfirm: true },
+    { path: '/conheca-o-ibuc', label: 'Conheça o IBUC', needsConfirm: false },
+    { path: '/modulos', label: 'Módulos', needsConfirm: false },
     // Pré-matrícula integrada ao Supabase e termo LGPD
-    { path: '/pre-matricula', label: 'Matrícula', needsConfirm: true, icon: ClipboardList },
-    { path: '/acesso-aluno', label: 'Área do Aluno', needsConfirm: false, icon: GraduationCap },
-    { path: '/admin', label: 'Área Administrativa', needsConfirm: false, icon: Shield },
+    { path: '/pre-matricula', label: 'Pré-matrícula', needsConfirm: true },
+    { path: '/acesso-aluno', label: 'Área do Aluno', needsConfirm: false, isSpecial: true },
+    { path: '/admin', label: 'Área Administrativa', needsConfirm: false, isSpecial: true },
   ];
 
   return (
@@ -32,8 +32,7 @@ const Header: React.FC = () => {
               className="h-10 w-auto"
             />
             <div>
-              <h1 className="text-xl font-bold text-red-600">IBUC</h1>
-              <p className="text-xs text-gray-600">Palmas - TO</p>
+              <h1 className="text-xl font-bold text-red-600">IBUC - Palmas - TO</h1>
             </div>
           </div>
 
@@ -42,11 +41,16 @@ const Header: React.FC = () => {
             <nav className="hidden md:flex space-x-6">
               {navItems.map((item) => {
               const Icon = item.icon;
-              const className = `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive(item.path)
+              let className = `px-3 py-2 rounded-md text-sm font-medium transition-colors `;
+              if (item.isSpecial) {
+                className += isActive(item.path)
+                  ? 'bg-red-700 text-white hover:bg-red-800'
+                  : 'bg-red-600 text-white hover:bg-red-700';
+              } else {
+                className += isActive(item.path)
                   ? 'bg-red-100 text-red-700'
-                  : 'text-gray-700 hover:text-red-600 hover:bg-red-50'
-              }`;
+                  : 'text-gray-700 hover:text-red-600 hover:bg-red-50';
+              }
 
                 return item.needsConfirm ? (
                   <ConfirmLink
@@ -56,10 +60,7 @@ const Header: React.FC = () => {
                     message={`Você tem certeza que deseja navegar para ${item.label}?`}
                     title="Confirmar navegação"
                   >
-                    <span className="inline-flex items-center gap-2">
-                      {Icon && <Icon className="h-4 w-4" />}
-                      <span>{item.label}</span>
-                    </span>
+                    <span>{item.label}</span>
                   </ConfirmLink>
                 ) : (
                   <Link
@@ -67,10 +68,7 @@ const Header: React.FC = () => {
                     to={item.path}
                     className={className}
                   >
-                    <span className="inline-flex items-center gap-2">
-                      {Icon && <Icon className="h-4 w-4" />}
-                      <span>{item.label}</span>
-                    </span>
+                    <span>{item.label}</span>
                   </Link>
                 );
               })}
@@ -96,11 +94,16 @@ const Header: React.FC = () => {
             <nav className="py-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const className = `block px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive(item.path)
+                let className = `block px-4 py-2 text-sm font-medium transition-colors `;
+                if (item.isSpecial) {
+                  className += isActive(item.path)
+                    ? 'bg-red-700 text-white hover:bg-red-800'
+                    : 'bg-red-600 text-white hover:bg-red-700';
+                } else {
+                  className += isActive(item.path)
                     ? 'bg-red-100 text-red-700'
-                    : 'text-gray-700 hover:text-red-600 hover:bg-red-50'
-                }`;
+                    : 'text-gray-700 hover:text-red-600 hover:bg-red-50';
+                }
 
                 return item.needsConfirm ? (
                   <ConfirmLink
@@ -111,10 +114,7 @@ const Header: React.FC = () => {
                     message={`Você tem certeza que deseja navegar para ${item.label}?`}
                     title="Confirmar navegação"
                   >
-                    <span className="inline-flex items-center gap-2">
-                      {Icon && <Icon className="h-4 w-4" />}
-                      <span>{item.label}</span>
-                    </span>
+                    <span>{item.label}</span>
                   </ConfirmLink>
                 ) : (
                   <Link
@@ -123,10 +123,7 @@ const Header: React.FC = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={className}
                   >
-                    <span className="inline-flex items-center gap-2">
-                      {Icon && <Icon className="h-4 w-4" />}
-                      <span>{item.label}</span>
-                    </span>
+                    <span>{item.label}</span>
                   </Link>
                 );
               })}
