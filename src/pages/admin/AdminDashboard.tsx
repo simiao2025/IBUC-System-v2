@@ -5,6 +5,7 @@ import { useAccessControl } from '../../components/AccessControl';
 import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
 import { AlunoService } from '../../services/aluno.service';
 import { MatriculaService } from '../../services/matricula.service';
+import { DracmasAPI } from '../../lib/api';
 import type { Aluno, Matricula } from '../../types/database';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -27,14 +28,11 @@ const AdminDashboard: React.FC = () => {
   const { polos, logout, currentUser } = useApp();
   const [realStudents, setRealStudents] = useState<Aluno[]>([]);
   const [realEnrollments, setRealEnrollments] = useState<Matricula[]>([]);
+  const [totalDracmas, setTotalDracmas] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   
   const {
-    canManageUsers,
-    canManageStaff,
-    canManagePolos,
-    canViewReports,
-    canManageEnrollments,
+    canAccessModule,
     getFilteredPolos
   } = useAccessControl();
 
@@ -47,16 +45,25 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const carregarDados = async () => {
       try {
-        const [studentsData, enrollmentsData] = await Promise.all([
+        const poloId = currentUser?.adminUser?.accessLevel === 'polo_especifico'
+          ? currentUser.adminUser.poloId
+          : undefined;
+
+        const [studentsData, enrollmentsData, dracmasData] = await Promise.all([
           AlunoService.listarAlunos({}),
-          MatriculaService.listarMatriculas({})
+          MatriculaService.listarMatriculas(),
+          DracmasAPI.total(poloId),
         ]);
         setRealStudents(studentsData || []);
         setRealEnrollments(enrollmentsData || []);
+
+        const total = (dracmasData as any)?.total;
+        setTotalDracmas(typeof total === 'number' ? total : 0);
       } catch (error) {
         console.error('Erro ao carregar dados do dashboard:', error);
         setRealStudents([]);
         setRealEnrollments([]);
+        setTotalDracmas(0);
       } finally {
         setLoading(false);
       }
@@ -78,10 +85,17 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Matrículas Ativas',
-      value: loading ? '...' : realEnrollments.filter(e => e.status === 'ativo').length,
+      value: loading ? '...' : realEnrollments.filter(e => e.status === 'ativa').length,
       icon: BookOpen,
       color: 'text-green-600',
       bgColor: 'bg-green-50'
+    },
+    {
+      title: 'Drácmas Acumuladas',
+      value: loading ? '...' : totalDracmas,
+      icon: Award,
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-50'
     },
     {
       title: 'Polos Acessíveis',
@@ -107,25 +121,16 @@ const AdminDashboard: React.FC = () => {
       icon: Settings,
       color: 'bg-red-600 hover:bg-red-700',
       image: null,
-      permission: true
+      permission: canAccessModule('directorate')
     },
     {
       title: 'Gerenciar Polos',
       description: 'Cadastro completo de polos e congregações',
-      href: '/admin/enhanced-polos',
+      href: '/admin/polos',
       icon: MapPin,
       color: 'bg-blue-600 hover:bg-blue-700',
       image: null,
-      permission: true
-    },
-    {
-      title: 'Usuários Administrativos',
-      description: 'Coordenadores, diretores e acesso geral',
-      href: '/admin/users',
-      icon: Users,
-      color: 'bg-green-600 hover:bg-green-700',
-      image: null,
-      permission: true
+      permission: canAccessModule('polos')
     },
     {
       title: 'Equipes dos Polos',
@@ -134,7 +139,7 @@ const AdminDashboard: React.FC = () => {
       icon: UserCheck,
       color: 'bg-purple-600 hover:bg-purple-700',
       image: equipesPolosIcon,
-      permission: true
+      permission: canAccessModule('staff')
     },
     {
       title: 'Configurações',
@@ -143,7 +148,7 @@ const AdminDashboard: React.FC = () => {
       icon: Settings,
       color: 'bg-indigo-600 hover:bg-indigo-700',
       image: null,
-      permission: true
+      permission: canAccessModule('settings')
     },
     {
       title: 'Gerenciar Alunos',
@@ -152,7 +157,7 @@ const AdminDashboard: React.FC = () => {
       icon: BookOpen,
       color: 'bg-orange-600 hover:bg-orange-700',
       image: studentIcon,
-      permission: true
+      permission: canAccessModule('students')
     },
     {
       title: 'Matrículas',
@@ -161,7 +166,7 @@ const AdminDashboard: React.FC = () => {
       icon: BarChart3,
       color: 'bg-yellow-600 hover:bg-yellow-700',
       image: null,
-      permission: true
+      permission: canAccessModule('enrollments')
     },
     {
       title: 'Relatórios',
@@ -170,7 +175,7 @@ const AdminDashboard: React.FC = () => {
       icon: BarChart3,
       color: 'bg-gray-600 hover:bg-gray-700',
       image: null,
-      permission: true
+      permission: canAccessModule('reports')
     }
   ];
 

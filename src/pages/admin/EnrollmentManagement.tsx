@@ -1,38 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileUpload } from '../../components/ui/FileUpload';
-import { DocumentList } from '../../components/DocumentList';
-import { DocumentoService } from '../../services/documento.service';
-import { MatriculaService } from '../../services/matricula.service';
-import { AlunoService } from '../../services/aluno.service';
+import { DocumentosAPI, PreMatriculasAPI } from '../../lib/api';
 import { useApp } from '../../context/AppContext';
 import Button from '../../components/ui/Button';
-import type { TipoDocumento, Matricula, Aluno, Documento } from '../../types/database';
+import type { PreMatricula, StatusPreMatricula, TipoDocumento } from '../../types/database';
 
 // Tipos de documentos necessários para matrícula
 const REQUIRED_DOCUMENTS: { type: TipoDocumento; label: string }[] = [
-  { type: 'cpf', label: 'CPF' },
   { type: 'rg', label: 'Documento de Identidade (RG)' },
   { type: 'certidao', label: 'Certidão de Nascimento' },
   { type: 'comprovante_residencia', label: 'Comprovante de Residência' },
 ];
 
 export const EnrollmentManagement: React.FC = () => {
-  const { currentUser, getUserAllowedPolos, hasAccessToAllPolos, polos } = useApp();
-  const [matriculas, setMatriculas] = useState<Matricula[]>([]); // pendentes
-  const [matriculasAtivas, setMatriculasAtivas] = useState<Matricula[]>([]);
-  const [selectedMatricula, setSelectedMatricula] = useState<string | null>(null);
-  const [documentos, setDocumentos] = useState<Documento[]>([]);
+  const { getUserAllowedPolos, hasAccessToAllPolos, polos, currentUser } = useApp();
+  const [preMatriculasEmAnalise, setPreMatriculasEmAnalise] = useState<PreMatricula[]>([]);
+  const [preMatriculasAtivas, setPreMatriculasAtivas] = useState<PreMatricula[]>([]);
+  const [selectedPreMatricula, setSelectedPreMatricula] = useState<string | null>(null);
+  const [documentos, setDocumentos] = useState<Array<{ name: string; path: string; url: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedDocumentType, setSelectedDocumentType] = useState<TipoDocumento>('cpf');
+  const [isConcluding, setIsConcluding] = useState(false);
+  const [selectedDocumentType, setSelectedDocumentType] = useState<TipoDocumento>('rg');
   const [validadeDocumento, setValidadeDocumento] = useState('');
-  const [alunoInfo, setAlunoInfo] = useState<Aluno | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPoloId, setSelectedPoloId] = useState<string>('all');
+  const [turmas, setTurmas] = useState<Array<{ id: string; nome: string; polo_id: string }>>([]);
+  const [selectedTurmaId, setSelectedTurmaId] = useState<string>('');
 
-  // Carrega a lista de matrículas pendentes e ativas, respeitando o polo do usuário logado
+  const STATUS_OPTIONS: Array<{ value: StatusPreMatricula; label: string }> = [
+    { value: 'em_analise', label: 'Em análise' },
+    { value: 'ativo', label: 'Ativo' },
+    { value: 'trancado', label: 'Trancado' },
+    { value: 'concluido', label: 'Concluído' },
+  ];
+
+  // Carrega a lista de pré-matrículas (em análise e ativas), respeitando o polo do usuário logado
   useEffect(() => {
-    const loadMatriculas = async () => {
+    const loadPreMatriculas = async () => {
       try {
         setIsLoading(true);
         // Se o usuário tem acesso geral, pode escolher o polo (ou ver todos).
@@ -46,44 +52,68 @@ export const EnrollmentManagement: React.FC = () => {
           poloFilter = allowedPolos[0] || undefined;
         }
 
-        const matriculasPendentes = await MatriculaService.listarMatriculas(poloFilter, 'pendente');
-        const matriculasAtivasData = await MatriculaService.listarMatriculas(poloFilter, 'ativa');
-        setMatriculas(matriculasPendentes);
-        setMatriculasAtivas(matriculasAtivasData);
+        const emAnalise = (await PreMatriculasAPI.listar({
+          polo_id: poloFilter,
+          status: 'em_analise',
+        })) as PreMatricula[];
+        const ativas = (await PreMatriculasAPI.listar({
+          polo_id: poloFilter,
+          status: 'ativo',
+        })) as PreMatricula[];
+        setPreMatriculasEmAnalise(emAnalise);
+        setPreMatriculasAtivas(ativas);
         
-        // Seleciona a primeira matrícula se houver
-        if (matriculasPendentes.length > 0) {
-          setSelectedMatricula(matriculasPendentes[0].id);
+        // Seleciona a primeira pré-matrícula se houver
+        if (emAnalise.length > 0) {
+          setSelectedPreMatricula(emAnalise[0].id);
         }
       } catch (error) {
-        console.error('Erro ao carregar matrículas:', error);
+        console.error('Erro ao carregar pré-matrículas:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadMatriculas();
+    loadPreMatriculas();
   }, [getUserAllowedPolos, hasAccessToAllPolos, selectedPoloId]);
 
-  // Carrega os documentos quando uma matrícula é selecionada
   useEffect(() => {
-    if (!selectedMatricula) return;
+    const loadTurmas = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('http://localhost:3000/turmas', {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setTurmas(
+            data.map((t: any) => ({
+              id: String(t.id),
+              nome: String(t.nome ?? t.id),
+              polo_id: String(t.polo_id),
+            })),
+          );
+        }
+      } catch (error) {
+        console.error('Erro ao carregar turmas:', error);
+      }
+    };
+
+    void loadTurmas();
+  }, []);
+
+  // Carrega os documentos quando uma pré-matrícula é selecionada
+  useEffect(() => {
+    if (!selectedPreMatricula) return;
 
     const loadDocumentos = async () => {
       try {
         setIsLoading(true);
-        const [documentosData, matriculaData] = await Promise.all([
-          DocumentoService.listarDocumentos('aluno', selectedMatricula),
-          MatriculaService.buscarMatriculaPorId(selectedMatricula)
-        ]);
-        
-        setDocumentos(documentosData);
-        
-        // Carrega informações do aluno
-        if (matriculaData?.aluno_id) {
-          const aluno = await AlunoService.buscarAlunoPorId(matriculaData.aluno_id);
-          setAlunoInfo(aluno);
-        }
+        const response = (await DocumentosAPI.listarPorPreMatricula(selectedPreMatricula)) as {
+          arquivos?: Array<{ name: string; path: string; url: string }>;
+        };
+        setDocumentos(response?.arquivos || []);
       } catch (error) {
         console.error('Erro ao carregar documentos:', error);
       } finally {
@@ -92,96 +122,75 @@ export const EnrollmentManagement: React.FC = () => {
     };
 
     loadDocumentos();
-  }, [selectedMatricula]);
+  }, [selectedPreMatricula]);
 
-  // Manipula o upload de documentos
-  const handleUploadComplete = async (fileUrl: string) => {
-    if (!selectedMatricula) return;
+  const handleFileSelected = (file: File) => {
+    setSelectedFile(file);
+  };
+
+  const handleUploadSelectedFile = async () => {
+    if (!selectedPreMatricula || !selectedFile) return;
 
     try {
       setIsUploading(true);
-      
-      // Aqui você pode adicionar lógica adicional se necessário
-      console.log('Upload concluído:', fileUrl);
-      
-      // Atualiza a lista de documentos
-      const documentosAtualizados = await DocumentoService.listarDocumentos('aluno', selectedMatricula);
-      setDocumentos(documentosAtualizados);
+
+      const formData = new FormData();
+      formData.append('files', selectedFile);
+
+      await DocumentosAPI.uploadPorPreMatricula(selectedPreMatricula, formData, selectedDocumentType);
+
+      const response = (await DocumentosAPI.listarPorPreMatricula(selectedPreMatricula)) as {
+        arquivos?: Array<{ name: string; path: string; url: string }>;
+      };
+      setDocumentos(response?.arquivos || []);
+      setSelectedFile(null);
     } catch (error) {
-      console.error('Erro ao processar upload:', error);
+      console.error('Erro ao enviar documento:', error);
+      alert('Erro ao enviar documento. Por favor, tente novamente.');
     } finally {
       setIsUploading(false);
     }
   };
 
-  // Remove um documento
-  const handleDeleteDocument = async (documentId: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este documento?')) return;
+  const handleConcluir = async () => {
+    if (!selectedPreMatricula) return;
+    if (!currentUser?.id) {
+      alert('Usuário não identificado. Faça login novamente.');
+      return;
+    }
+    if (!selectedTurmaId) {
+      alert('Selecione uma turma para concluir a pré-matrícula.');
+      return;
+    }
+    if (!allRequiredDocumentsUploaded) {
+      alert('Todos os documentos obrigatórios devem ser enviados antes de concluir.');
+      return;
+    }
 
     try {
-      await DocumentoService.removerDocumento(documentId);
-      
-      // Atualiza a lista de documentos
-      if (selectedMatricula) {
-        const documentosAtualizados = await DocumentoService.listarDocumentos('aluno', selectedMatricula);
-        setDocumentos(documentosAtualizados);
-      }
+      setIsConcluding(true);
+      await PreMatriculasAPI.concluir(selectedPreMatricula, {
+        turma_id: selectedTurmaId,
+        approved_by: currentUser.id,
+      });
+
+      // Recarrega listagens (inclui remover da lista de em_analise/ativo se status virar concluido)
+      await handleUpdateStatus('concluido');
     } catch (error) {
-      console.error('Erro ao excluir documento:', error);
+      console.error('Erro ao concluir pré-matrícula:', error);
+      alert('Erro ao concluir pré-matrícula. Verifique o console.');
+    } finally {
+      setIsConcluding(false);
     }
   };
 
-  // Aprova uma matrícula
-  const handleApproveEnrollment = async () => {
-    if (!selectedMatricula || !currentUser?.id) return;
+  const handleUpdateStatus = async (status: StatusPreMatricula) => {
+    if (!selectedPreMatricula) return;
 
     try {
-      if (window.confirm('Deseja aprovar esta matrícula?')) {
-        await MatriculaService.atualizarStatusMatricula(
-          selectedMatricula,
-          'ativa',
-          currentUser.id
-        );
-        
-        // Atualiza a lista de matrículas (pendentes e ativas) respeitando o polo atual
-        const allowedPolos = getUserAllowedPolos();
-        let poloFilter: string | undefined;
+      await PreMatriculasAPI.atualizarStatus(selectedPreMatricula, { status });
 
-        if (hasAccessToAllPolos()) {
-          poloFilter = selectedPoloId === 'all' ? undefined : selectedPoloId;
-        } else {
-          poloFilter = allowedPolos[0] || undefined;
-        }
-
-        const matriculasPendentes = await MatriculaService.listarMatriculas(poloFilter, 'pendente');
-        const matriculasAtivasData = await MatriculaService.listarMatriculas(poloFilter, 'ativa');
-        setMatriculas(matriculasPendentes);
-        setMatriculasAtivas(matriculasAtivasData);
-        
-        alert('Matrícula aprovada com sucesso!');
-      }
-    } catch (error) {
-      console.error('Erro ao aprovar matrícula:', error);
-      alert('Erro ao aprovar matrícula. Por favor, tente novamente.');
-    }
-  };
-
-  // Recusa uma matrícula
-  const handleRejectEnrollment = async () => {
-    if (!selectedMatricula || !currentUser?.id) return;
-
-    const motivo = window.prompt('Informe o motivo da recusa:');
-    if (!motivo) return;
-
-    try {
-      await MatriculaService.atualizarStatusMatricula(
-        selectedMatricula,
-        'recusada',
-        currentUser.id,
-        motivo
-      );
-      
-      // Atualiza a lista de matrículas (pendentes e ativas) respeitando o polo atual
+      // Recarrega listagem e documentos
       const allowedPolos = getUserAllowedPolos();
       let poloFilter: string | undefined;
 
@@ -191,21 +200,30 @@ export const EnrollmentManagement: React.FC = () => {
         poloFilter = allowedPolos[0] || undefined;
       }
 
-      const matriculasPendentes = await MatriculaService.listarMatriculas(poloFilter, 'pendente');
-      const matriculasAtivasData = await MatriculaService.listarMatriculas(poloFilter, 'ativa');
-      setMatriculas(matriculasPendentes);
-      setMatriculasAtivas(matriculasAtivasData);
-      
-      alert('Matrícula recusada com sucesso!');
+      const emAnalise = (await PreMatriculasAPI.listar({
+        polo_id: poloFilter,
+        status: 'em_analise',
+      })) as PreMatricula[];
+      const ativas = (await PreMatriculasAPI.listar({
+        polo_id: poloFilter,
+        status: 'ativo',
+      })) as PreMatricula[];
+      setPreMatriculasEmAnalise(emAnalise);
+      setPreMatriculasAtivas(ativas);
+
+      const response = (await DocumentosAPI.listarPorPreMatricula(selectedPreMatricula)) as {
+        arquivos?: Array<{ name: string; path: string; url: string }>;
+      };
+      setDocumentos(response?.arquivos || []);
     } catch (error) {
-      console.error('Erro ao recusar matrícula:', error);
-      alert('Erro ao recusar matrícula. Por favor, tente novamente.');
+      console.error('Erro ao atualizar status da pré-matrícula:', error);
+      alert('Erro ao atualizar status. Por favor, tente novamente.');
     }
   };
 
   // Verifica se um documento obrigatório está ausente
   const isDocumentMissing = (type: TipoDocumento) => {
-    return !documentos.some(doc => doc.tipo_documento === type);
+    return !documentos.some((doc) => doc.path.toLowerCase().includes(`/${type.toLowerCase()}/`));
   };
 
   // Verifica se todos os documentos obrigatórios foram enviados
@@ -213,7 +231,7 @@ export const EnrollmentManagement: React.FC = () => {
     doc => !isDocumentMissing(doc.type)
   );
 
-  if (isLoading && !selectedMatricula) {
+  if (isLoading && !selectedPreMatricula) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -235,7 +253,7 @@ export const EnrollmentManagement: React.FC = () => {
               className="h-full w-full object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Matrículas</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Pré-matrículas</h1>
         </div>
 
         {hasAccessToAllPolos() && polos && polos.length > 0 && (
@@ -275,35 +293,35 @@ export const EnrollmentManagement: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Lista de matrículas pendentes e ativas */}
+        {/* Lista de pré-matrículas em análise e ativas */}
         <div className="lg:col-span-1">
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Matrículas Pendentes</h3>
+              <h3 className="text-lg font-medium text-gray-900">Pré-matrículas em análise</h3>
             </div>
             <div className="divide-y divide-gray-200">
-              {matriculas.length === 0 ? (
+              {preMatriculasEmAnalise.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">
-                  Nenhuma matrícula pendente
+                  Nenhuma pré-matrícula em análise
                 </div>
               ) : (
-                matriculas.map((matricula) => (
+                preMatriculasEmAnalise.map((preMatricula) => (
                   <button
-                    key={matricula.id}
+                    key={preMatricula.id}
                     className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
-                      selectedMatricula === matricula.id ? 'bg-blue-50' : ''
+                      selectedPreMatricula === preMatricula.id ? 'bg-blue-50' : ''
                     }`}
-                    onClick={() => setSelectedMatricula(matricula.id)}
+                    onClick={() => setSelectedPreMatricula(preMatricula.id)}
                   >
                     <div className="font-medium text-gray-900">
-                      {matricula.aluno?.nome || 'Aluno não encontrado'}
+                      {preMatricula.nome_completo}
                     </div>
                     <div className="text-sm text-gray-500">
-                      Protocolo: {matricula.protocolo}
+                      CPF: {preMatricula.cpf}
                     </div>
                     <div className="mt-1">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        Pendente
+                        Em análise
                       </span>
                     </div>
                   </button>
@@ -314,24 +332,24 @@ export const EnrollmentManagement: React.FC = () => {
 
           <div className="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
             <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Matrículas Ativas</h3>
+              <h3 className="text-lg font-medium text-gray-900">Pré-matrículas ativas</h3>
             </div>
             <div className="divide-y divide-gray-200 max-h-64 overflow-y-auto">
-              {matriculasAtivas.length === 0 ? (
+              {preMatriculasAtivas.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">
-                  Nenhuma matrícula ativa para o filtro selecionado
+                  Nenhuma pré-matrícula ativa para o filtro selecionado
                 </div>
               ) : (
-                matriculasAtivas.map((matricula) => (
+                preMatriculasAtivas.map((preMatricula) => (
                   <div
-                    key={matricula.id}
+                    key={preMatricula.id}
                     className="w-full text-left p-4 border-l-4 border-green-500 bg-green-50/40"
                   >
                     <div className="font-medium text-gray-900">
-                      {matricula.aluno?.nome || 'Aluno não encontrado'}
+                      {preMatricula.nome_completo}
                     </div>
                     <div className="text-sm text-gray-500">
-                      Protocolo: {matricula.protocolo}
+                      CPF: {preMatricula.cpf}
                     </div>
                     <div className="mt-1">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -347,40 +365,49 @@ export const EnrollmentManagement: React.FC = () => {
 
         {/* Área de documentos */}
         <div className="lg:col-span-3 space-y-6">
-          {selectedMatricula ? (
+          {selectedPreMatricula ? (
             <>
-              {/* Informações do aluno */}
+              {/* Informações da pré-matrícula */}
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
                 <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">
-                    Dados do Aluno
+                    Dados da Pré-matrícula
                   </h3>
                 </div>
                 <div className="px-4 py-5 sm:p-6">
-                  {alunoInfo ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Nome Completo</p>
-                        <p className="mt-1 text-sm text-gray-900">{alunoInfo.nome}</p>
+                  {(() => {
+                    const preMatricula =
+                      preMatriculasEmAnalise.find((p) => p.id === selectedPreMatricula) ||
+                      preMatriculasAtivas.find((p) => p.id === selectedPreMatricula);
+
+                    if (!preMatricula) {
+                      return <p className="text-sm text-gray-500">Carregando informações...</p>;
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Nome Completo</p>
+                          <p className="mt-1 text-sm text-gray-900">{preMatricula.nome_completo}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Data de Nascimento</p>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {new Date(preMatricula.data_nascimento).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">CPF</p>
+                          <p className="mt-1 text-sm text-gray-900">{preMatricula.cpf}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">Contato do Responsável</p>
+                          <p className="mt-1 text-sm text-gray-900">{preMatricula.telefone_responsavel}</p>
+                          <p className="mt-1 text-sm text-gray-900">{preMatricula.email_responsavel}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Data de Nascimento</p>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {new Date(alunoInfo.data_nascimento).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">CPF</p>
-                        <p className="mt-1 text-sm text-gray-900">{alunoInfo.cpf || 'Não informado'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Telefone</p>
-                        <p className="mt-1 text-sm text-gray-900">{alunoInfo.telefone1 || 'Não informado'}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">Carregando informações do aluno...</p>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -426,12 +453,24 @@ export const EnrollmentManagement: React.FC = () => {
                     </div>
 
                     <FileUpload
-                      folder={`matriculas/${selectedMatricula}`}
-                      onUploadComplete={handleUploadComplete}
+                      folder={`pre-matriculas/${selectedPreMatricula}`}
+                      onUploadComplete={() => undefined}
+                      onFileSelected={handleFileSelected}
+                      autoUpload={false}
                       accept="image/*,.pdf,.doc,.docx"
                       maxSizeMB={10}
                       label={`Arraste e solte o arquivo do ${REQUIRED_DOCUMENTS.find(d => d.type === selectedDocumentType)?.label || 'documento'} aqui ou clique para selecionar`}
                     />
+
+                    <div className="flex justify-end">
+                      <Button
+                        variant="primary"
+                        onClick={() => void handleUploadSelectedFile()}
+                        disabled={isUploading || !selectedFile}
+                      >
+                        Enviar documento
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Lista de documentos obrigatórios */}
@@ -497,11 +536,28 @@ export const EnrollmentManagement: React.FC = () => {
                       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                     </div>
                   ) : (
-                    <DocumentList
-                      documentos={documentos}
-                      onDelete={handleDeleteDocument}
-                      showValidation={true}
-                    />
+                    <div className="space-y-2">
+                      {documentos.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">Nenhum documento enviado.</div>
+                      ) : (
+                        documentos.map((doc) => (
+                          <div key={doc.path} className="flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">{doc.name}</div>
+                              <div className="text-xs text-gray-500 truncate">{doc.path}</div>
+                            </div>
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-indigo-600 hover:text-indigo-900"
+                            >
+                              Visualizar
+                            </a>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -511,34 +567,67 @@ export const EnrollmentManagement: React.FC = () => {
                 <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">Ações</h3>
                 </div>
-                <div className="px-4 py-5 sm:p-6 flex justify-end space-x-4">
-                  <Button
-                    asChild
-                    variant="outline"
-                    disabled={!selectedMatricula}
+                <div className="px-4 py-5 sm:p-6 flex flex-col md:flex-row md:items-center md:justify-end gap-3">
+                  <div className="w-full md:w-auto">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
+                    <select
+                      className="block w-full md:w-80 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      value={selectedTurmaId}
+                      onChange={(e) => setSelectedTurmaId(e.target.value)}
+                    >
+                      <option value="">Selecione uma turma...</option>
+                      {(() => {
+                        const preMatricula =
+                          preMatriculasEmAnalise.find((p) => p.id === selectedPreMatricula) ||
+                          preMatriculasAtivas.find((p) => p.id === selectedPreMatricula);
+
+                        const poloId = preMatricula?.polo_id;
+                        const turmasFiltradas = poloId
+                          ? turmas.filter((t) => t.polo_id === poloId)
+                          : turmas;
+
+                        return turmasFiltradas.map((turma) => (
+                          <option key={turma.id} value={turma.id}>
+                            {turma.nome}
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+
+                  <select
+                    className="block pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const status = e.target.value as StatusPreMatricula;
+                      if (status) {
+                        void handleUpdateStatus(status);
+                      }
+                      e.target.value = '';
+                    }}
                   >
-                    <Link to={selectedMatricula ? `/admin/enrollments/${selectedMatricula}/documentos` : '#'}>
-                      Ver documentos (site)
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={handleRejectEnrollment}
-                    disabled={isUploading}
-                  >
-                    Recusar Matrícula
-                  </Button>
+                    <option value="" disabled>
+                      Alterar status...
+                    </option>
+                    {STATUS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                   <Button
                     variant="primary"
-                    onClick={handleApproveEnrollment}
-                    disabled={isUploading || !allRequiredDocumentsUploaded}
+                    onClick={() => void handleConcluir()}
+                    disabled={isUploading || isConcluding || !allRequiredDocumentsUploaded || !selectedTurmaId}
                     title={
                       !allRequiredDocumentsUploaded
-                        ? 'Todos os documentos obrigatórios devem ser enviados antes de aprovar a matrícula.'
+                        ? 'Todos os documentos obrigatórios devem ser enviados antes de aprovar.'
+                        : !selectedTurmaId
+                          ? 'Selecione uma turma antes de concluir.'
                         : ''
                     }
                   >
-                    Aprovar Matrícula
+                    Concluir matrícula
                   </Button>
                 </div>
               </div>
@@ -558,9 +647,9 @@ export const EnrollmentManagement: React.FC = () => {
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma matrícula selecionada</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma pré-matrícula selecionada</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Selecione uma matrícula da lista ao lado para visualizar e gerenciar os documentos.
+                Selecione uma pré-matrícula da lista ao lado para visualizar e gerenciar os documentos.
               </p>
             </div>
           )}

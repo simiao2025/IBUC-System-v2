@@ -109,4 +109,54 @@ export class DracmasService {
       transacoes,
     };
   }
+
+  async total(poloId?: string) {
+    let query = this.supabase
+      .getAdminClient()
+      .from('dracmas_transacoes')
+      .select('quantidade, turma:turmas!fk_turma(polo_id)');
+
+    if (poloId) {
+      query = query.eq('turma.polo_id', poloId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const total = (data || []).reduce((acc, row: any) => acc + (row.quantidade || 0), 0);
+    return { polo_id: poloId || null, total };
+  }
+
+  async listarCriterios() {
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('dracmas_criterios')
+      .select('*')
+      .order('nome');
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
+
+  async atualizarCriterio(
+    id: string,
+    body: { ativo?: boolean; quantidade_padrao?: number; nome?: string; descricao?: string },
+  ) {
+    const update: Record<string, any> = {};
+    if (typeof body.ativo === 'boolean') update.ativo = body.ativo;
+    if (typeof body.quantidade_padrao === 'number') update.quantidade_padrao = body.quantidade_padrao;
+    if (typeof body.nome === 'string') update.nome = body.nome;
+    if (typeof body.descricao === 'string') update.descricao = body.descricao;
+
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('dracmas_criterios')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  }
 }

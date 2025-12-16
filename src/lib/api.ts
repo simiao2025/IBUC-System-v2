@@ -39,6 +39,20 @@ class ApiClient {
       throw new Error(error.message || `HTTP error! status: ${response.status}`);
     }
 
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength === '0') {
+      return undefined as T;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return undefined as T;
+    }
+
     return response.json();
   }
 
@@ -79,29 +93,71 @@ export const MatriculaAPI = {
   criar: (data: unknown) => api.post('/matriculas', data),
   uploadDocumentos: (id: string, formData: FormData) => api.upload(`/documentos/matriculas/${id}`, formData),
   listar: (params?: { polo_id?: string; status?: string }) => {
-    const query = new URLSearchParams(params as Record<string, string>).toString();
-    return api.get(`/matriculas?${query}`);
+    const searchParams = new URLSearchParams();
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (typeof value === 'string' && value.trim().length > 0) {
+          searchParams.append(key, value);
+        }
+      }
+    }
+    const query = searchParams.toString();
+    return api.get(`/matriculas${query ? `?${query}` : ''}`);
   },
   buscarPorProtocolo: (protocolo: string) => api.get(`/matriculas/protocolo/${protocolo}`),
   aprovar: (id: string, data: { approved_by: string }) => api.put(`/matriculas/${id}/aprovar`, data),
   recusar: (id: string, data: { motivo: string; user_id: string }) => api.put(`/matriculas/${id}/recusar`, data),
 };
 
+export const PreMatriculasAPI = {
+  criar: (data: {
+    nome_completo: string;
+    cpf: string;
+    data_nascimento: string;
+    email_responsavel: string;
+    telefone_responsavel: string;
+    polo_id: string;
+  }) => api.post('/pre-matriculas', data),
+  listar: (params?: { polo_id?: string; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.polo_id) searchParams.append('polo_id', params.polo_id);
+    if (params?.status) searchParams.append('status', params.status);
+    const query = searchParams.toString();
+    return api.get(`/pre-matriculas${query ? `?${query}` : ''}`);
+  },
+  atualizarStatus: (id: string, data: { status: string }) => api.put(`/pre-matriculas/${id}/status`, data),
+  concluir: (id: string, data: { turma_id: string; approved_by: string }) => api.post(`/pre-matriculas/${id}/concluir`, data),
+};
+
 export const DocumentosAPI = {
   listarPorMatricula: (matriculaId: string) => api.get(`/documentos/matriculas/${matriculaId}`),
+  uploadPorPreMatricula: (preMatriculaId: string, formData: FormData, tipo?: string) => {
+    const query = tipo ? `?tipo=${encodeURIComponent(tipo)}` : '';
+    return api.upload(`/documentos/pre-matriculas/${preMatriculaId}${query}`, formData);
+  },
+  listarPorPreMatricula: (preMatriculaId: string) => api.get(`/documentos/pre-matriculas/${preMatriculaId}`),
 };
 
 export const TurmasAPI = {
-  listar: (params?: { polo_id?: string; nivel_id?: string; status?: string; ano_letivo?: number }) => {
+  listar: (params?: { polo_id?: string; nivel_id?: string; professor_id?: string; status?: string; ano_letivo?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.polo_id) searchParams.append('polo_id', params.polo_id);
     if (params?.nivel_id) searchParams.append('nivel_id', params.nivel_id);
+    if (params?.professor_id) searchParams.append('professor_id', params.professor_id);
     if (params?.status) searchParams.append('status', params.status);
     if (typeof params?.ano_letivo === 'number') searchParams.append('ano_letivo', String(params.ano_letivo));
 
     const query = searchParams.toString();
     return api.get(`/turmas${query ? `?${query}` : ''}`);
   },
+  criar: (data: unknown) => api.post('/turmas', data),
+  buscarPorId: (id: string) => api.get(`/turmas/${id}`),
+  atualizar: (id: string, data: unknown) => api.put(`/turmas/${id}`, data),
+  deletar: (id: string) => api.delete(`/turmas/${id}`),
+};
+
+export const NiveisAPI = {
+  listar: () => api.get('/niveis'),
 };
 
 export const PresencasAPI = {
@@ -133,6 +189,18 @@ export const DracmasAPI = {
   }) => api.post('/dracmas/lancar-lote', data),
 
   saldoPorAluno: (alunoId: string) => api.get(`/dracmas/saldo?aluno_id=${alunoId}`),
+
+  total: (poloId?: string) => {
+    const query = poloId ? `?polo_id=${encodeURIComponent(poloId)}` : '';
+    return api.get(`/dracmas/total${query}`);
+  },
+
+  listarCriterios: () => api.get('/dracmas/criterios'),
+
+  atualizarCriterio: (
+    id: string,
+    data: { ativo?: boolean; quantidade_padrao?: number; nome?: string; descricao?: string },
+  ) => api.put(`/dracmas/criterios/${id}`, data),
 
   porAluno: (alunoId: string, inicio?: string, fim?: string) => {
     const params = new URLSearchParams();
@@ -206,6 +274,10 @@ export const DiretoriaAPI = {
 
 export const UsuariosAPI = {
   criar: (data: unknown) => api.post('/usuarios', data),
+  login: (data: { email: string; password: string }) => api.post('/usuarios/login', data),
+  solicitarCodigoRecuperacaoSenha: (data: { email: string }) => api.post('/usuarios/recuperar-senha/solicitar-codigo', data),
+  confirmarCodigoRecuperacaoSenha: (data: { email: string; codigo: string; senhaNova: string }) =>
+    api.post('/usuarios/recuperar-senha/confirmar-codigo', data),
   listar: (filtros?: { role?: string; polo_id?: string; ativo?: boolean; search?: string }) => {
     const params = new URLSearchParams();
     if (filtros?.role) params.append('role', filtros.role);
@@ -221,6 +293,9 @@ export const UsuariosAPI = {
   ativar: (id: string) => api.put(`/usuarios/${id}/ativar`),
   desativar: (id: string) => api.put(`/usuarios/${id}/desativar`),
   deletar: (id: string) => api.delete(`/usuarios/${id}`),
+  // Metadados para selects dinâmicos
+  listarRoles: () => api.get('/usuarios/meta/roles'),
+  listarAccessLevels: () => api.get('/usuarios/meta/access-levels'),
 };
 
 export const PolosAPI = {

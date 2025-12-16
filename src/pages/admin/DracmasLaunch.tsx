@@ -30,9 +30,9 @@ const DracmasLaunch: React.FC = () => {
   useEffect(() => {
     const carregarTurmas = async () => {
       try {
-        const response = await TurmasAPI.listar();
-        const lista = response.data as any[];
-        setTurmas(lista.map(t => ({ id: t.id, nome: t.nome })));
+        const params = currentUser?.id ? { professor_id: currentUser.id } : undefined;
+        const lista = (await TurmasAPI.listar(params as any)) as any[];
+        setTurmas((Array.isArray(lista) ? lista : []).map(t => ({ id: t.id, nome: t.nome })));
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
       }
@@ -49,9 +49,8 @@ const DracmasLaunch: React.FC = () => {
       }
 
       try {
-        const response = await AlunosAPI.listar({ turma_id: turmaId });
-        const lista = response.data as any[];
-        setAlunos(lista.map(a => ({ aluno_id: a.id, nome: a.nome, quantidade: 0 })));
+        const lista = (await AlunosAPI.listar({ turma_id: turmaId })) as any[];
+        setAlunos((Array.isArray(lista) ? lista : []).map(a => ({ aluno_id: a.id, nome: a.nome, quantidade: 0 })));
       } catch (error) {
         console.error('Erro ao carregar alunos da turma:', error);
         setAlunos([]);

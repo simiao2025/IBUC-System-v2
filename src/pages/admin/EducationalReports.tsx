@@ -117,6 +117,12 @@ const EducationalReports: React.FC = () => {
     quantidade?: number;
   };
 
+  type DracmasPorAlunoApiResponse = {
+    aluno_id: string;
+    saldo: number;
+    transacoes: DracmaTransacaoApi[];
+  };
+
   type MatriculaApiItem = {
     id?: string | number;
     created_at?: string;
@@ -327,17 +333,22 @@ const EducationalReports: React.FC = () => {
         setDracmasResumo(null);
         setDracmasTransacoes([]);
 
-        // Saldo atual
-        const saldoResponse = await DracmasAPI.saldoPorAluno(dracmasAlunoId) as SaldoResponse;
-
-        // Transações no período
+        // Transações no período (API retorna { saldo, transacoes })
         const periodoInicio = dateFilter.start;
         const periodoFim = dateFilter.end;
-        const transacoesResponse = await DracmasAPI.porAluno(dracmasAlunoId, periodoInicio, periodoFim) as DracmaTransacaoApi[];
+        const porAlunoResponse = await DracmasAPI.porAluno(
+          dracmasAlunoId,
+          periodoInicio,
+          periodoFim,
+        ) as DracmasPorAlunoApiResponse;
 
-        const totalGanhoPeriodo = transacoesResponse.reduce((acc, t) => acc + (t.quantidade || 0), 0);
+        const transacoesApi = Array.isArray(porAlunoResponse?.transacoes)
+          ? porAlunoResponse.transacoes
+          : [];
 
-        const transacoesMapeadas = transacoesResponse.map((t) => ({
+        const totalGanhoPeriodo = transacoesApi.reduce((acc, t) => acc + (t.quantidade || 0), 0);
+
+        const transacoesMapeadas = transacoesApi.map((t) => ({
           id: String(t.id ?? ''),
           data: t.data || t.created_at || '',
           tipo: t.tipo || '',
@@ -346,7 +357,7 @@ const EducationalReports: React.FC = () => {
         }));
 
         setDracmasResumo({
-          saldoAtual: saldoResponse?.saldo ?? 0,
+          saldoAtual: porAlunoResponse?.saldo ?? 0,
           totalGanhoPeriodo,
           totalTransacoes: transacoesMapeadas.length,
         });

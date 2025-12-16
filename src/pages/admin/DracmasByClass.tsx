@@ -4,13 +4,34 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { DracmasAPI } from '../../lib/api';
 
+type DracmaTransacao = {
+  id: string;
+  data: string;
+  aluno_id: string;
+  tipo: string;
+  quantidade: number;
+  descricao?: string;
+};
+
+type ResumoPorAluno = {
+  aluno_id: string;
+  total_dracmas: number;
+};
+
+type DracmasPorTurmaResponse = {
+  turma_id: string;
+  totalTurma: number;
+  resumoPorAluno: ResumoPorAluno[];
+  transacoes: DracmaTransacao[];
+};
+
 const DracmasByClass: React.FC = () => {
   const [turmaId, setTurmaId] = useState('');
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<any | null>(null);
+  const [data, setData] = useState<DracmasPorTurmaResponse | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +45,7 @@ const DracmasByClass: React.FC = () => {
 
     try {
       const response = await DracmasAPI.porTurma(turmaId, inicio || undefined, fim || undefined);
-      setData(response.data);
+      setData(response as DracmasPorTurmaResponse);
     } catch (err) {
       console.error('Erro ao buscar Drácmas da turma:', err);
       setError('Não foi possível carregar as informações de Drácmas da turma.');
@@ -81,7 +102,7 @@ const DracmasByClass: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {data.resumoPorAluno.map((item: any) => (
+                    {data.resumoPorAluno.map((item) => (
                       <tr key={item.aluno_id}>
                         <td className="px-4 py-2">{item.aluno_id}</td>
                         <td className="px-4 py-2 font-semibold">{item.total_dracmas}</td>
@@ -111,7 +132,7 @@ const DracmasByClass: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {data.transacoes.map((t: any) => (
+                    {data.transacoes.map((t) => (
                       <tr key={t.id}>
                         <td className="px-4 py-2">{t.data}</td>
                         <td className="px-4 py-2">{t.aluno_id}</td>

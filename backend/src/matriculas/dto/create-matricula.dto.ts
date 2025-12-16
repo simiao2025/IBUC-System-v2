@@ -61,6 +61,11 @@ export class AprovarMatriculaDto {
   @ApiProperty()
   @IsUUID()
   approved_by: string;
+
+  @ApiProperty({ required: false })
+  @IsUUID()
+  @IsOptional()
+  turma_id?: string;
 }
 
 

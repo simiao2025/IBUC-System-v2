@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, Put, Param } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { DracmasService } from './dracmas.service';
 
@@ -33,5 +33,23 @@ export class DracmasController {
     @Query('fim') fim?: string,
   ) {
     return this.service.porTurma(turmaId, inicio, fim);
+  }
+
+  @Get('total')
+  async total(@Query('polo_id') poloId?: string) {
+    return this.service.total(poloId);
+  }
+
+  @Get('criterios')
+  async listarCriterios() {
+    return this.service.listarCriterios();
+  }
+
+  @Put('criterios/:id')
+  async atualizarCriterio(
+    @Param('id') id: string,
+    @Body() body: { ativo?: boolean; quantidade_padrao?: number; nome?: string; descricao?: string },
+  ) {
+    return this.service.atualizarCriterio(id, body);
   }
 }

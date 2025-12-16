@@ -1,43 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import {
+import { 
+  Users, 
+  Settings, 
+  Shield, 
+  Database, 
   ArrowLeft,
-  Settings,
-  User,
-  Lock,
-  Shield,
-  Eye,
-  EyeOff,
+  Award,
   Plus,
+  Search,
+  Filter,
   Edit2,
   Trash2,
-  Key,
-  Users,
-  Database,
   Mail,
+  Phone,
+  MapPin,
   Calendar,
-  FileText,
-  Save,
-  RefreshCw
+  User,
+  Loader2
 } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { UsuarioService } from '../../services/usuario.service';
+import { PoloService } from '../../services/polo.service';
+import { DracmasAPI } from '../../lib/api';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 
-interface SystemUser {
+type DracmasCriterio = {
   id: string;
-  username: string;
-  email: string;
-  fullName: string;
-  role: 'super_admin' | 'admin' | 'coordinator' | 'teacher' | 'staff';
-  permissions: string[];
-  isActive: boolean;
-  lastLogin?: string;
-  createdAt: string;
-  poloAccess?: string[];
+  codigo: string;
+  nome: string;
+  descricao?: string | null;
+  ativo: boolean;
+  quantidade_padrao: number;
+};
+
+type PermissionMode = 'full' | 'limited';
+
+type AdminModuleKey =
+  | 'settings'
+  | 'polos'
+  | 'staff'
+  | 'students'
+  | 'enrollments'
+  | 'reports'
+  | 'dracmas'
+  | 'attendance'
+  | 'directorate';
+
+interface AdminPermissions {
+  mode: PermissionMode;
+  modules: AdminModuleKey[];
 }
 
+type BackendPolo = {
+  id: string;
+  nome: string;
+};
+
+type BackendUsuario = {
+  id: string;
+  nome_completo: string;
+  email: string;
+  cpf?: string | null;
+  telefone?: string | null;
+  role: AdminRole;
+  polo_id?: string | null;
+  metadata?: { permissions?: AdminPermissions } | null;
+  ativo: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+// Types (migrados do UserManagement)
+interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  cpf: string;
+  phone: string;
+  password?: string;
+  role: AdminRole;
+  accessLevel: AccessLevel;
+  poloId?: string;
+  permissions?: AdminPermissions;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+type AdminRole = 
+  | 'coordenador_geral'
+  | 'diretor_geral'
+  | 'coordenador_polo'
+  | 'diretor_polo'
+  | 'professor'
+  | 'auxiliar'
+  | 'secretario'
+  | 'tesoureiro';
+
+type AccessLevel = 'geral' | 'polo_especifico';
+
+// Interface SystemConfig
 interface SystemConfig {
   schoolYear: string;
   enrollmentPeriod: {
@@ -68,49 +134,88 @@ interface SystemConfig {
 }
 
 const SystemSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'users' | 'config' | 'security' | 'backup'>('users');
+  const { polos, currentUser } = useApp();
+  const [activeTab, setActiveTab] = useState<'users' | 'config' | 'security' | 'backup' | 'dracmas'>('users');
   const [showUserForm, setShowUserForm] = useState(false);
-  const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
-  const [users, setUsers] = useState<SystemUser[]>([
-    {
-      id: '1',
-      username: 'admin',
-      email: 'admin@ibuc.org.br',
-      fullName: 'Administrador Sistema',
-      role: 'super_admin',
-      permissions: ['all'],
-      isActive: true,
-      lastLogin: '2024-01-15T10:30:00',
-      createdAt: '2024-01-01',
-      poloAccess: []
-    },
-    {
-      id: '2',
-      username: 'coordenador.geral',
-      email: 'coordenador@ibuc.org.br',
-      fullName: 'Ana Costa Silva',
-      role: 'coordinator',
-      permissions: ['manage_polos', 'view_reports', 'manage_students'],
-      isActive: true,
-      lastLogin: '2024-01-14T09:15:00',
-      createdAt: '2024-01-02',
-      poloAccess: []
-    }
-  ]);
+  const [dracmasCriterios, setDracmasCriterios] = useState<DracmasCriterio[]>([]);
+  const [dracmasCriteriosLoading, setDracmasCriteriosLoading] = useState(false);
+  
+  // Estados para dados dinâmicos dos selects (migrado do UserManagement)
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
+  const [accessLevels, setAccessLevels] = useState<{ value: string; label: string }[]>([]);
+  const [polosOptions, setPolosOptions] = useState<{ id: string; name: string }[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [emailLookupLoading, setEmailLookupLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState<AdminRole | 'all'>('all');
+  const [filterAccessLevel, setFilterAccessLevel] = useState<AccessLevel | 'all'>('all');
 
-  const [newUser, setNewUser] = useState<Partial<SystemUser>>({
-    username: '',
+  const [newUser, setNewUser] = useState<Partial<AdminUser>>({
+    name: '',
     email: '',
-    fullName: '',
-    role: 'staff',
-    permissions: [],
-    isActive: true,
-    poloAccess: []
+    cpf: '',
+    phone: '',
+    password: '',
+    role: 'professor',
+    accessLevel: 'polo_especifico',
+    poloId: '',
+    permissions: { mode: 'full', modules: [] },
+    isActive: true
   });
 
-  const [newPassword, setNewPassword] = useState('');
+  const moduleOptions: { key: AdminModuleKey; label: string }[] = [
+    { key: 'polos', label: 'Polos' },
+    { key: 'staff', label: 'Equipe (Polo)' },
+    { key: 'students', label: 'Alunos' },
+    { key: 'enrollments', label: 'Matrículas' },
+    { key: 'reports', label: 'Relatórios' },
+    { key: 'dracmas', label: 'Dracmas' },
+    { key: 'attendance', label: 'Presenças' },
+    { key: 'directorate', label: 'Diretoria' },
+    { key: 'settings', label: 'Configurações' },
+  ];
+
+  const isGeneralManagement = currentUser?.adminUser?.role === 'diretor_geral' || currentUser?.adminUser?.role === 'coordenador_geral';
+  const isPoloDirector = currentUser?.adminUser?.role === 'diretor_polo';
+  const isSuperAdmin = currentUser?.adminUser?.role === 'super_admin' || currentUser?.adminUser?.role === 'admin_geral';
+  const currentPoloId = currentUser?.adminUser?.poloId;
+  const creatorIsPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico';
+  const visiblePolosOptions = creatorIsPoloScoped && currentPoloId
+    ? polosOptions.filter(p => p.id === currentPoloId)
+    : polosOptions;
+
+  const isGeneralRole = (role?: AdminRole) => {
+    return role === 'diretor_geral' || role === 'coordenador_geral' || role === 'secretario' || role === 'tesoureiro';
+  };
+
+  const roleRequiresPolo = (role?: AdminRole) => {
+    if (!role) return false;
+    if (isGeneralRole(role)) return false;
+    return ['diretor_polo', 'coordenador_polo', 'professor', 'auxiliar'].includes(role);
+  };
+
+  const resolveAccessLevelForRole = (role?: AdminRole): AccessLevel => {
+    if (creatorIsPoloScoped) return 'polo_especifico';
+    if (!role) return 'polo_especifico';
+    if (isGeneralRole(role)) return 'geral';
+    return 'polo_especifico';
+  };
+
+  const allowedRolesForCreator = (): AdminRole[] => {
+    if (isSuperAdmin) return ['diretor_geral', 'coordenador_geral', 'secretario', 'tesoureiro', 'diretor_polo', 'coordenador_polo'];
+    if (isGeneralManagement) return ['diretor_polo', 'coordenador_polo'];
+    if (isPoloDirector) return ['secretario', 'tesoureiro', 'professor', 'auxiliar'];
+    return [];
+  };
+
+  const canConfigurePermissionsForRole = (role: AdminRole): boolean => {
+    return ['secretario', 'tesoureiro', 'professor', 'auxiliar'].includes(role);
+  };
 
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({
     schoolYear: '2024',
@@ -141,90 +246,372 @@ const SystemSettings: React.FC = () => {
     }
   });
 
-  const roleLabels = {
-    super_admin: 'Super Administrador',
-    admin: 'Administrador',
-    coordinator: 'Coordenador',
-    teacher: 'Professor',
-    staff: 'Funcionário'
-  };
+  // Carregar usuários ao montar (migrado do UserManagement)
+  // Carregar opções para selects dinâmicos
+  const carregarOpcoesSelects = useCallback(async () => {
+    try {
+      setLoadingOptions(true);
+      
+      // Buscar roles, access levels e polos em paralelo
+      const [rolesData, accessLevelsData, polosData] = await Promise.all([
+        UsuarioService.listarRoles(),
+        UsuarioService.listarAccessLevels(),
+        PoloService.listarPolos(),
+      ]);
 
-  const availablePermissions = [
-    { id: 'manage_users', label: 'Gerenciar Usuários' },
-    { id: 'manage_polos', label: 'Gerenciar Polos' },
-    { id: 'manage_students', label: 'Gerenciar Alunos' },
-    { id: 'manage_enrollments', label: 'Gerenciar Matrículas' },
-    { id: 'view_reports', label: 'Visualizar Relatórios' },
-    { id: 'export_data', label: 'Exportar Dados' },
-    { id: 'system_config', label: 'Configurações do Sistema' },
-    { id: 'backup_restore', label: 'Backup e Restauração' }
-  ];
+      const resolvedRoles = Array.isArray(rolesData) && rolesData.length > 0
+        ? rolesData
+        : [
+            { value: 'coordenador_geral', label: 'Coordenador Geral' },
+            { value: 'diretor_geral', label: 'Diretor Geral' },
+            { value: 'coordenador_polo', label: 'Coordenador de Polo' },
+            { value: 'diretor_polo', label: 'Diretor de Polo' },
+            { value: 'professor', label: 'Professor' },
+            { value: 'auxiliar', label: 'Auxiliar' },
+            { value: 'secretario', label: 'Secretário(a)' },
+            { value: 'tesoureiro', label: 'Tesoureiro(a)' }
+          ];
 
-  const handleUserSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+      const resolvedAccessLevels = Array.isArray(accessLevelsData) && accessLevelsData.length > 0
+        ? accessLevelsData
+        : [
+            { value: 'geral', label: 'Acesso Geral' },
+            { value: 'polo_especifico', label: 'Polo Específico' }
+          ];
+
+      setRoles(resolvedRoles);
+      setAccessLevels(resolvedAccessLevels);
+
+      const polosFromApi = Array.isArray(polosData)
+        ? (polosData as BackendPolo[]).map((p) => ({ id: p.id, name: p.nome }))
+        : [];
+
+      setPolosOptions(polosFromApi.length > 0 ? polosFromApi : (polos || []));
+    } catch (error: unknown) {
+      console.error('Erro ao carregar opções dos selects:', error);
+      // Fallback para valores estáticos em caso de erro
+      setRoles([
+        { value: 'coordenador_geral', label: 'Coordenador Geral' },
+        { value: 'diretor_geral', label: 'Diretor Geral' },
+        { value: 'coordenador_polo', label: 'Coordenador de Polo' },
+        { value: 'diretor_polo', label: 'Diretor de Polo' },
+        { value: 'professor', label: 'Professor' },
+        { value: 'auxiliar', label: 'Auxiliar' },
+        { value: 'secretario', label: 'Secretário(a)' },
+        { value: 'tesoureiro', label: 'Tesoureiro(a)' }
+      ]);
+      setAccessLevels([
+        { value: 'geral', label: 'Acesso Geral' },
+        { value: 'polo_especifico', label: 'Polo Específico' }
+      ]);
+      setPolosOptions(polos || []);
+    } finally {
+      setLoadingOptions(false);
+    }
+  }, [polos]);
+
+  const carregarUsuarios = useCallback(async () => {
+    try {
+      setLoading(true);
+      const filtros: Record<string, unknown> = {};
+      if (filterRole !== 'all') filtros.role = filterRole;
+      if (filterAccessLevel !== 'all' && filterAccessLevel === 'polo_especifico') {
+        // Se for polo específico, precisamos filtrar por polo_id depois
+      }
+      if (searchTerm) filtros.search = searchTerm;
+
+      if (currentUser?.adminUser?.accessLevel === 'polo_especifico' && currentPoloId) {
+        filtros.polo_id = currentPoloId;
+      }
+
+      const data = await UsuarioService.listarUsuarios(filtros);
+      
+      // Mapear dados da API para o formato do componente
+      const usuariosMapeados = (data as BackendUsuario[]).map((u) => ({
+        id: u.id,
+        name: u.nome_completo,
+        email: u.email,
+        cpf: u.cpf || '',
+        phone: u.telefone || '',
+        role: u.role,
+        accessLevel: u.polo_id ? ('polo_especifico' as AccessLevel) : ('geral' as AccessLevel),
+        poloId: u.polo_id || '',
+        permissions: u.metadata?.permissions,
+        isActive: u.ativo,
+        createdAt: u.created_at || new Date().toISOString(),
+        updatedAt: u.updated_at || new Date().toISOString(),
+      }));
+
+      // Filtrar por accessLevel se necessário
+      let usuariosFiltrados = usuariosMapeados;
+      if (filterAccessLevel !== 'all') {
+        usuariosFiltrados = usuariosMapeados.filter(u => u.accessLevel === filterAccessLevel);
+      }
+
+      setAdminUsers(usuariosFiltrados);
+    } catch (error: unknown) {
+      console.error('Erro ao carregar usuários:', error);
+      alert('Erro ao carregar usuários. Verifique o console.');
+    } finally {
+      setLoading(false);
+    }
+  }, [filterRole, filterAccessLevel, searchTerm, currentUser?.adminUser?.accessLevel, currentPoloId]);
+
+  // Carregar usuários ao montar (migrado do UserManagement)
+  useEffect(() => {
+    carregarUsuarios();
+    carregarOpcoesSelects();
+  }, [carregarUsuarios, carregarOpcoesSelects]);
+
+  useEffect(() => {
+    if (!currentUser?.adminUser) return;
+    if (!creatorIsPoloScoped || !currentPoloId) return;
+
+    setNewUser(prev => ({
+      ...prev,
+      accessLevel: 'polo_especifico',
+      poloId: currentPoloId,
+    }));
+
     if (editingUser) {
-      setUsers(prev => prev.map(user => 
-        user.id === editingUser.id 
-          ? { ...editingUser, ...newUser } as SystemUser
-          : user
-      ));
-    } else {
-      const user: SystemUser = {
-        id: Date.now().toString(),
-        username: newUser.username!,
-        email: newUser.email!,
-        fullName: newUser.fullName!,
-        role: newUser.role!,
-        permissions: newUser.permissions!,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        poloAccess: newUser.poloAccess || []
-      };
-      setUsers(prev => [...prev, user]);
+      setEditingUser(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          accessLevel: 'polo_especifico',
+          poloId: currentPoloId,
+        };
+      });
+    }
+  }, [creatorIsPoloScoped, currentPoloId, currentUser?.adminUser, editingUser]);
+
+  // Recarregar quando filtros mudarem
+  useEffect(() => {
+    if (loading) return;
+    carregarUsuarios();
+  }, [filterRole, filterAccessLevel, searchTerm, carregarUsuarios, loading]);
+
+  const roleLabels: Record<AdminRole, string> = {};
+  roles.forEach(role => {
+    roleLabels[role.value as AdminRole] = role.label;
+  });
+
+  const accessLevelLabels: Record<AccessLevel, string> = {};
+  accessLevels.forEach(level => {
+    accessLevelLabels[level.value as AccessLevel] = level.label;
+  });
+
+  const filteredUsers = adminUsers;
+
+  const handleNewUserEmailBlur = async (email: string) => {
+    const normalized = (email || '').trim();
+    if (!normalized) return;
+
+    try {
+      setEmailLookupLoading(true);
+      const existing = await UsuarioService.buscarPorEmail(normalized);
+      if (!existing) return;
+
+      setNewUser(prev => ({
+        ...prev,
+        name: existing.nome_completo || prev.name,
+        cpf: existing.cpf || prev.cpf,
+        phone: existing.telefone || prev.phone,
+      }));
+    } catch (error: unknown) {
+      console.error('Erro ao buscar usuário por e-mail:', error);
+    } finally {
+      setEmailLookupLoading(false);
+    }
+  };
+
+  // Métodos de manipulação de usuários (migrados do UserManagement)
+  const handleCreateUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.cpf || !newUser.phone) {
+      alert('Preencha todos os campos obrigatórios');
+      return;
     }
 
-    setNewUser({
-      username: '',
-      email: '',
-      fullName: '',
-      role: 'staff',
-      permissions: [],
-      isActive: true,
-      poloAccess: []
-    });
-    setNewPassword('');
-    setShowUserForm(false);
-    setEditingUser(null);
-  };
+    if (!newUser.password || String(newUser.password).trim().length === 0) {
+      alert('Informe uma senha (máximo 6 caracteres).');
+      return;
+    }
 
-  const handleEditUser = (user: SystemUser) => {
-    setEditingUser(user);
-    setNewUser(user);
-    setShowUserForm(true);
-  };
+    if (String(newUser.password).length > 6) {
+      alert('Senha deve ter no máximo 6 caracteres.');
+      return;
+    }
 
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      setUsers(prev => prev.filter(user => user.id !== userId));
+    if (!currentUser?.adminUser) {
+      alert('Usuário atual não identificado. Faça login novamente.');
+      return;
+    }
+
+    const allowedRoles = allowedRolesForCreator();
+    if (!newUser.role || !allowedRoles.includes(newUser.role as AdminRole)) {
+      alert('Você não tem permissão para cadastrar este tipo de usuário.');
+      return;
+    }
+
+    const resolvedAccessLevelFromRole = resolveAccessLevelForRole(newUser.role as AdminRole);
+
+    if (isGeneralManagement || isSuperAdmin) {
+      // Diretor/Coordenador do polo sempre devem ser polo-específico e com polo definido
+      if (roleRequiresPolo(newUser.role as AdminRole)) {
+        if (!newUser.poloId) {
+          alert('Selecione o polo para este usuário.');
+          return;
+        }
+      }
+    }
+
+    const resolvedAccessLevel: AccessLevel = resolvedAccessLevelFromRole;
+    const resolvedPoloId = creatorIsPoloScoped
+      ? currentPoloId
+      : (resolvedAccessLevel === 'polo_especifico' ? newUser.poloId : undefined);
+
+    try {
+      setSaving(true);
+      await UsuarioService.criarUsuario({
+        nome_completo: newUser.name,
+        email: newUser.email,
+        cpf: newUser.cpf,
+        telefone: newUser.phone,
+        password: newUser.password,
+        role: newUser.role,
+        polo_id: resolvedPoloId,
+        ativo: newUser.isActive,
+        metadata: {
+          permissions: canConfigurePermissionsForRole(newUser.role as AdminRole)
+            ? (newUser.permissions || { mode: 'full', modules: [] })
+            : { mode: 'full', modules: [] },
+        },
+      });
+
+      alert('Usuário criado com sucesso!');
+      await carregarUsuarios();
+      setNewUser({
+        name: '',
+        email: '',
+        cpf: '',
+        phone: '',
+        password: '',
+        role: allowedRolesForCreator()[0] || 'professor',
+        accessLevel: isGeneralManagement ? 'polo_especifico' : (creatorIsPoloScoped ? 'polo_especifico' : currentUser.adminUser.accessLevel),
+        poloId: creatorIsPoloScoped ? (currentPoloId || '') : '',
+        permissions: { mode: 'full', modules: [] },
+        isActive: true
+      });
+      setShowUserForm(false);
+    } catch (error: unknown) {
+      console.error('Erro ao criar usuário:', error);
+      alert((error as Error)?.message || 'Erro ao criar usuário. Verifique o console.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const toggleUserStatus = (userId: string) => {
-    setUsers(prev => prev.map(user => 
-      user.id === userId 
-        ? { ...user, isActive: !user.isActive }
-        : user
-    ));
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+
+    if (!currentUser?.adminUser) {
+      alert('Usuário atual não identificado. Faça login novamente.');
+      return;
+    }
+
+    if (creatorIsPoloScoped && currentPoloId && editingUser.poloId && editingUser.poloId !== currentPoloId) {
+      alert('Você não tem permissão para editar usuários de outro polo.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await UsuarioService.atualizarUsuario(editingUser.id, {
+        nome_completo: editingUser.name,
+        email: editingUser.email,
+        cpf: editingUser.cpf,
+        telefone: editingUser.phone,
+        role: editingUser.role,
+        polo_id: creatorIsPoloScoped
+          ? (currentPoloId || undefined)
+          : (editingUser.accessLevel === 'polo_especifico' ? editingUser.poloId : undefined),
+        ativo: editingUser.isActive,
+        metadata: {
+          permissions: canConfigurePermissionsForRole(editingUser.role)
+            ? editingUser.permissions
+            : undefined,
+        },
+      });
+
+      alert('Usuário atualizado com sucesso!');
+      await carregarUsuarios();
+      setEditingUser(null);
+    } catch (error: unknown) {
+      console.error('Erro ao atualizar usuário:', error);
+      alert((error as Error)?.message || 'Erro ao atualizar usuário. Verifique o console.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handlePermissionToggle = (permission: string) => {
-    const currentPermissions = newUser.permissions || [];
-    const newPermissions = currentPermissions.includes(permission)
-      ? currentPermissions.filter(p => p !== permission)
-      : [...currentPermissions, permission];
-    
-    setNewUser(prev => ({ ...prev, permissions: newPermissions }));
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
+
+    try {
+      await UsuarioService.deletarUsuario(userId);
+      alert('Usuário deletado com sucesso!');
+      await carregarUsuarios();
+    } catch (error: unknown) {
+      console.error('Erro ao deletar usuário:', error);
+      const message = (error as Error)?.message || '';
+      if (message.includes('violates foreign key constraint') || message.includes('foreign key')) {
+        if (confirm('Este usuário possui vínculos (ex: diretoria). Deseja desativar em vez de excluir?')) {
+          try {
+            await UsuarioService.atualizarUsuario(userId, { ativo: false });
+            alert('Usuário desativado com sucesso!');
+            await carregarUsuarios();
+            return;
+          } catch (inner: unknown) {
+            console.error('Erro ao desativar usuário após falha de exclusão:', inner);
+            alert((inner as Error)?.message || 'Erro ao desativar usuário. Verifique o console.');
+            return;
+          }
+        }
+      }
+
+      alert(message || 'Erro ao deletar usuário. Verifique o console.');
+    }
+  };
+
+  const toggleUserStatus = async (userId: string) => {
+    const user = adminUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    try {
+      if (user.isActive) {
+        await UsuarioService.atualizarUsuario(userId, { ativo: false });
+      } else {
+        await UsuarioService.atualizarUsuario(userId, { ativo: true });
+      }
+      alert(`Usuário ${user.isActive ? 'desativado' : 'ativado'} com sucesso!`);
+      await carregarUsuarios();
+    } catch (error: unknown) {
+      console.error('Erro ao alterar status:', error);
+      alert((error as Error)?.message || 'Erro ao alterar status. Verifique o console.');
+    }
+  };
+
+  const getRoleIcon = (role: AdminRole) => {
+    switch (role) {
+      case 'diretor_geral':
+      case 'diretor_polo':
+        return <Shield className="h-4 w-4 text-red-600" />;
+      case 'coordenador_geral':
+      case 'coordenador_polo':
+        return <Shield className="h-4 w-4 text-blue-600" />;
+      default:
+        return <User className="h-4 w-4 text-gray-600" />;
+    }
   };
 
   const saveSystemConfig = () => {
@@ -244,6 +631,35 @@ const SystemSettings: React.FC = () => {
     alert('Backup realizado com sucesso!');
   };
 
+  const carregarDracmasCriterios = useCallback(async () => {
+    try {
+      setDracmasCriteriosLoading(true);
+      const data = (await DracmasAPI.listarCriterios()) as DracmasCriterio[];
+      setDracmasCriterios(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Erro ao carregar critérios de Drácmas:', error);
+      setDracmasCriterios([]);
+    } finally {
+      setDracmasCriteriosLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'dracmas') {
+      void carregarDracmasCriterios();
+    }
+  }, [activeTab, carregarDracmasCriterios]);
+
+  const toggleCriterioAtivo = async (criterio: DracmasCriterio) => {
+    try {
+      await DracmasAPI.atualizarCriterio(criterio.id, { ativo: !criterio.ativo });
+      await carregarDracmasCriterios();
+    } catch (error) {
+      console.error('Erro ao atualizar critério de Drácmas:', error);
+      alert('Não foi possível atualizar o critério.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -251,147 +667,567 @@ const SystemSettings: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
-              <Button asChild variant="outline" size="sm">
-                <Link to="/admin/dashboard">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar
-                </Link>
-              </Button>
+              <Link to="/admin/dashboard" className="text-gray-600 hover:text-gray-900">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Configurações do Sistema</h1>
-                <p className="text-sm text-gray-600">Gerenciamento de usuários, acessos e configurações gerais</p>
+                <p className="text-sm text-gray-600">Gerencie as configurações gerais do sistema</p>
               </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Settings className="h-6 w-6 text-gray-400" />
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
-        <div className="mb-8">
-          <nav className="flex space-x-8">
-            {[
-              { id: 'users', label: 'Usuários', icon: Users },
-              { id: 'config', label: 'Configurações', icon: Settings },
-              { id: 'security', label: 'Segurança', icon: Shield },
-              { id: 'backup', label: 'Backup', icon: Database }
-            ].map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id as any)}
-                className={`flex items-center px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Icon className="h-4 w-4 mr-2" />
-                {label}
-              </button>
-            ))}
-          </nav>
-        </div>
+        {/* Tabs Navigation */}
+        <Card className="mb-8">
+          <div className="border-b border-gray-200">
+            <nav className="flex -mb-px space-x-8">
+              {[
+                { id: 'users', label: 'Usuários', icon: Users },
+                { id: 'config', label: 'Configurações', icon: Settings },
+                { id: 'dracmas', label: 'Drácmas', icon: Award },
+                { id: 'security', label: 'Segurança', icon: Shield },
+                { id: 'backup', label: 'Backup', icon: Database }
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 mr-2" />
+                  {label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </Card>
 
-        {/* Users Tab */}
+        {/* Users Tab - Interface migrada do UserManagement */}
         {activeTab === 'users' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Usuários do Sistema</h2>
-              <Button onClick={() => setShowUserForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Usuário
-              </Button>
+          <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <div className="bg-white shadow">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between items-center py-6">
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Usuários</h1>
+                      <p className="text-sm text-gray-600">Cadastro e controle de coordenadores, diretores e equipe</p>
+                    </div>
+                  </div>
+                  <Button onClick={() => setShowUserForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Usuário
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Usuário
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Função
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Último Acesso
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <User className="h-8 w-8 bg-gray-200 rounded-full p-2 mr-3" />
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {user.fullName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {user.username} • {user.email}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {roleLabels[user.role]}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {user.lastLogin 
-                            ? new Date(user.lastLogin).toLocaleString('pt-BR')
-                            : 'Nunca'
-                          }
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.isActive ? 'Ativo' : 'Inativo'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleUserStatus(user.id)}
-                          >
-                            {user.isActive ? 'Desativar' : 'Ativar'}
-                          </Button>
-                          {user.role !== 'super_admin' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {/* Filters */}
+              <Card className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Buscar por nome ou email..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select
+                    value={filterRole}
+                    onChange={(value) => setFilterRole(value as AdminRole | 'all')}
+                    disabled={loadingOptions}
+                  >
+                    <option value="all">Todas as funções</option>
+                    {roles.map((role) => (
+                      <option key={role.value} value={role.value}>{role.label}</option>
                     ))}
-                  </tbody>
-                </table>
+                  </Select>
+                  <Select
+                    value={filterAccessLevel}
+                    onChange={(value) => setFilterAccessLevel(value as AccessLevel | 'all')}
+                    disabled={loadingOptions}
+                  >
+                    <option value="all">Todos os níveis</option>
+                    {accessLevels.map((level) => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
+                  </Select>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Filter className="h-4 w-4 mr-2" />
+                    {filteredUsers.length} usuário(s) encontrado(s)
+                  </div>
+                </div>
+              </Card>
+
+              {/* Users List */}
+              <div className="grid gap-4">
+                {filteredUsers.map((user) => (
+                  <Card key={user.id} className="hover:shadow-lg transition-shadow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          {getRoleIcon(user.role)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              user.isActive 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.isActive ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium text-blue-600 mb-1">{roleLabels[user.role]}</p>
+                          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                            <div className="flex items-center">
+                              <Mail className="h-4 w-4 mr-1" />
+                              {user.email}
+                            </div>
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 mr-1" />
+                              {user.phone}
+                            </div>
+                            {user.poloId && (
+                              <div className="flex items-center">
+                                <MapPin className="h-4 w-4 mr-1" />
+                                {(() => {
+                                  const poloName = polosOptions.find(p => p.id === user.poloId)?.name;
+                                  return poloName ? `Polo ${poloName}` : 'Polo não encontrado';
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Criado em {new Date(user.createdAt).toLocaleDateString('pt-BR')}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleUserStatus(user.id)}
+                        >
+                          {user.isActive ? 'Desativar' : 'Ativar'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingUser(user)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
+
+              {filteredUsers.length === 0 && (
+                <Card className="text-center py-12">
+                  <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum usuário encontrado</h3>
+                  <p className="text-gray-600">Ajuste os filtros ou cadastre um novo usuário.</p>
+                </Card>
+              )}
+            </div>
+
+            {/* Create User Modal */}
+            {showUserForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Novo Usuário Administrativo</h2>
+                  
+                  <div className="space-y-4">
+                    <Input
+                      label="Nome Completo"
+                      placeholder="Digite o nome completo"
+                      value={newUser.name || ''}
+                      onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                    />
+                    
+                    <Input
+                      label="Email"
+                      type="email"
+                      placeholder="email@ibuc.org.br"
+                      value={newUser.email || ''}
+                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                      onBlur={(e) => void handleNewUserEmailBlur(e.target.value)}
+                      helperText={emailLookupLoading ? 'Buscando usuário...' : undefined}
+                    />
+                    
+                    <Input
+                      label="CPF"
+                      placeholder="000.000.000-00"
+                      value={newUser.cpf || ''}
+                      onChange={(e) => setNewUser({...newUser, cpf: e.target.value})}
+                    />
+                    
+                    <Input
+                      label="Telefone"
+                      placeholder="(63) 99999-9999"
+                      value={newUser.phone || ''}
+                      onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
+                    />
+
+                    <Input
+                      label="Senha"
+                      type="password"
+                      placeholder="Até 6 caracteres"
+                      value={(newUser.password as string) || ''}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      maxLength={6}
+                    />
+                    
+                    <Select
+                      label="Função"
+                      value={newUser.role || ''}
+                      onChange={(value) => {
+                        const nextRole = value as AdminRole;
+                        const nextAccessLevel = resolveAccessLevelForRole(nextRole);
+                        const nextPoloId = nextAccessLevel === 'polo_especifico'
+                          ? (creatorIsPoloScoped ? (currentPoloId || '') : (newUser.poloId || ''))
+                          : '';
+
+                        setNewUser({
+                          ...newUser,
+                          role: nextRole,
+                          accessLevel: nextAccessLevel,
+                          poloId: nextPoloId,
+                        });
+                      }}
+                      disabled={loadingOptions}
+                    >
+                      <option value="">Selecione uma função</option>
+                      {roles
+                        .filter(r => allowedRolesForCreator().includes(r.value as AdminRole))
+                        .map((role) => (
+                          <option key={role.value} value={role.value}>{role.label}</option>
+                        ))}
+                    </Select>
+
+                    {!currentPoloId && newUser.accessLevel === 'polo_especifico' && roleRequiresPolo(newUser.role as AdminRole) && (
+                      <Select
+                        label="Polo"
+                        value={newUser.poloId || ''}
+                        onChange={(value) => setNewUser({...newUser, poloId: value})}
+                        disabled={loadingOptions}
+                      >
+                        <option value="">Selecione um polo</option>
+                        {visiblePolosOptions.map((polo) => (
+                          <option key={polo.id} value={polo.id}>{polo.name}</option>
+                        ))}
+                      </Select>
+                    )}
+
+                    {newUser.role && canConfigurePermissionsForRole(newUser.role as AdminRole) && (
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-gray-700">Permissões</div>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="radio"
+                            name="newUserPermissionMode"
+                            checked={(newUser.permissions?.mode || 'full') === 'full'}
+                            onChange={() => setNewUser({
+                              ...newUser,
+                              permissions: { mode: 'full', modules: [] }
+                            })}
+                          />
+                          Acesso total
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="radio"
+                            name="newUserPermissionMode"
+                            checked={(newUser.permissions?.mode || 'full') === 'limited'}
+                            onChange={() => setNewUser({
+                              ...newUser,
+                              permissions: { mode: 'limited', modules: newUser.permissions?.modules || [] }
+                            })}
+                          />
+                          Acesso limitado
+                        </label>
+
+                        {(newUser.permissions?.mode || 'full') === 'limited' && (
+                          <div className="grid grid-cols-1 gap-2 border border-gray-200 rounded-lg p-3">
+                            {moduleOptions.map(m => (
+                              <label key={m.key} className="flex items-center gap-2 text-sm text-gray-700">
+                                <input
+                                  type="checkbox"
+                                  checked={(newUser.permissions?.modules || []).includes(m.key)}
+                                  onChange={(e) => {
+                                    const prev = newUser.permissions?.modules || [];
+                                    const next = e.target.checked
+                                      ? Array.from(new Set([...prev, m.key]))
+                                      : prev.filter(x => x !== m.key);
+                                    setNewUser({
+                                      ...newUser,
+                                      permissions: { mode: 'limited', modules: next }
+                                    });
+                                  }}
+                                />
+                                {m.label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex space-x-3 mt-6">
+                    <Button className="flex-1" onClick={handleCreateUser} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        'Criar Usuário'
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex-1" 
+                      onClick={() => setShowUserForm(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Edit User Modal */}
+            {editingUser && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Editar Usuário</h2>
+                  
+                  <div className="space-y-4">
+                    <Input
+                      label="Nome Completo"
+                      value={editingUser.name}
+                      onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
+                    />
+                    
+                    <Input
+                      label="Email"
+                      type="email"
+                      value={editingUser.email}
+                      onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                    />
+                    
+                    <Input
+                      label="CPF"
+                      value={editingUser.cpf}
+                      onChange={(e) => setEditingUser({...editingUser, cpf: e.target.value})}
+                    />
+                    
+                    <Input
+                      label="Telefone"
+                      value={editingUser.phone}
+                      onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
+                    />
+                    
+                    <Select
+                      label="Função"
+                      value={editingUser.role}
+                      onChange={(value) => setEditingUser({...editingUser, role: value as AdminRole})}
+                      disabled={loadingOptions}
+                    >
+                      {roles.map((role) => (
+                        <option key={role.value} value={role.value}>{role.label}</option>
+                      ))}
+                    </Select>
+                    
+                    <Select
+                      label="Nível de Acesso"
+                      value={editingUser.accessLevel}
+                      onChange={(value) => setEditingUser({...editingUser, accessLevel: value as AccessLevel})}
+                      disabled={loadingOptions || creatorIsPoloScoped}
+                    >
+                      {accessLevels.map((level) => (
+                        <option key={level.value} value={level.value}>{level.label}</option>
+                      ))}
+                    </Select>
+                    
+                    {!currentPoloId && editingUser.accessLevel === 'polo_especifico' && (
+                      <Select
+                        label="Polo"
+                        value={editingUser.poloId || ''}
+                        onChange={(value) => setEditingUser({...editingUser, poloId: value})}
+                        disabled={loadingOptions}
+                      >
+                        <option value="">Selecione um polo</option>
+                        {visiblePolosOptions.map((polo) => (
+                          <option key={polo.id} value={polo.id}>{polo.name}</option>
+                        ))}
+                      </Select>
+                    )}
+
+                    {canConfigurePermissionsForRole(editingUser.role) && (
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-gray-700">Permissões</div>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="radio"
+                            name="editUserPermissionMode"
+                            checked={(editingUser.permissions?.mode || 'full') === 'full'}
+                            onChange={() => setEditingUser({
+                              ...editingUser,
+                              permissions: { mode: 'full', modules: [] }
+                            })}
+                          />
+                          Acesso total
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="radio"
+                            name="editUserPermissionMode"
+                            checked={(editingUser.permissions?.mode || 'full') === 'limited'}
+                            onChange={() => setEditingUser({
+                              ...editingUser,
+                              permissions: { mode: 'limited', modules: editingUser.permissions?.modules || [] }
+                            })}
+                          />
+                          Acesso limitado
+                        </label>
+
+                        {(editingUser.permissions?.mode || 'full') === 'limited' && (
+                          <div className="grid grid-cols-1 gap-2 border border-gray-200 rounded-lg p-3">
+                            {moduleOptions.map(m => (
+                              <label key={m.key} className="flex items-center gap-2 text-sm text-gray-700">
+                                <input
+                                  type="checkbox"
+                                  checked={(editingUser.permissions?.modules || []).includes(m.key)}
+                                  onChange={(e) => {
+                                    const prev = editingUser.permissions?.modules || [];
+                                    const next = e.target.checked
+                                      ? Array.from(new Set([...prev, m.key]))
+                                      : prev.filter(x => x !== m.key);
+                                    setEditingUser({
+                                      ...editingUser,
+                                      permissions: { mode: 'limited', modules: next }
+                                    });
+                                  }}
+                                />
+                                {m.label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex space-x-3 mt-6">
+                    <Button className="flex-1" onClick={handleUpdateUser} disabled={saving}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        'Salvar Alterações'
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex-1" 
+                      onClick={() => setEditingUser(null)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dracmas Tab */}
+        {activeTab === 'dracmas' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-gray-900">Configuração de Drácmas (Critérios)</h2>
+            <p className="text-sm text-gray-600">
+              Defina quais critérios ficam ativos para lançamento e consulta.
+            </p>
+
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Critérios</h3>
+                {dracmasCriteriosLoading && (
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Carregando...
+                  </div>
+                )}
+              </div>
+
+              {!dracmasCriteriosLoading && dracmasCriterios.length === 0 && (
+                <p className="text-sm text-gray-600">Nenhum critério encontrado.</p>
+              )}
+
+              {dracmasCriterios.length > 0 && (
+                <div className="space-y-3">
+                  {dracmasCriterios.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900 truncate">{c.nome}</p>
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              c.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {c.ativo ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">{c.codigo}</p>
+                        {c.descricao && <p className="text-sm text-gray-600 mt-1">{c.descricao}</p>}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm text-gray-700">
+                          Padrão: <span className="font-semibold">{c.quantidade_padrao}</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void toggleCriterioAtivo(c)}
+                        >
+                          {c.ativo ? 'Desativar' : 'Ativar'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
         )}
@@ -403,156 +1239,119 @@ const SystemSettings: React.FC = () => {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <Calendar className="h-5 w-5 mr-2 text-blue-600" />
-                  Período Letivo
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Ano Letivo</h3>
+                <Input
+                  label="Ano"
+                  value={systemConfig.schoolYear}
+                  onChange={(e) => setSystemConfig(prev => ({ ...prev, schoolYear: e.target.value }))}
+                />
+              </Card>
+
+              <Card>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Período de Matrícula</h3>
                 <div className="space-y-4">
                   <Input
-                    label="Ano Letivo"
-                    value={systemConfig.schoolYear}
+                    label="Data de Início"
+                    type="date"
+                    value={systemConfig.enrollmentPeriod.start}
                     onChange={(e) => setSystemConfig(prev => ({
                       ...prev,
-                      schoolYear: e.target.value
+                      enrollmentPeriod: { ...prev.enrollmentPeriod, start: e.target.value }
                     }))}
                   />
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Início das Matrículas"
-                      type="date"
-                      value={systemConfig.enrollmentPeriod.start}
-                      onChange={(e) => setSystemConfig(prev => ({
-                        ...prev,
-                        enrollmentPeriod: {
-                          ...prev.enrollmentPeriod,
-                          start: e.target.value
-                        }
-                      }))}
-                    />
-                    <Input
-                      label="Fim das Matrículas"
-                      type="date"
-                      value={systemConfig.enrollmentPeriod.end}
-                      onChange={(e) => setSystemConfig(prev => ({
-                        ...prev,
-                        enrollmentPeriod: {
-                          ...prev.enrollmentPeriod,
-                          end: e.target.value
-                        }
-                      }))}
-                    />
-                  </div>
+                  <Input
+                    label="Data de Término"
+                    type="date"
+                    value={systemConfig.enrollmentPeriod.end}
+                    onChange={(e) => setSystemConfig(prev => ({
+                      ...prev,
+                      enrollmentPeriod: { ...prev.enrollmentPeriod, end: e.target.value }
+                    }))}
+                  />
                 </div>
               </Card>
 
               <Card>
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <FileText className="h-5 w-5 mr-2 text-green-600" />
-                  Horário das Aulas
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Horário das Aulas</h3>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Horário de Início"
-                      type="time"
-                      value={systemConfig.classSchedule.startTime}
-                      onChange={(e) => setSystemConfig(prev => ({
-                        ...prev,
-                        classSchedule: {
-                          ...prev.classSchedule,
-                          startTime: e.target.value
-                        }
-                      }))}
-                    />
-                    <Input
-                      label="Horário de Término"
-                      type="time"
-                      value={systemConfig.classSchedule.endTime}
-                      onChange={(e) => setSystemConfig(prev => ({
-                        ...prev,
-                        classSchedule: {
-                          ...prev.classSchedule,
-                          endTime: e.target.value
-                        }
-                      }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Dias da Semana
-                    </label>
-                    <div className="space-y-2">
-                      {[
-                        { id: 'sunday', label: 'Domingo' },
-                        { id: 'monday', label: 'Segunda-feira' },
-                        { id: 'tuesday', label: 'Terça-feira' },
-                        { id: 'wednesday', label: 'Quarta-feira' },
-                        { id: 'thursday', label: 'Quinta-feira' },
-                        { id: 'friday', label: 'Sexta-feira' },
-                        { id: 'saturday', label: 'Sábado' }
-                      ].map(day => (
-                        <label key={day.id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={systemConfig.classSchedule.daysOfWeek.includes(day.id)}
-                            onChange={(e) => {
-                              const days = systemConfig.classSchedule.daysOfWeek;
-                              const newDays = e.target.checked
-                                ? [...days, day.id]
-                                : days.filter(d => d !== day.id);
-                              setSystemConfig(prev => ({
-                                ...prev,
-                                classSchedule: {
-                                  ...prev.classSchedule,
-                                  daysOfWeek: newDays
-                                }
-                              }));
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                          />
-                          {day.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                  <Input
+                    label="Horário de Início"
+                    type="time"
+                    value={systemConfig.classSchedule.startTime}
+                    onChange={(e) => setSystemConfig(prev => ({
+                      ...prev,
+                      classSchedule: { ...prev.classSchedule, startTime: e.target.value }
+                    }))}
+                  />
+                  <Input
+                    label="Horário de Término"
+                    type="time"
+                    value={systemConfig.classSchedule.endTime}
+                    onChange={(e) => setSystemConfig(prev => ({
+                      ...prev,
+                      classSchedule: { ...prev.classSchedule, endTime: e.target.value }
+                    }))}
+                  />
                 </div>
               </Card>
 
               <Card>
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <Mail className="h-5 w-5 mr-2 text-purple-600" />
-                  Notificações
-                </h3>
-                <div className="space-y-4">
-                  {[
-                    { key: 'emailEnabled', label: 'Notificações por Email' },
-                    { key: 'smsEnabled', label: 'Notificações por SMS' },
-                    { key: 'whatsappEnabled', label: 'Notificações por WhatsApp' },
-                    { key: 'autoReminders', label: 'Lembretes Automáticos' }
-                  ].map(({ key, label }) => (
-                    <label key={key} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={systemConfig.notifications[key as keyof typeof systemConfig.notifications] as boolean}
-                        onChange={(e) => setSystemConfig(prev => ({
-                          ...prev,
-                          notifications: {
-                            ...prev.notifications,
-                            [key]: e.target.checked
-                          }
-                        }))}
-                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 mr-2"
-                      />
-                      {label}
-                    </label>
-                  ))}
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Notificações</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.notifications.emailEnabled}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        notifications: { ...prev.notifications, emailEnabled: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Notificações por Email</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.notifications.smsEnabled}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        notifications: { ...prev.notifications, smsEnabled: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Notificações por SMS</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.notifications.whatsappEnabled}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        notifications: { ...prev.notifications, whatsappEnabled: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Notificações por WhatsApp</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.notifications.autoReminders}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        notifications: { ...prev.notifications, autoReminders: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Lembretes Automáticos</span>
+                  </label>
                 </div>
               </Card>
             </div>
 
             <div className="flex justify-end">
               <Button onClick={saveSystemConfig}>
-                <Save className="h-4 w-4 mr-2" />
                 Salvar Configurações
               </Button>
             </div>
@@ -564,60 +1363,49 @@ const SystemSettings: React.FC = () => {
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">Configurações de Segurança</h2>
             
-            <Card>
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Lock className="h-5 w-5 mr-2 text-red-600" />
-                Políticas de Senha
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Tamanho Mínimo da Senha"
-                  type="number"
-                  min="6"
-                  max="20"
-                  value={systemConfig.security.passwordMinLength.toString()}
-                  onChange={(e) => setSystemConfig(prev => ({
-                    ...prev,
-                    security: {
-                      ...prev.security,
-                      passwordMinLength: parseInt(e.target.value)
-                    }
-                  }))}
-                />
-                <Input
-                  label="Timeout da Sessão (minutos)"
-                  type="number"
-                  min="30"
-                  max="480"
-                  value={systemConfig.security.sessionTimeout.toString()}
-                  onChange={(e) => setSystemConfig(prev => ({
-                    ...prev,
-                    security: {
-                      ...prev.security,
-                      sessionTimeout: parseInt(e.target.value)
-                    }
-                  }))}
-                />
-              </div>
-              
-              <div className="mt-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={systemConfig.security.twoFactorRequired}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Política de Senhas</h3>
+                <div className="space-y-4">
+                  <Input
+                    label="Comprimento Mínimo"
+                    type="number"
+                    value={systemConfig.security.passwordMinLength}
                     onChange={(e) => setSystemConfig(prev => ({
                       ...prev,
-                      security: {
-                        ...prev.security,
-                        twoFactorRequired: e.target.checked
-                      }
+                      security: { ...prev.security, passwordMinLength: parseInt(e.target.value) }
                     }))}
-                    className="rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2"
                   />
-                  Exigir Autenticação de Dois Fatores
-                </label>
-              </div>
-            </Card>
+                  <Input
+                    label="Timeout de Sessão (minutos)"
+                    type="number"
+                    value={systemConfig.security.sessionTimeout}
+                    onChange={(e) => setSystemConfig(prev => ({
+                      ...prev,
+                      security: { ...prev.security, sessionTimeout: parseInt(e.target.value) }
+                    }))}
+                  />
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={systemConfig.security.twoFactorRequired}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        security: { ...prev.security, twoFactorRequired: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Exigir Autenticação de Dois Fatores</span>
+                  </label>
+                </div>
+              </Card>
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={saveSystemConfig}>
+                Salvar Configurações
+              </Button>
+            </div>
           </div>
         )}
 
@@ -626,193 +1414,72 @@ const SystemSettings: React.FC = () => {
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">Backup e Restauração</h2>
             
-            <Card>
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Database className="h-5 w-5 mr-2 text-green-600" />
-                Configurações de Backup
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Frequência do Backup
-                  </label>
-                  <select
-                    value={systemConfig.backup.frequency}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Configurações de Backup</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Frequência
+                    </label>
+                    <select
+                      value={systemConfig.backup.frequency}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        backup: { ...prev.backup, frequency: e.target.value as 'daily' | 'weekly' | 'monthly' }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="daily">Diário</option>
+                      <option value="weekly">Semanal</option>
+                      <option value="monthly">Mensal</option>
+                    </select>
+                  </div>
+                  <Input
+                    label="Dias de Retenção"
+                    type="number"
+                    value={systemConfig.backup.retentionDays}
                     onChange={(e) => setSystemConfig(prev => ({
                       ...prev,
-                      backup: {
-                        ...prev.backup,
-                        frequency: e.target.value as 'daily' | 'weekly' | 'monthly'
-                      }
+                      backup: { ...prev.backup, retentionDays: parseInt(e.target.value) }
                     }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="daily">Diário</option>
-                    <option value="weekly">Semanal</option>
-                    <option value="monthly">Mensal</option>
-                  </select>
+                  />
                 </div>
-                
-                <Input
-                  label="Retenção (dias)"
-                  type="number"
-                  min="7"
-                  max="365"
-                  value={systemConfig.backup.retentionDays.toString()}
-                  onChange={(e) => setSystemConfig(prev => ({
-                    ...prev,
-                    backup: {
-                      ...prev.backup,
-                      retentionDays: parseInt(e.target.value)
-                    }
-                  }))}
-                />
-              </div>
+              </Card>
 
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <h4 className="font-medium mb-2">Último Backup</h4>
-                <p className="text-sm text-gray-600">
-                  {systemConfig.backup.lastBackup 
-                    ? new Date(systemConfig.backup.lastBackup).toLocaleString('pt-BR')
-                    : 'Nenhum backup realizado'
-                  }
-                </p>
-              </div>
+              <Card>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Último Backup</h3>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      {systemConfig.backup.lastBackup 
+                        ? new Date(systemConfig.backup.lastBackup).toLocaleString('pt-BR')
+                        : 'Nenhum backup realizado'
+                      }
+                    </p>
+                  </div>
+                  <div className="flex space-x-3">
+                    <Button onClick={performBackup}>
+                      <Database className="h-4 w-4 mr-2" />
+                      Realizar Backup
+                    </Button>
+                    <Button variant="outline">
+                      <Database className="h-4 w-4 mr-2" />
+                      Restaurar Backup
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
 
-              <div className="flex space-x-4">
-                <Button onClick={performBackup}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Fazer Backup Agora
-                </Button>
-                <Button variant="outline">
-                  <Database className="h-4 w-4 mr-2" />
-                  Restaurar Backup
-                </Button>
-              </div>
-            </Card>
+            <div className="flex justify-end">
+              <Button onClick={saveSystemConfig}>
+                Salvar Configurações
+              </Button>
+            </div>
           </div>
         )}
       </div>
-
-      {/* User Form Modal */}
-      {showUserForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
-            </h2>
-            
-            <form onSubmit={handleUserSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Nome Completo"
-                  value={newUser.fullName || ''}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, fullName: e.target.value }))}
-                  required
-                />
-                
-                <Input
-                  label="Nome de Usuário"
-                  value={newUser.username || ''}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, username: e.target.value }))}
-                  required
-                />
-                
-                <Input
-                  label="Email"
-                  type="email"
-                  value={newUser.email || ''}
-                  onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                  required
-                />
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Função
-                  </label>
-                  <select
-                    value={newUser.role || ''}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as SystemUser['role'] }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
-                    {Object.entries(roleLabels).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="relative">
-                <Input
-                  label="Senha"
-                  type={showPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required={!editingUser}
-                  placeholder={editingUser ? 'Deixe em branco para manter a senha atual' : ''}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permissões
-                </label>
-                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                  {availablePermissions.map(permission => (
-                    <label key={permission.id} className="flex items-center text-sm">
-                      <input
-                        type="checkbox"
-                        checked={(newUser.permissions || []).includes(permission.id)}
-                        onChange={() => handlePermissionToggle(permission.id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                      />
-                      {permission.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="flex space-x-3 pt-6 border-t border-gray-200">
-                <Button type="submit" className="flex-1">
-                  <Key className="h-4 w-4 mr-2" />
-                  {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
-                </Button>
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  className="flex-1" 
-                  onClick={() => {
-                    setShowUserForm(false);
-                    setEditingUser(null);
-                    setNewUser({
-                      username: '',
-                      email: '',
-                      fullName: '',
-                      role: 'staff',
-                      permissions: [],
-                      isActive: true,
-                      poloAccess: []
-                    });
-                    setNewPassword('');
-                  }}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
-
 
     </div>
   );

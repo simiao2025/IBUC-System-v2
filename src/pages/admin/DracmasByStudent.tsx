@@ -4,13 +4,28 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { DracmasAPI } from '../../lib/api';
 
+type DracmaTransacao = {
+  id: string;
+  data: string;
+  turma_id: string;
+  tipo: string;
+  quantidade: number;
+  descricao?: string;
+};
+
+type DracmasPorAlunoResponse = {
+  aluno_id: string;
+  saldo: number;
+  transacoes: DracmaTransacao[];
+};
+
 const DracmasByStudent: React.FC = () => {
   const [alunoId, setAlunoId] = useState('');
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<any | null>(null);
+  const [data, setData] = useState<DracmasPorAlunoResponse | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +39,7 @@ const DracmasByStudent: React.FC = () => {
 
     try {
       const response = await DracmasAPI.porAluno(alunoId, inicio || undefined, fim || undefined);
-      setData(response.data);
+      setData(response as DracmasPorAlunoResponse);
     } catch (err) {
       console.error('Erro ao buscar Drácmas do aluno:', err);
       setError('Não foi possível carregar as informações de Drácmas do aluno.');
@@ -91,7 +106,7 @@ const DracmasByStudent: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {data.transacoes.map((t: any) => (
+                    {data.transacoes.map((t) => (
                       <tr key={t.id}>
                         <td className="px-4 py-2">{t.data}</td>
                         <td className="px-4 py-2">{t.turma_id}</td>

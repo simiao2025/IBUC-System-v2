@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Shield, Lock } from 'lucide-react';
 import Card from './ui/Card';
-import type { AdminRole, AccessLevel } from '../types';
+import type { AdminRole, AdminModuleKey, AdminPermissions } from '../types';
 
 interface AccessControlProps {
   children: React.ReactNode;
@@ -93,9 +93,38 @@ export default AccessControl;
 export const useAccessControl = () => {
   const { currentUser, hasAccessToAllPolos, hasAccessToPolo, getCurrentUserAccessLevel, getUserAllowedPolos } = useApp();
 
+  const getUserPermissions = (): AdminPermissions | undefined => {
+    return currentUser?.adminUser?.permissions;
+  };
+
+  const canAccessModule = (moduleKey: AdminModuleKey): boolean => {
+    if (!currentUser?.adminUser) return false;
+
+    if (moduleKey === 'polos') {
+      return ['diretor_geral', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
+    }
+
+    // Secretário Geral: acesso total (exceto Polos)
+    if (currentUser.adminUser.role === 'secretario' && currentUser.adminUser.accessLevel === 'geral') {
+      return true;
+    }
+
+    // Diretoria geral sempre tem acesso total
+    if (['coordenador_geral', 'diretor_geral'].includes(currentUser.adminUser.role)) return true;
+
+    // Diretor/Coordenador de polo: acesso total (limitado ao polo via accessLevel/poloId)
+    if (['diretor_polo', 'coordenador_polo'].includes(currentUser.adminUser.role)) return true;
+
+    const permissions = getUserPermissions();
+    if (!permissions) return true; // fallback: mantém acesso total se não houver configuração
+
+    if (permissions.mode === 'full') return true;
+    return Array.isArray(permissions.modules) && permissions.modules.includes(moduleKey);
+  };
+
   const canManageUsers = () => {
     if (!currentUser?.adminUser) return false;
-    return ['coordenador_geral', 'diretor_geral'].includes(currentUser.adminUser.role);
+    return ['coordenador_geral', 'diretor_geral', 'diretor_polo'].includes(currentUser.adminUser.role);
   };
 
   const canManageStaff = () => {
@@ -105,7 +134,7 @@ export const useAccessControl = () => {
 
   const canManagePolos = () => {
     if (!currentUser?.adminUser) return false;
-    return ['coordenador_geral', 'diretor_geral'].includes(currentUser.adminUser.role);
+    return ['diretor_geral', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
   };
 
   const canViewReports = () => {
@@ -133,6 +162,8 @@ export const useAccessControl = () => {
     canManagePolos,
     canViewReports,
     canManageEnrollments,
+    canAccessModule,
+    getUserPermissions,
     getFilteredPolos,
     hasAccessToAllPolos,
     hasAccessToPolo,
