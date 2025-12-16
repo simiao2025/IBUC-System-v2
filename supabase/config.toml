@@ -46,7 +46,7 @@ enabled = true
 file_size_limit = "50MiB"
 
 [functions]
-enabled = false
+enabled = {}
 
 [analytics]
 enabled = false
