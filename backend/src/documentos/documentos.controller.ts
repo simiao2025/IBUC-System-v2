@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Express } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -41,6 +41,40 @@ export class DocumentosController {
   @ApiOperation({ summary: 'Listar documentos da matrícula' })
   async listarDocumentosMatricula(@Param('id') id: string) {
     return this.service.listarDocumentosMatricula(id);
+  }
+
+  @Post('pre-matriculas/:id')
+  @ApiOperation({ summary: 'Upload de documentos da pré-matrícula' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('files', 20, {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+      },
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['application/pdf'];
+        const isImage = typeof file.mimetype === 'string' && file.mimetype.startsWith('image/');
+        if (isImage || allowed.includes(file.mimetype)) {
+          cb(null, true);
+          return;
+        }
+        cb(new Error('Tipo de arquivo não suportado. Envie PDF ou imagem.'), false);
+      },
+    }),
+  )
+  async uploadDocumentosPreMatricula(
+    @Param('id') id: string,
+    @Query('tipo') tipo: string | undefined,
+    @UploadedFiles() files: any[],
+  ) {
+    return this.service.uploadDocumentosPreMatricula(id, tipo, files);
+  }
+
+  @Get('pre-matriculas/:id')
+  @ApiOperation({ summary: 'Listar documentos da pré-matrícula' })
+  async listarDocumentosPreMatricula(@Param('id') id: string) {
+    return this.service.listarDocumentosPreMatricula(id);
   }
 }
 

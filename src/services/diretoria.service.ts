@@ -68,4 +68,13 @@ export class DiretoriaService {
     const data = await DiretoriaAPI.criarPolo(dados.polo_id, dados);
     return data as DiretoriaPolo;
   }
+
+  static async atualizarDiretoriaPolo(id: string, dados: any): Promise<DiretoriaPolo> {
+    const data = await DiretoriaAPI.atualizarPolo(id, dados);
+    return data as DiretoriaPolo;
+  }
+
+  static async desativarDiretoriaPolo(id: string): Promise<void> {
+    await DiretoriaAPI.desativarPolo(id);
+  }
 }

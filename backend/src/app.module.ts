@@ -20,6 +20,8 @@ import { LgpdModule } from './lgpd/lgpd.module';
 import { WorkersModule } from './workers/workers.module';
 import { DiretoriaModule } from './diretoria/diretoria.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { PreMatriculasModule } from './pre-matriculas/pre-matriculas.module';
+import { NiveisModule } from './niveis/niveis.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     WorkersModule,
     DiretoriaModule,
     UsuariosModule,
+    PreMatriculasModule,
+    NiveisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

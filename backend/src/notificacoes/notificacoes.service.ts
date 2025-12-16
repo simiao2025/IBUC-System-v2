@@ -56,6 +56,20 @@ export class NotificacoesService {
     // Implementar notificação de recusa
     console.log('Enviando notificação de recusa...', matriculaId, motivo);
   }
+
+  async enviarCodigoRecuperacaoSenha(email: string, codigo: string) {
+    await this.transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: 'Código de recuperação de senha - IBUC System',
+      html: `
+        <h2>Recuperação de senha</h2>
+        <p>Seu código de recuperação é:</p>
+        <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px;">${codigo}</p>
+        <p>Se você não solicitou este código, ignore este e-mail.</p>
+      `,
+    });
+  }
 }
 
 

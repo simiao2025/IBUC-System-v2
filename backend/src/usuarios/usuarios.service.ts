@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import * as bcrypt from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 
 export interface CreateUsuarioDto {
   email: string;
@@ -9,6 +11,7 @@ export interface CreateUsuarioDto {
   telefone?: string;
   role: string;
   polo_id?: string;
+  password?: string;
   password_hash?: string;
   ativo?: boolean;
   metadata?: any;
@@ -23,12 +26,63 @@ export interface UpdateUsuarioDto {
   polo_id?: string;
   ativo?: boolean;
   metadata?: any;
+  password?: string;
   password_hash?: string;
 }
 
 @Injectable()
 export class UsuariosService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(
+    private supabase: SupabaseService,
+    private jwtService: JwtService,
+    private notificacoesService: NotificacoesService,
+  ) {}
+
+  private stripSensitiveFields(usuario: any) {
+    if (!usuario) return usuario;
+    const { password_hash, ...safeUser } = usuario;
+    return safeUser;
+  }
+
+  private async signToken(usuario: any): Promise<string> {
+    const payload = {
+      sub: usuario.id,
+      role: usuario.role,
+      polo_id: usuario.polo_id || null,
+    };
+    return this.jwtService.signAsync(payload);
+  }
+
+  private extractBearerToken(authHeader?: string): string | null {
+    if (!authHeader) return null;
+    const [type, token] = authHeader.split(' ');
+    if (!type || type.toLowerCase() !== 'bearer' || !token) return null;
+    return token;
+  }
+
+  async meFromAuthHeader(authHeader?: string) {
+    const token = this.extractBearerToken(authHeader);
+    if (!token) {
+      throw new BadRequestException('Token ausente');
+    }
+
+    let decoded: any;
+    try {
+      decoded = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET || 'dev_secret_change_me',
+      });
+    } catch (e) {
+      throw new BadRequestException('Token inválido');
+    }
+
+    const userId = decoded?.sub;
+    if (!userId) {
+      throw new BadRequestException('Token inválido');
+    }
+
+    const usuario = await this.buscarUsuarioPorId(userId);
+    return this.stripSensitiveFields(usuario);
+  }
 
   async criarUsuario(dto: CreateUsuarioDto) {
     // Verificar se email já existe
@@ -71,6 +125,20 @@ export class UsuariosService {
       }
     }
 
+    const rawPassword = (dto as any)?.password;
+    if (typeof rawPassword === 'string') {
+      if (rawPassword.length === 0) {
+        throw new BadRequestException('Senha é obrigatória');
+      }
+      if (rawPassword.length > 6) {
+        throw new BadRequestException('Senha deve ter no máximo 6 caracteres');
+      }
+    }
+
+    const passwordHashResolved = typeof rawPassword === 'string'
+      ? await bcrypt.hash(rawPassword, 10)
+      : dto.password_hash;
+
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('usuarios')
@@ -81,7 +149,7 @@ export class UsuariosService {
         telefone: dto.telefone,
         role: dto.role,
         polo_id: dto.polo_id || null,
-        password_hash: dto.password_hash,
+        password_hash: passwordHashResolved,
         ativo: dto.ativo !== undefined ? dto.ativo : true,
         metadata: dto.metadata || {},
       })
@@ -136,8 +204,9 @@ export class UsuariosService {
       throw new BadRequestException('Credenciais inválidas');
     }
 
-    const { password_hash, ...safeUser } = usuario;
-    return safeUser;
+    const safeUser = this.stripSensitiveFields(usuario);
+    const token = await this.signToken(usuario);
+    return { token, user: safeUser };
   }
 
   /**
@@ -167,9 +236,9 @@ export class UsuariosService {
       throw new BadRequestException('Credenciais inválidas');
     }
 
-    // Remove campos sensíveis antes de retornar
-    const { password_hash, ...safeUser } = usuario;
-    return safeUser;
+    const safeUser = this.stripSensitiveFields(usuario);
+    const token = await this.signToken(usuario);
+    return { token, user: safeUser };
   }
 
   async listarUsuarios(filtros?: {
@@ -371,6 +440,17 @@ export class UsuariosService {
       updated_at: new Date().toISOString(),
     };
 
+    const rawPassword = (dto as any)?.password;
+    if (typeof rawPassword === 'string') {
+      if (rawPassword.length === 0) {
+        throw new BadRequestException('Senha inválida');
+      }
+      if (rawPassword.length > 6) {
+        throw new BadRequestException('Senha deve ter no máximo 6 caracteres');
+      }
+      updateData.password_hash = await bcrypt.hash(rawPassword, 10);
+    }
+
     if (dto.email !== undefined) updateData.email = dto.email;
     if (dto.nome_completo !== undefined) updateData.nome_completo = dto.nome_completo;
     if (dto.cpf !== undefined) updateData.cpf = dto.cpf;
@@ -379,7 +459,7 @@ export class UsuariosService {
     if (dto.polo_id !== undefined) updateData.polo_id = dto.polo_id;
     if (dto.ativo !== undefined) updateData.ativo = dto.ativo;
     if (dto.metadata !== undefined) updateData.metadata = dto.metadata;
-    if (dto.password_hash !== undefined) updateData.password_hash = dto.password_hash;
+    if (dto.password_hash !== undefined && updateData.password_hash === undefined) updateData.password_hash = dto.password_hash;
 
     const { data, error } = await this.supabase
       .getAdminClient()
@@ -456,5 +536,122 @@ export class UsuariosService {
     }
 
     return { message: 'Senha alterada com sucesso' };
+  }
+
+  async solicitarCodigoRecuperacaoSenha(email: string) {
+    if (typeof email !== 'string' || email.trim().length === 0) {
+      throw new BadRequestException('Email é obrigatório');
+    }
+
+    let usuario: any;
+    try {
+      usuario = await this.buscarUsuarioPorEmail(email);
+    } catch {
+      throw new BadRequestException('Usuário não encontrado');
+    }
+
+    if (!usuario.ativo) {
+      throw new BadRequestException('Usuário inativo');
+    }
+
+    const codigo = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    const metadata = usuario.metadata && typeof usuario.metadata === 'object' ? usuario.metadata : {};
+    metadata.password_reset = {
+      codigo,
+      expires_at: expiresAt,
+    };
+
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('usuarios')
+      .update({ metadata, updated_at: new Date().toISOString() })
+      .eq('id', usuario.id);
+
+    if (error) {
+      throw new BadRequestException(`Erro ao solicitar recuperação: ${error.message}`);
+    }
+
+    await this.notificacoesService.enviarCodigoRecuperacaoSenha(email, codigo);
+    return { message: 'Código enviado para o e-mail informado' };
+  }
+
+  async confirmarCodigoRecuperacaoSenha(email: string, codigo: string, senhaNova: string) {
+    if (typeof email !== 'string' || email.trim().length === 0) {
+      throw new BadRequestException('Email é obrigatório');
+    }
+    if (typeof codigo !== 'string' || codigo.trim().length === 0) {
+      throw new BadRequestException('Código é obrigatório');
+    }
+    if (typeof senhaNova !== 'string' || senhaNova.trim().length === 0) {
+      throw new BadRequestException('Senha nova é obrigatória');
+    }
+    if (senhaNova.length > 6) {
+      throw new BadRequestException('Senha deve ter no máximo 6 caracteres');
+    }
+
+    let usuario: any;
+    try {
+      usuario = await this.buscarUsuarioPorEmail(email);
+    } catch {
+      throw new BadRequestException('Usuário não encontrado');
+    }
+
+    const pr = usuario?.metadata?.password_reset;
+    if (!pr?.codigo || !pr?.expires_at) {
+      throw new BadRequestException('Código inválido ou expirado');
+    }
+
+    const isExpired = new Date(pr.expires_at).getTime() < Date.now();
+    if (isExpired) {
+      throw new BadRequestException('Código inválido ou expirado');
+    }
+
+    if (String(pr.codigo) !== String(codigo)) {
+      throw new BadRequestException('Código inválido ou expirado');
+    }
+
+    const novoHash = await bcrypt.hash(senhaNova, 10);
+    const metadata = usuario.metadata && typeof usuario.metadata === 'object' ? usuario.metadata : {};
+    delete metadata.password_reset;
+
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('usuarios')
+      .update({ password_hash: novoHash, metadata, updated_at: new Date().toISOString() })
+      .eq('id', usuario.id);
+
+    if (error) {
+      throw new BadRequestException(`Erro ao redefinir senha: ${error.message}`);
+    }
+
+    return { message: 'Senha redefinida com sucesso' };
+  }
+
+  // Métodos auxiliares para metadados (roles e access levels)
+  async listarRoles() {
+    // Roles disponíveis no sistema (baseado no ENUM do banco)
+    return [
+      { value: 'super_admin', label: 'Super Admin' },
+      { value: 'admin_geral', label: 'Admin Geral' },
+      { value: 'diretor_geral', label: 'Diretor Geral' },
+      { value: 'coordenador_geral', label: 'Coordenador Geral' },
+      { value: 'diretor_polo', label: 'Diretor de Polo' },
+      { value: 'coordenador_polo', label: 'Coordenador de Polo' },
+      { value: 'professor', label: 'Professor' },
+      { value: 'auxiliar', label: 'Auxiliar' },
+      { value: 'secretario', label: 'Secretário(a)' },
+      { value: 'tesoureiro', label: 'Tesoureiro(a)' },
+      { value: 'aluno', label: 'Aluno' },
+      { value: 'responsavel', label: 'Responsável' },
+    ];
+  }
+
+  async listarAccessLevels() {
+    return [
+      { value: 'geral', label: 'Acesso Geral' },
+      { value: 'polo_especifico', label: 'Polo Específico' },
+    ];
   }
 }

@@ -9,6 +9,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Headers,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UsuariosService, CreateUsuarioDto, UpdateUsuarioDto } from './usuarios.service';
@@ -17,6 +18,12 @@ import { UsuariosService, CreateUsuarioDto, UpdateUsuarioDto } from './usuarios.
 @Controller('usuarios')
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
+
+  @Get('me')
+  @ApiOperation({ summary: 'Obter usuário autenticado via JWT' })
+  async me(@Headers('authorization') authorization?: string) {
+    return this.usuariosService.meFromAuthHeader(authorization);
+  }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -47,6 +54,22 @@ export class UsuariosController {
   async alterarSenha(@Body() body: any) {
     const { email, senhaAtual, senhaNova } = body || {};
     return this.usuariosService.alterarSenha(email, senhaAtual, senhaNova);
+  }
+
+  @Post('recuperar-senha/solicitar-codigo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Solicitar código de recuperação de senha via e-mail' })
+  async solicitarCodigoRecuperacaoSenha(@Body() body: any) {
+    const { email } = body || {};
+    return this.usuariosService.solicitarCodigoRecuperacaoSenha(email);
+  }
+
+  @Post('recuperar-senha/confirmar-codigo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Confirmar código e redefinir senha via e-mail' })
+  async confirmarCodigoRecuperacaoSenha(@Body() body: any) {
+    const { email, codigo, senhaNova } = body || {};
+    return this.usuariosService.confirmarCodigoRecuperacaoSenha(email, codigo, senhaNova);
   }
 
   @Get()
@@ -104,6 +127,18 @@ export class UsuariosController {
   @ApiOperation({ summary: 'Deletar usuário' })
   async deletarUsuario(@Param('id') id: string) {
     return this.usuariosService.deletarUsuario(id);
+  }
+
+  @Get('meta/roles')
+  @ApiOperation({ summary: 'Listar funções (roles) disponíveis' })
+  async listarRoles() {
+    return this.usuariosService.listarRoles();
+  }
+
+  @Get('meta/access-levels')
+  @ApiOperation({ summary: 'Listar níveis de acesso disponíveis' })
+  async listarAccessLevels() {
+    return this.usuariosService.listarAccessLevels();
   }
 }
 

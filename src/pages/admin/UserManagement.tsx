@@ -28,6 +28,12 @@ const UserManagement: React.FC = () => {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // Estados para dados dinâmicos dos selects
+  const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
+  const [accessLevels, setAccessLevels] = useState<{ value: string; label: string }[]>([]);
+  const [polosOptions, setPolosOptions] = useState<{ id: string; name: string }[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<AdminRole | 'all'>('all');
@@ -49,7 +55,45 @@ const UserManagement: React.FC = () => {
   // Carregar usuários ao montar
   useEffect(() => {
     carregarUsuarios();
+    carregarOpcoesSelects();
   }, []);
+
+  // Carregar opções para selects dinâmicos
+  const carregarOpcoesSelects = async () => {
+    try {
+      setLoadingOptions(true);
+      
+      // Buscar roles, access levels e polos em paralelo
+      const [rolesData, accessLevelsData] = await Promise.all([
+        UsuarioService.listarRoles(),
+        UsuarioService.listarAccessLevels(),
+      ]);
+      
+      setRoles(rolesData);
+      setAccessLevels(accessLevelsData);
+      setPolosOptions(polos || []);
+    } catch (error) {
+      console.error('Erro ao carregar opções dos selects:', error);
+      // Fallback para valores estáticos em caso de erro
+      setRoles([
+        { value: 'coordenador_geral', label: 'Coordenador Geral' },
+        { value: 'diretor_geral', label: 'Diretor Geral' },
+        { value: 'coordenador_polo', label: 'Coordenador de Polo' },
+        { value: 'diretor_polo', label: 'Diretor de Polo' },
+        { value: 'professor', label: 'Professor' },
+        { value: 'auxiliar', label: 'Auxiliar' },
+        { value: 'secretario', label: 'Secretário(a)' },
+        { value: 'tesoureiro', label: 'Tesoureiro(a)' }
+      ]);
+      setAccessLevels([
+        { value: 'geral', label: 'Acesso Geral' },
+        { value: 'polo_especifico', label: 'Polo Específico' }
+      ]);
+      setPolosOptions(polos || []);
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
 
   const carregarUsuarios = async () => {
     try {
@@ -100,21 +144,26 @@ const UserManagement: React.FC = () => {
     }
   }, [filterRole, filterAccessLevel, searchTerm]);
 
-  const roleLabels: Record<AdminRole, string> = {
-    coordenador_geral: 'Coordenador Geral',
-    diretor_geral: 'Diretor Geral',
-    coordenador_polo: 'Coordenador de Polo',
-    diretor_polo: 'Diretor de Polo',
-    professor: 'Professor',
-    auxiliar: 'Auxiliar',
-    secretario: 'Secretário(a)',
-    tesoureiro: 'Tesoureiro(a)'
+  // Helper para obter labels dinamicamente
+  const getRoleLabel = (roleValue: string) => {
+    const role = roles.find(r => r.value === roleValue);
+    return role?.label || roleValue;
   };
 
-  const accessLevelLabels: Record<AccessLevel, string> = {
-    geral: 'Acesso Geral',
-    polo_especifico: 'Polo Específico'
+  const getAccessLevelLabel = (accessLevelValue: string) => {
+    const accessLevel = accessLevels.find(al => al.value === accessLevelValue);
+    return accessLevel?.label || accessLevelValue;
   };
+
+  const roleLabels: Record<AdminRole, string> = {};
+  roles.forEach(role => {
+    roleLabels[role.value as AdminRole] = role.label;
+  });
+
+  const accessLevelLabels: Record<AccessLevel, string> = {};
+  accessLevels.forEach(level => {
+    accessLevelLabels[level.value as AccessLevel] = level.label;
+  });
 
   const filteredUsers = adminUsers;
 
@@ -270,19 +319,21 @@ const UserManagement: React.FC = () => {
             <Select
               value={filterRole}
               onChange={(value) => setFilterRole(value as AdminRole | 'all')}
+              disabled={loadingOptions}
             >
               <option value="all">Todas as funções</option>
-              {Object.entries(roleLabels).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              {roles.map((role) => (
+                <option key={role.value} value={role.value}>{role.label}</option>
               ))}
             </Select>
             <Select
               value={filterAccessLevel}
               onChange={(value) => setFilterAccessLevel(value as AccessLevel | 'all')}
+              disabled={loadingOptions}
             >
               <option value="all">Todos os níveis</option>
-              {Object.entries(accessLevelLabels).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+              {accessLevels.map((level) => (
+                <option key={level.value} value={level.value}>{level.label}</option>
               ))}
             </Select>
             <div className="flex items-center text-sm text-gray-600">
@@ -413,10 +464,11 @@ const UserManagement: React.FC = () => {
                 label="Função"
                 value={newUser.role || ''}
                 onChange={(value) => setNewUser({...newUser, role: value as AdminRole})}
+                disabled={loadingOptions}
               >
                 <option value="">Selecione uma função</option>
-                {Object.entries(roleLabels).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
+                {roles.map((role) => (
+                  <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
               </Select>
               
@@ -424,9 +476,10 @@ const UserManagement: React.FC = () => {
                 label="Nível de Acesso"
                 value={newUser.accessLevel || ''}
                 onChange={(value) => setNewUser({...newUser, accessLevel: value as AccessLevel})}
+                disabled={loadingOptions}
               >
-                {Object.entries(accessLevelLabels).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
+                {accessLevels.map((level) => (
+                  <option key={level.value} value={level.value}>{level.label}</option>
                 ))}
               </Select>
               
@@ -435,9 +488,10 @@ const UserManagement: React.FC = () => {
                   label="Polo"
                   value={newUser.poloId || ''}
                   onChange={(value) => setNewUser({...newUser, poloId: value})}
+                  disabled={loadingOptions}
                 >
                   <option value="">Selecione um polo</option>
-                  {polos.map((polo) => (
+                  {polosOptions.map((polo) => (
                     <option key={polo.id} value={polo.id}>{polo.name}</option>
                   ))}
                 </Select>
@@ -503,9 +557,10 @@ const UserManagement: React.FC = () => {
                 label="Função"
                 value={editingUser.role}
                 onChange={(value) => setEditingUser({...editingUser, role: value as AdminRole})}
+                disabled={loadingOptions}
               >
-                {Object.entries(roleLabels).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
+                {roles.map((role) => (
+                  <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
               </Select>
               
@@ -513,9 +568,10 @@ const UserManagement: React.FC = () => {
                 label="Nível de Acesso"
                 value={editingUser.accessLevel}
                 onChange={(value) => setEditingUser({...editingUser, accessLevel: value as AccessLevel})}
+                disabled={loadingOptions}
               >
-                {Object.entries(accessLevelLabels).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
+                {accessLevels.map((level) => (
+                  <option key={level.value} value={level.value}>{level.label}</option>
                 ))}
               </Select>
               
@@ -524,9 +580,10 @@ const UserManagement: React.FC = () => {
                   label="Polo"
                   value={editingUser.poloId || ''}
                   onChange={(value) => setEditingUser({...editingUser, poloId: value})}
+                  disabled={loadingOptions}
                 >
                   <option value="">Selecione um polo</option>
-                  {polos.map((polo) => (
+                  {polosOptions.map((polo) => (
                     <option key={polo.id} value={polo.id}>{polo.name}</option>
                   ))}
                 </Select>

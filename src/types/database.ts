@@ -26,6 +26,7 @@ export type Turno = 'manha' | 'tarde' | 'noite';
 export type StatusTurma = 'ativa' | 'inativa' | 'concluida';
 export type StatusMatricula = 'pendente' | 'em_analise' | 'ativa' | 'recusada' | 'cancelada';
 export type TipoMatricula = 'online' | 'presencial';
+export type StatusPreMatricula = 'em_analise' | 'ativo' | 'trancado' | 'concluido';
 export type StatusPresenca = 'presente' | 'falta' | 'justificativa' | 'atraso';
 export type TipoConteudo = 'pdf' | 'video' | 'atividade' | 'link';
 export type StatusMensalidade = 'pendente' | 'pago' | 'vencido';
@@ -47,6 +48,20 @@ export interface Endereco {
   estado: string;
 }
 
+// 2.1 PRÉ-MATRICULAS
+export interface PreMatricula {
+  id: string;
+  nome_completo: string;
+  cpf: string;
+  data_nascimento: string;
+  email_responsavel: string;
+  telefone_responsavel: string;
+  polo_id: string;
+  status: StatusPreMatricula;
+  created_at: string;
+  updated_at: string;
+}
+
 // 1. POLOS
 export interface Polo {
   id: string;
@@ -62,6 +77,7 @@ export interface Polo {
   capacidade_maxima?: number;
   logo_url?: string;
   diretor_id?: string;
+  pastor_responsavel: string;
   status: StatusPolo;
   created_at: string;
   updated_at: string;

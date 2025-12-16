@@ -54,4 +54,18 @@ export class UsuarioService {
   static async deletarUsuario(id: string): Promise<void> {
     await UsuariosAPI.deletar(id);
   }
+
+  /**
+   * Lista funções (roles) disponíveis para selects dinâmicos
+   */
+  static async listarRoles(): Promise<{ value: string; label: string }[]> {
+    return UsuariosAPI.listarRoles() as Promise<{ value: string; label: string }[]>;
+  }
+
+  /**
+   * Lista níveis de acesso disponíveis para selects dinâmicos
+   */
+  static async listarAccessLevels(): Promise<{ value: string; label: string }[]> {
+    return UsuariosAPI.listarAccessLevels() as Promise<{ value: string; label: string }[]>;
+  }
 }

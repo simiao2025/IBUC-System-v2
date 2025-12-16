@@ -49,68 +49,19 @@ export class DiretoriaService {
       );
     }
 
-    // Buscar ou criar usuário
-    let usuarioId = dto.usuario_id;
-    
-    if (!usuarioId && dto.email) {
-      // Tentar buscar usuário pelo email
-      const { data: usuarioExistente } = await this.supabase
+    const usuarioId = dto.usuario_id ?? null;
+
+    if (dto.usuario_id) {
+      const { data: usuario } = await this.supabase
         .getAdminClient()
         .from('usuarios')
-        .select('id, nome_completo, email')
-        .eq('email', dto.email)
+        .select('id')
+        .eq('id', dto.usuario_id)
         .single();
 
-      if (usuarioExistente) {
-        usuarioId = usuarioExistente.id;
-      } else {
-        // Criar novo usuário se não existir
-        // Mapear cargo para role
-        const roleMapping: Record<string, string> = {
-          diretor: 'diretor_geral',
-          vice_diretor: 'diretor_geral',
-          coordenador: 'coordenador_geral',
-          vice_coordenador: 'coordenador_geral',
-          secretario: 'admin_geral', // Secretário geral pode ter role admin_geral
-          tesoureiro: 'admin_geral',
-        };
-
-        const { data: novoUsuario, error: erroUsuario } = await this.supabase
-          .getAdminClient()
-          .from('usuarios')
-          .insert({
-            email: dto.email,
-            nome_completo: dto.nome_completo,
-            cpf: dto.cpf,
-            telefone: dto.telefone,
-            role: roleMapping[dto.cargo] || 'admin_geral',
-            ativo: true,
-          })
-          .select('id, nome_completo, email')
-          .single();
-
-        if (erroUsuario) {
-          throw new BadRequestException(`Erro ao criar usuário: ${erroUsuario.message}`);
-        }
-
-        usuarioId = novoUsuario.id;
+      if (!usuario) {
+        throw new NotFoundException('Usuário não encontrado');
       }
-    }
-
-    if (!usuarioId) {
-      throw new BadRequestException('É necessário fornecer usuario_id ou email para criar a diretoria');
-    }
-
-    // Verificar se o usuário existe (garantia)
-    const { data: usuario } = await this.supabase
-      .getAdminClient()
-      .from('usuarios')
-      .select('id, nome_completo, email')
-      .eq('id', usuarioId)
-      .single();
-
-    if (!usuario) {
-      throw new NotFoundException('Usuário não encontrado');
     }
 
     // Criar registro na diretoria_geral
@@ -120,11 +71,11 @@ export class DiretoriaService {
       .insert({
         usuario_id: usuarioId,
         cargo: dto.cargo,
-        nome_completo: dto.nome_completo || usuario.nome_completo,
+        nome_completo: dto.nome_completo,
         cpf: dto.cpf,
         rg: dto.rg,
         telefone: dto.telefone,
-        email: dto.email || usuario.email,
+        email: dto.email,
         data_inicio: dto.data_inicio,
         data_fim: dto.data_fim || null,
         observacoes: dto.observacoes || null,

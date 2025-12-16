@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { Polo, Level, LEVELS } from '../../types';
+import { Polo } from '../../types';
+import { PoloService } from '../../services/polo.service';
+import type { Polo as DbPolo } from '../../types/database';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -11,16 +13,16 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  ArrowLeft,
-  User,
-  Users,
-  CheckCircle
+  CheckCircle,
+  XCircle,
+  ArrowLeft
 } from 'lucide-react';
 
 const PoloManagement: React.FC = () => {
   const { polos, addPolo, updatePolo, deletePolo } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingPolo, setEditingPolo] = useState<Polo | null>(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     street: '',
@@ -29,13 +31,9 @@ const PoloManagement: React.FC = () => {
     city: '',
     state: 'TO',
     cep: '',
-    pastor: '',
-    coordinatorName: '',
-    coordinatorCpf: '',
-    teachers: '',
-    assistants: '',
-    cafeteriaWorkers: '',
-    availableLevels: [] as Level[]
+    phone: '',
+    email: '',
+    pastor_responsavel: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -66,11 +64,7 @@ const PoloManagement: React.FC = () => {
     if (!formData.city) newErrors.city = 'Cidade é obrigatória';
     if (!formData.state) newErrors.state = 'Estado é obrigatório';
     if (!formData.cep) newErrors.cep = 'CEP é obrigatório';
-    if (!formData.pastor) newErrors.pastor = 'Nome do pastor é obrigatório';
-    if (!formData.coordinatorName) newErrors.coordinatorName = 'Nome do coordenador é obrigatório';
-    if (!formData.coordinatorCpf) newErrors.coordinatorCpf = 'CPF do coordenador é obrigatório';
-    if (!formData.teachers) newErrors.teachers = 'Pelo menos um professor é obrigatório';
-    if (formData.availableLevels.length === 0) newErrors.availableLevels = 'Pelo menos um nível deve ser selecionado';
+    if (!formData.pastor_responsavel) newErrors.pastor_responsavel = 'Pastor responsável é obrigatório';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -85,13 +79,9 @@ const PoloManagement: React.FC = () => {
       city: '',
       state: 'TO',
       cep: '',
-      pastor: '',
-      coordinatorName: '',
-      coordinatorCpf: '',
-      teachers: '',
-      assistants: '',
-      cafeteriaWorkers: '',
-      availableLevels: []
+      phone: '',
+      email: '',
+      pastor_responsavel: ''
     });
     setErrors({});
     setEditingPolo(null);
@@ -107,57 +97,110 @@ const PoloManagement: React.FC = () => {
       city: polo.address.city,
       state: polo.address.state,
       cep: polo.address.cep,
-      pastor: polo.pastor,
-      coordinatorName: polo.coordinator.name,
-      coordinatorCpf: polo.coordinator.cpf,
-      teachers: polo.teachers.join(', '),
-      assistants: polo.assistants?.join(', ') || '',
-      cafeteriaWorkers: polo.cafeteriaWorkers?.join(', ') || '',
-      availableLevels: polo.availableLevels
+      phone: polo.address?.phone || '',
+      email: polo.address?.email || '',
+      pastor_responsavel: polo.pastor || ''
     });
     setEditingPolo(polo);
     setShowForm(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
+    void handleSubmitAsync(e);
+  };
+
+  const handleSubmitAsync = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
 
-    const poloData: Polo = {
-      id: editingPolo?.id || Math.random().toString(36).substr(2, 9),
-      name: formData.name,
-      address: {
-        street: formData.street,
-        number: formData.number,
-        neighborhood: formData.neighborhood,
-        city: formData.city,
-        state: formData.state,
-        cep: formData.cep,
-      },
-      pastor: formData.pastor,
-      coordinator: {
-        name: formData.coordinatorName,
-        cpf: formData.coordinatorCpf,
-      },
-      teachers: formData.teachers.split(',').map(t => t.trim()).filter(t => t),
-      assistants: formData.assistants ? formData.assistants.split(',').map(t => t.trim()).filter(t => t) : undefined,
-      cafeteriaWorkers: formData.cafeteriaWorkers ? formData.cafeteriaWorkers.split(',').map(t => t.trim()).filter(t => t) : undefined,
-      availableLevels: formData.availableLevels,
+    const buildCodigo = () => {
+      const base = (formData.name || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+        .toUpperCase();
+      const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+      return `${base || 'POLO'}-${suffix}`;
     };
 
-    if (editingPolo) {
-      updatePolo(editingPolo.id, poloData);
-    } else {
-      addPolo(poloData);
-    }
+    const dtoBase = {
+      nome: formData.name,
+      codigo: buildCodigo(),
+      endereco: {
+        cep: formData.cep,
+        rua: formData.street,
+        numero: formData.number,
+        bairro: formData.neighborhood,
+        cidade: formData.city,
+        estado: formData.state,
+      },
+      telefone: formData.phone || undefined,
+      email: formData.email || undefined,
+      status: 'ativo' as const,
+      pastor_responsavel: formData.pastor_responsavel
+    };
 
-    resetForm();
+    const mapDbPoloToUi = (polo: DbPolo): Polo => ({
+      id: polo.id,
+      name: polo.nome,
+      address: {
+        street: polo.endereco.rua,
+        number: polo.endereco.numero,
+        neighborhood: polo.endereco.bairro,
+        city: polo.endereco.cidade,
+        state: polo.endereco.estado,
+        cep: polo.endereco.cep,
+      },
+      pastor: '',
+      coordinator: { name: '', cpf: '' },
+      teachers: [],
+      assistants: [],
+      cafeteriaWorkers: [],
+      availableLevels: [],
+      isActive: polo.status === 'ativo',
+      createdAt: polo.created_at,
+      staff: [],
+    });
+
+    try {
+      setSaving(true);
+
+      if (editingPolo) {
+        const statusAtual = editingPolo.isActive ? 'ativo' : 'inativo';
+        const atualizado = await PoloService.atualizarPolo(editingPolo.id, {
+          nome: formData.name,
+          endereco: dtoBase.endereco,
+          telefone: dtoBase.telefone,
+          email: dtoBase.email,
+          pastor_responsavel: dtoBase.pastor_responsavel,
+          status: statusAtual,
+        } as any);
+        updatePolo(editingPolo.id, mapDbPoloToUi(atualizado as unknown as DbPolo));
+      } else {
+        const criado = await PoloService.criarPolo(dtoBase as any);
+        addPolo(mapDbPoloToUi(criado as unknown as DbPolo));
+      }
+
+      resetForm();
+    } catch (error: unknown) {
+      console.error('Erro ao salvar polo:', error);
+      alert((error as Error)?.message || 'Erro ao salvar polo. Verifique o console.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este polo?')) {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este polo?')) return;
+
+    try {
+      await PoloService.deletarPolo(id);
       deletePolo(id);
+    } catch (error: unknown) {
+      console.error('Erro ao deletar polo:', error);
+      alert((error as Error)?.message || 'Erro ao deletar polo. Verifique o console.');
     }
   };
 
@@ -167,6 +210,45 @@ const PoloManagement: React.FC = () => {
     { value: 'RJ', label: 'Rio de Janeiro' },
     // Add more states as needed
   ];
+
+  const handleToggleStatus = async (polo: Polo) => {
+    try {
+      setSaving(true);
+      const novoStatus = polo.isActive ? 'inativo' : 'ativo';
+      const atualizado = await PoloService.atualizarPolo(polo.id, {
+        status: novoStatus,
+      } as any);
+
+      const mapDbPoloToUi = (dbPolo: DbPolo): Polo => ({
+        id: dbPolo.id,
+        name: dbPolo.nome,
+        address: {
+          street: dbPolo.endereco.rua,
+          number: dbPolo.endereco.numero,
+          neighborhood: dbPolo.endereco.bairro,
+          city: dbPolo.endereco.cidade,
+          state: dbPolo.endereco.estado,
+          cep: dbPolo.endereco.cep,
+        },
+        pastor: '',
+        coordinator: { name: '', cpf: '' },
+        teachers: [],
+        assistants: [],
+        cafeteriaWorkers: [],
+        availableLevels: [],
+        isActive: dbPolo.status === 'ativo',
+        createdAt: dbPolo.created_at,
+        staff: [],
+      });
+
+      updatePolo(polo.id, mapDbPoloToUi(atualizado as unknown as DbPolo));
+    } catch (error: unknown) {
+      console.error('Erro ao alterar status do polo:', error);
+      alert((error as Error)?.message || 'Erro ao alterar status do polo. Verifique o console.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (showForm) {
     return (
@@ -268,91 +350,39 @@ const PoloManagement: React.FC = () => {
                   error={errors.state}
                   required
                 />
-              </div>
-            </Card>
-
-            {/* Staff */}
-            <Card>
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Equipe</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
                 <Input
                   label="Pastor Responsável"
-                  name="pastor"
-                  value={formData.pastor}
+                  name="pastor_responsavel"
+                  value={formData.pastor_responsavel}
                   onChange={handleInputChange}
-                  error={errors.pastor}
+                  error={errors.pastor_responsavel}
                   required
-                />
-                
-                <Input
-                  label="Nome do Coordenador"
-                  name="coordinatorName"
-                  value={formData.coordinatorName}
-                  onChange={handleInputChange}
-                  error={errors.coordinatorName}
-                  required
-                />
-                
-                <Input
-                  label="CPF do Coordenador"
-                  name="coordinatorCpf"
-                  value={formData.coordinatorCpf}
-                  onChange={handleInputChange}
-                  error={errors.coordinatorCpf}
-                  required
-                />
-                
-                <Input
-                  label="Professores"
-                  name="teachers"
-                  value={formData.teachers}
-                  onChange={handleInputChange}
-                  error={errors.teachers}
-                  helperText="Separar nomes por vírgula"
-                  required
-                />
-                
-                <Input
-                  label="Auxiliares"
-                  name="assistants"
-                  value={formData.assistants}
-                  onChange={handleInputChange}
-                  error={errors.assistants}
-                  helperText="Separar nomes por vírgula (opcional)"
-                />
-                
-                <Input
-                  label="Merendeiras"
-                  name="cafeteriaWorkers"
-                  value={formData.cafeteriaWorkers}
-                  onChange={handleInputChange}
-                  error={errors.cafeteriaWorkers}
-                  helperText="Separar nomes por vírgula (opcional)"
                 />
               </div>
             </Card>
 
-            {/* Available Levels */}
+            {/* Contato */}
             <Card>
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Níveis Disponíveis</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(Object.entries(LEVELS) as [Level, string][]).map(([key, value]) => (
-                  <label key={key} className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={formData.availableLevels.includes(key)}
-                      onChange={() => handleLevelChange(key)}
-                      className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{value}</p>
-                    </div>
-                  </label>
-                ))}
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Informações de Contato</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="Telefone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  error={errors.phone}
+                />
+
+                <Input
+                  label="E-mail"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  error={errors.email}
+                />
               </div>
-              {errors.availableLevels && (
-                <p className="mt-2 text-sm text-red-600">{errors.availableLevels}</p>
-              )}
             </Card>
 
             <div className="flex justify-end space-x-4">
@@ -363,8 +393,8 @@ const PoloManagement: React.FC = () => {
               >
                 Cancelar
               </Button>
-              <Button type="submit">
-                {editingPolo ? 'Atualizar Polo' : 'Cadastrar Polo'}
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Salvando...' : (editingPolo ? 'Atualizar Polo' : 'Cadastrar Polo')}
               </Button>
             </div>
           </form>
@@ -422,7 +452,18 @@ const PoloManagement: React.FC = () => {
                   <div className="flex items-start space-x-3">
                     <MapPin className="h-6 w-6 text-red-600 mt-1" />
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{polo.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{polo.name}</h3>
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            polo.isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-200 text-gray-700'
+                          }`}
+                        >
+                          {polo.isActive ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </div>
                       <p className="text-sm text-gray-600">
                         {polo.address.street}, {polo.address.number} - {polo.address.neighborhood}
                       </p>
@@ -432,6 +473,19 @@ const PoloManagement: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleStatus(polo)}
+                      disabled={saving}
+                      title={polo.isActive ? 'Desativar polo' : 'Ativar polo'}
+                    >
+                      {polo.isActive ? (
+                        <XCircle className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4" />
+                      )}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -448,35 +502,17 @@ const PoloManagement: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Pastor: {polo.pastor}</span>
+                {(polo.address?.phone || polo.address?.email) && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Contato:</p>
+                    {polo.address?.phone && (
+                      <p className="text-sm text-gray-600">Telefone: {polo.address.phone}</p>
+                    )}
+                    {polo.address?.email && (
+                      <p className="text-sm text-gray-600">E-mail: {polo.address.email}</p>
+                    )}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Coordenador: {polo.coordinator.name}</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">Professores:</p>
-                      <p className="text-sm text-gray-900">{polo.teachers.join(', ')}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Níveis disponíveis:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {polo.availableLevels.map(level => (
-                      <span key={level} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                        {LEVELS[level]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                )}
               </Card>
             ))}
           </div>

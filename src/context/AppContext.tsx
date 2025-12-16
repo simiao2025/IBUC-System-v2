@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { StudentData, Enrollment, Polo as UiPolo, User, AdminUser, AccessLevel, Level } from '../types';
 import type { Polo as DbPolo } from '../types/database';
 import { PoloService } from '../services/polo.service';
+import { UsuariosAPI } from '../lib/api';
 
 interface AppContextType {
   // Student registration
@@ -24,7 +25,8 @@ interface AppContextType {
   
   // Authentication
   currentUser: User | null;
-  login: (email: string, password: string, role: 'admin' | 'student') => Promise<boolean>;
+  authLoading: boolean;
+  login: (email: string, password: string, role: 'admin' | 'student') => Promise<'admin' | 'student' | null>;
   logout: () => void;
 
   // Admin access control
@@ -82,7 +84,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [polos, setPolos] = useState<UiPolo[]>(mockPolos);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const extractToken = (payload: any): string | null => {
+    if (!payload) return null;
+    return (
+      payload.token ||
+      payload.access_token ||
+      payload.accessToken ||
+      payload.jwt ||
+      payload?.data?.token ||
+      payload?.data?.access_token ||
+      null
+    );
+  };
+
+  const extractUserPayload = (payload: any): any => {
+    if (!payload) return null;
+    return payload.user || payload.usuario || payload;
+  };
+
+  const isAdminRoleValue = (role?: string): boolean => {
+    if (!role) return false;
+    return !['aluno', 'responsavel'].includes(role);
+  };
+
+  const hasGlobalAccessForRole = (role?: string): boolean => {
+    if (!role) return false;
+    return ['super_admin', 'admin_geral', 'coordenador_geral', 'diretor_geral'].includes(role);
+  };
 
   useEffect(() => {
     const carregarPolosReais = async () => {
@@ -98,6 +129,105 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     carregarPolosReais();
+  }, []);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = localStorage.getItem('auth_token');
+      const cachedUserRaw = localStorage.getItem('auth_user');
+
+      if (cachedUserRaw) {
+        try {
+          const cachedUser = JSON.parse(cachedUserRaw);
+          const isAdminCached = isAdminRoleValue(cachedUser?.role);
+
+          if (isAdminCached) {
+            setCurrentUser({
+              id: cachedUser.id,
+              email: cachedUser.email,
+              role: 'admin',
+              adminUser: {
+                role: cachedUser.role,
+                accessLevel: hasGlobalAccessForRole(cachedUser.role) ? 'geral' : cachedUser.polo_id ? 'polo_especifico' : 'geral',
+                poloId: cachedUser.polo_id || undefined,
+                permissions: cachedUser.metadata?.permissions,
+              } as AdminUser,
+            });
+          } else {
+            setCurrentUser({
+              id: cachedUser.id,
+              email: cachedUser.email || cachedUser.cpf || '',
+              role: 'student',
+              studentId: cachedUser.aluno_id || undefined,
+            });
+          }
+        } catch {
+          localStorage.removeItem('auth_user');
+        }
+      }
+
+      if (!token) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:3000/usuarios/me', {
+          cache: 'no-store',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.status === 304) {
+          setAuthLoading(false);
+          return;
+        }
+
+        if (!response.ok) {
+          // Token inválido/expirado: limpar sessão
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          setCurrentUser(null);
+          setAuthLoading(false);
+          return;
+        }
+
+        const user = await response.json();
+        localStorage.setItem('auth_user', JSON.stringify(user));
+        const isAdmin = isAdminRoleValue(user?.role);
+
+        if (isAdmin) {
+          setCurrentUser({
+            id: user.id,
+            email: user.email,
+            role: 'admin',
+            adminUser: {
+              role: user.role,
+              accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral',
+              poloId: user.polo_id || undefined,
+              permissions: user.metadata?.permissions,
+            } as AdminUser,
+          });
+          setAuthLoading(false);
+          return;
+        }
+
+        setCurrentUser({
+          id: user.id,
+          email: user.email || user.cpf || '',
+          role: 'student',
+          studentId: user.aluno_id || undefined,
+        });
+        setAuthLoading(false);
+      } catch (error) {
+        console.error('Erro ao restaurar sessão:', error);
+        // Erro de rede/back-end fora do ar: mantém cache/token para não derrubar a sessão
+        setAuthLoading(false);
+      }
+    };
+
+    restoreSession();
   }, []);
 
   const addStudent = (student: StudentData) => {
@@ -120,73 +250,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPolos(prev => prev.filter(polo => polo.id !== id));
   };
 
-  const login = async (email: string, password: string, role: 'admin' | 'student'): Promise<boolean> => {
-    if (role === 'admin') {
-      try {
-        const response = await fetch('http://localhost:3000/usuarios/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
+  const login = async (email: string, password: string, _role: 'admin' | 'student'): Promise<'admin' | 'student' | null> => {
+    try {
+      const rawPayload = await UsuariosAPI.login({ email, password });
+      const token = extractToken(rawPayload);
+      if (token) {
+        localStorage.setItem('auth_token', token);
+      }
 
-        if (!response.ok) {
-          return false;
-        }
+      const user = extractUserPayload(rawPayload);
+      localStorage.setItem('auth_user', JSON.stringify(user));
 
-        const user = await response.json();
-
+      const isAdmin = isAdminRoleValue(user?.role);
+      if (isAdmin) {
         setCurrentUser({
           id: user.id,
           email: user.email,
           role: 'admin',
           adminUser: {
             role: user.role,
-            accessLevel: user.polo_id ? 'polo_especifico' : 'geral',
+            accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral',
             poloId: user.polo_id || undefined,
+            permissions: user.metadata?.permissions,
           } as AdminUser,
         });
-
-        return true;
-      } catch (error) {
-        console.error('Erro ao autenticar admin:', error);
-        return false;
+        return 'admin';
       }
+
+      setCurrentUser({
+        id: user.id,
+        email: user.email || email,
+        role: 'student',
+        studentId: user.aluno_id || undefined,
+      });
+
+      return 'student';
+    } catch (error) {
+      console.error('Erro ao autenticar:', error);
+      return null;
     }
-
-    // Login real de aluno via CPF + senha
-    if (role === 'student') {
-      try {
-        const response = await fetch('http://localhost:3000/usuarios/login-aluno', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cpf: email, password }),
-        });
-
-        if (!response.ok) {
-          return false;
-        }
-
-        const user = await response.json();
-
-        setCurrentUser({
-          id: user.id,
-          email: user.email || user.cpf || email,
-          role: 'student',
-          studentId: user.aluno_id || undefined,
-        });
-
-        return true;
-      } catch (error) {
-        console.error('Erro ao autenticar aluno:', error);
-        return false;
-      }
-    }
-
-    return false;
   };
 
   const logout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
   };
 
   const hasAccessToAllPolos = (): boolean => {
@@ -194,7 +302,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentUser.adminUser) return true; // Admin padrão tem acesso geral
 
     return currentUser.adminUser.accessLevel === 'geral' &&
-           ['coordenador_geral', 'diretor_geral'].includes(currentUser.adminUser.role);
+           ['coordenador_geral', 'diretor_geral', 'secretario', 'tesoureiro'].includes(currentUser.adminUser.role);
   };
 
   const hasAccessToPolo = (poloId: string): boolean => {
@@ -243,6 +351,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatePolo,
       deletePolo,
       currentUser,
+      authLoading,
       login,
       logout,
       hasAccessToAllPolos,

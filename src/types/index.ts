@@ -101,6 +101,24 @@ export type AdminRole =
 
 export type AccessLevel = 'geral' | 'polo_especifico';
 
+export type PermissionMode = 'full' | 'limited';
+
+export type AdminModuleKey =
+  | 'settings'
+  | 'polos'
+  | 'staff'
+  | 'students'
+  | 'enrollments'
+  | 'reports'
+  | 'dracmas'
+  | 'attendance'
+  | 'directorate';
+
+export interface AdminPermissions {
+  mode: PermissionMode;
+  modules: AdminModuleKey[];
+}
+
 export interface AdminUser {
   id: string;
   name: string;
@@ -110,6 +128,7 @@ export interface AdminUser {
   role: AdminRole;
   accessLevel: AccessLevel;
   poloId?: string; // Para usuários com acesso específico a um polo
+  permissions?: AdminPermissions; // Preferencialmente persistido em usuarios.metadata.permissions
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

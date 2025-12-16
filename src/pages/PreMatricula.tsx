@@ -4,15 +4,13 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlunoService } from '../services/aluno.service';
-import { DocumentoService } from '../services/documento.service';
 import { PoloService } from '../services/polo.service';
-import { MatriculaAPI } from '../lib/api';
+import { DocumentosAPI, PreMatriculasAPI } from '../lib/api';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
-import type { Aluno, Matricula, Polo, TipoDocumento } from '../types/database';
+import type { Polo, TipoDocumento } from '../types/database';
 import { FileUpload } from '../components/ui/FileUpload';
 
 const PreMatricula: React.FC = () => {
@@ -20,7 +18,7 @@ const PreMatricula: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [polos, setPolos] = useState<Polo[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [protocolo, setProtocolo] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string; tipo: TipoDocumento }[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Partial<Record<TipoDocumento, File>>>({});
 
@@ -52,14 +50,12 @@ const PreMatricula: React.FC = () => {
     aceite_termo: false,
   });
 
-  const [selectedDocType, setSelectedDocType] = useState<TipoDocumento>('cpf');
+  const [selectedDocType, setSelectedDocType] = useState<TipoDocumento>('rg');
 
   const REQUIRED_DOCUMENTS: { type: TipoDocumento; label: string }[] = [
-    { type: 'cpf', label: 'CPF do Responsável ou do Aluno' },
     { type: 'rg', label: 'Documento de Identidade (RG)' },
     { type: 'certidao', label: 'Certidão de Nascimento' },
     { type: 'comprovante_residencia', label: 'Comprovante de Residência' },
-    { type: 'foto', label: 'Foto 3x4' },
   ];
 
   React.useEffect(() => {
@@ -151,6 +147,7 @@ const PreMatricula: React.FC = () => {
     if (!formData.nome) newErrors.nome = 'Nome do aluno é obrigatório';
     if (!formData.data_nascimento) newErrors.data_nascimento = 'Data de nascimento é obrigatória';
     if (!formData.sexo) newErrors.sexo = 'Sexo é obrigatório';
+    if (!formData.cpf) newErrors.cpf = 'CPF do aluno é obrigatório';
     if (!formData.cep) newErrors.cep = 'CEP é obrigatório';
     if (!formData.rua) newErrors.rua = 'Rua é obrigatória';
     if (!formData.numero) newErrors.numero = 'Número é obrigatório';
@@ -161,13 +158,12 @@ const PreMatricula: React.FC = () => {
     if (!formData.telefone_responsavel) newErrors.telefone_responsavel = 'Telefone do responsável é obrigatório';
     if (!formData.email_responsavel) newErrors.email_responsavel = 'E-mail do responsável é obrigatório';
     if (!formData.polo_id) newErrors.polo_id = 'Polo é obrigatório';
-    if (!formData.aceite_termo) newErrors.aceite_termo = 'É necessário aceitar os termos';
 
     // Validação de documentos obrigatórios
     REQUIRED_DOCUMENTS.forEach((doc) => {
       const hasDoc = Boolean(selectedFiles[doc.type]);
       if (!hasDoc) {
-        newErrors.documentos = 'Envie todos os documentos obrigatórios: CPF, RG, Certidão e Comprovante de Residência.';
+        newErrors.documentos = 'Envie todos os documentos obrigatórios: RG, Certidão e Comprovante de Residência.';
       }
     });
 
@@ -190,38 +186,15 @@ const PreMatricula: React.FC = () => {
     setLoading(true);
 
     try {
-      // Criar aluno
-      const aluno: Omit<Aluno, 'id' | 'data_criacao' | 'data_atualizacao'> = {
-        nome: formData.nome,
+      type CreatePreMatriculaResponse = { id: string };
+      const preMatricula = (await PreMatriculasAPI.criar({
+        nome_completo: formData.nome,
+        cpf: formData.cpf,
         data_nascimento: formData.data_nascimento,
-        sexo: formData.sexo,
-        cpf: formData.cpf || undefined,
-        endereco: {
-          cep: formData.cep,
-          rua: formData.rua,
-          numero: formData.numero,
-          complemento: formData.complemento || undefined,
-          bairro: formData.bairro,
-          cidade: formData.cidade,
-          estado: formData.estado,
-        },
+        email_responsavel: formData.email_responsavel,
+        telefone_responsavel: formData.telefone_responsavel,
         polo_id: formData.polo_id,
-        nivel_atual_id: formData.nivel_id || '', // TODO: Calcular nível por idade
-        status: 'pendente',
-      };
-
-      // Criar matrícula
-      const matricula: Omit<Matricula, 'id' | 'created_at' | 'protocolo'> = {
-        aluno_id: '', // Será preenchido após criar aluno
-        polo_id: formData.polo_id,
-        tipo: 'online',
-        status: 'pendente',
-        origem: 'site',
-        data_matricula: new Date().toISOString(),
-      };
-
-      // Criar pré-matrícula
-      const resultado = await AlunoService.criarPreMatricula(aluno, matricula);
+      })) as CreatePreMatriculaResponse;
 
       const uploadedDocs: { url: string; name: string; tipo: TipoDocumento }[] = [];
 
@@ -229,17 +202,17 @@ const PreMatricula: React.FC = () => {
         arquivos?: Array<{ url?: string; name?: string }>;
       };
 
-      // Enviar documentos via backend (evita problemas de permissão/RLS no upload direto)
-      const matriculaId = resultado.matricula.id;
+      const preMatriculaId = preMatricula.id;
       const selectedEntries = Object.entries(selectedFiles) as [TipoDocumento, File][];
       if (selectedEntries.length > 0) {
         for (const [tipo, file] of selectedEntries) {
           const formData = new FormData();
           formData.append('files', file);
 
-          const response = (await MatriculaAPI.uploadDocumentos(
-            matriculaId,
+          const response = (await DocumentosAPI.uploadPorPreMatricula(
+            preMatriculaId,
             formData,
+            tipo,
           )) as UploadDocumentosResponse;
           const arquivo = response?.arquivos?.[0];
           if (!arquivo?.url) {
@@ -254,32 +227,7 @@ const PreMatricula: React.FC = () => {
         setUploadedFiles(uploadedDocs);
       }
 
-      // Registrar documentos enviados (se houver) vinculados ao aluno criado
-      if (uploadedDocs.length > 0) {
-        for (const file of uploadedDocs) {
-          try {
-            await DocumentoService.registrarDocumentoExistente(
-              file.url,
-              'aluno',
-              resultado.aluno.id,
-              file.tipo,
-              file.name
-            );
-          } catch (docError) {
-            console.error('Erro ao registrar documento da pré-matrícula:', docError);
-          }
-        }
-      }
-
-      setProtocolo(resultado.matricula.protocolo);
-
-      // TODO: Enviar notificação ao polo
-      // TODO: Enviar e-mail de confirmação ao responsável
-
-      alert(`Pré-matrícula realizada com sucesso! Protocolo: ${resultado.matricula.protocolo}`);
-      
-      // Redirecionar para página de acompanhamento
-      navigate(`/acompanhar-matricula?protocolo=${resultado.matricula.protocolo}`);
+      setSubmitted(true);
     } catch (error) {
       console.error('Erro ao realizar pré-matrícula:', error);
       alert('Erro ao realizar pré-matrícula. Tente novamente.');
@@ -332,7 +280,7 @@ const PreMatricula: React.FC = () => {
   ];
 
   // Seção de confirmação de pré-matrícula
-  if (protocolo) {
+  if (submitted) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-2xl mx-auto px-4">
@@ -346,12 +294,8 @@ const PreMatricula: React.FC = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Pré-matrícula Realizada!</h2>
                 <p className="text-gray-600 mb-4">
-                  Sua pré-matrícula foi enviada com sucesso. Guarde o protocolo abaixo para acompanhar o status.
+                  Sua pré-matrícula foi enviada com sucesso.
                 </p>
-                <div className="bg-gray-100 p-4 rounded-lg mb-6">
-                  <p className="text-sm text-gray-600 mb-1">Protocolo:</p>
-                  <p className="text-2xl font-bold text-ibuc-blue">{protocolo}</p>
-                </div>
                 <div className="space-y-2 text-left bg-blue-50 p-4 rounded-lg mb-6">
                   <p className="text-sm text-gray-700">
                     <strong>Próximos passos:</strong>
@@ -359,7 +303,6 @@ const PreMatricula: React.FC = () => {
                   <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
                     <li>A secretária do polo entrará em contato para validar os documentos</li>
                     <li>Compareça ao polo com os documentos necessários</li>
-                    <li>Acompanhe o status da sua matrícula usando o protocolo acima</li>
                   </ul>
                 </div>
                 <Button onClick={() => navigate('/')} className="w-full">
@@ -422,12 +365,13 @@ const PreMatricula: React.FC = () => {
               />
 
               <Input
-                label="CPF (opcional)"
+                label="CPF"
                 name="cpf"
                 value={formData.cpf}
                 onChange={handleInputChange}
                 error={errors.cpf}
                 maxLength={14}
+                required
               />
             </div>
           </Card>
@@ -596,15 +540,11 @@ const PreMatricula: React.FC = () => {
                 checked={formData.aceite_termo}
                 onChange={handleCheckboxChange}
                 className="mt-1 mr-3"
-                required
               />
               <label className="text-sm text-gray-700">
                 Declaro, na qualidade de responsável legal pelo menor, que li e concordo com os termos de uso e a
                 política de privacidade da IBUC, autorizando o tratamento dos dados pessoais do aluno e dos
                 responsáveis exclusivamente para fins de gestão da Escola Bíblica Dominical, em conformidade com a LGPD.
-                {errors.aceite_termo && (
-                  <span className="block text-red-600 mt-1">{errors.aceite_termo}</span>
-                )}
               </label>
             </div>
           </Card>
@@ -613,7 +553,7 @@ const PreMatricula: React.FC = () => {
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Documentos Obrigatórios</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Envie cópias digitais dos documentos do aluno e do responsável. 
+              Envie cópias digitais dos documentos obrigatórios. 
               Formatos aceitos: JPG, PNG, PDF (Máx. 10MB cada).
             </p>
 
@@ -688,7 +628,7 @@ const PreMatricula: React.FC = () => {
             </Button>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || !formData.aceite_termo}
               className="flex-1 bg-ibuc-blue hover:bg-blue-600"
             >
               {loading ? 'Enviando...' : 'Enviar Pré-matrícula'}

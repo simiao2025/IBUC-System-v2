@@ -19,6 +19,7 @@ export interface CreatePoloDto {
   email?: string;
   site?: string;
   status?: 'ativo' | 'inativo';
+  pastor_responsavel: string;
 }
 
 export interface UpdatePoloDto {
@@ -31,6 +32,7 @@ export interface UpdatePoloDto {
   email?: string;
   site?: string;
   status?: 'ativo' | 'inativo';
+  pastor_responsavel?: string;
 }
 
 @Injectable()
@@ -50,19 +52,19 @@ export class PolosService {
       throw new BadRequestException('Código do polo já existe');
     }
 
+    // Validar se o pastor responsável foi informado
+    if (!dto.pastor_responsavel) {
+      throw new BadRequestException('Nome do pastor responsável é obrigatório');
+    }
+
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('polos')
       .insert({
-        nome: dto.nome,
-        codigo: dto.codigo,
-        cnpj: dto.cnpj,
-        endereco: dto.endereco,
-        telefone: dto.telefone,
-        whatsapp: dto.whatsapp,
-        email: dto.email,
-        site: dto.site,
+        ...dto,
         status: dto.status || 'ativo',
+        pastor_responsavel: dto.pastor_responsavel,
+        endereco: dto.endereco // Garante que o endereço seja salvo corretamente
       })
       .select()
       .single();
@@ -155,6 +157,7 @@ export class PolosService {
     if (dto.whatsapp !== undefined) updateData.whatsapp = dto.whatsapp;
     if (dto.email !== undefined) updateData.email = dto.email;
     if (dto.site !== undefined) updateData.site = dto.site;
+    if (dto.pastor_responsavel !== undefined) updateData.pastor_responsavel = dto.pastor_responsavel;
     if (dto.status !== undefined) updateData.status = dto.status;
 
     const { data, error } = await this.supabase
