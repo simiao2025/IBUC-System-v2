@@ -1,189 +1,318 @@
-# Documento de Requisitos do Produto (PRD) - IBUC System
+# PRD v2.1 FINAL — IBUC System (MVP)
 
 ## 1. Visão Geral
 
-### 1.1 Propósito
-O IBUC System é uma plataforma de gestão educacional desenvolvida para o Instituto Bíblico Único Caminho, destinada a gerenciar cursos de teologia infanto-juvenil em múltiplos polos, oferecendo funcionalidades completas para matrículas, gestão de alunos, acompanhamento acadêmico e administrativo.
+Sistema de gestão educacional para instituições religiosas, focado no gerenciamento de polos educacionais, alunos, turmas, conteúdo didático e finanças. Arquitetura full-stack com frontend em React/Vite e backend em Supabase.
 
-### 1.2 Escopo
-- Gestão de polos e usuários
-- Matrículas online e presenciais
-- Controle de frequência
-- Gestão acadêmica
-- Financeiro e mensalidades
-- Relatórios e análises
-- LGPD e segurança de dados
+## 2. Objetivo do MVP
 
-## 2. Funcionalidades Principais
+Entregar uma solução estável e operacional que cubra os processos essenciais:
 
-### 2.1 Módulo de Matrículas
-- **Pré-matrícula online** com formulário digital
-- Matrícula presencial com registro completo
-- Upload de documentos
-- Geração de termos de matrícula em PDF
-- Aprovação e validação de documentos
+* Gestão de alunos e responsáveis
+* Pré-matrícula com upload de documentos
+* Matrícula administrativa
+* Controle de frequência
+* Gestão de conteúdo educacional
+* Gestão financeira básica
 
-### 2.2 Gestão de Alunos
-- Cadastro completo de alunos e responsáveis
-- Histórico acadêmico
-- Documentos e certificados
-- Comunicação com responsáveis
-- Situação financeira
+## 3. Tipos de Usuários
 
-### 2.3 Acompanhamento Acadêmico
-- Controle de frequência
-- Lançamento de notas
-- Boletins e relatórios
-- Conteúdos e materiais didáticos
-- Acompanhamento de desempenho
+### 3.1 Administrativos
 
-### 2.4 Gestão Financeira
-- Controle de mensalidades
-- Geração de boletos e cobranças
-- Registro de pagamentos
-- Relatórios financeiros
-- Controle de inadimplência
+* Super Admin
+* Admin Geral
+* Diretor Geral
+* Coordenador Geral
+* Diretor de Polo
+* Coordenador de Polo
+* Secretário de Polo
+* Tesoureiro
+* Professor
 
-### 2.5 Administrativo
-- Gestão de usuários e permissões
-- Controle de turmas e horários
-- Calendário acadêmico
-- Documentos e modelos
-- Configurações do sistema
+### 3.2 Externos
 
-## 3. Requisitos Técnicos
+* Aluno
+* Responsável
 
-### 3.1 Arquitetura
-- **Frontend**: React 18 + TypeScript + Vite
-- **Backend**: NestJS + TypeScript
-- **Banco de Dados**: PostgreSQL (Supabase)
-- **Autenticação**: Supabase Auth
-- **Filas**: BullMQ + Redis
-- **Documentação**: Swagger/OpenAPI
+## 4. Escopo do MVP
 
-### 3.2 Segurança
-- Autenticação JWT
-- Row Level Security (RLS)
-- Criptografia de dados sensíveis
-- Logs de auditoria
-- Conformidade com LGPD
+Inclui exclusivamente as funcionalidades descritas neste documento. Qualquer item não listado é considerado fora de escopo.
 
-## 4. Fluxos Principais
+## 5. Páginas Públicas
 
-### 4.1 Fluxo de Matrícula Online
-1. Acesso ao formulário de pré-matrícula
-2. Preenchimento dos dados do aluno e responsável
-3. Upload de documentos
-4. Submissão e geração de protocolo
-5. Análise e aprovação pela secretaria
-6. Confirmação de matrícula
-7. Geração de boleto da primeira mensalidade
+### 5.1 Página Inicial
 
-### 4.2 Fluxo de Aula
-1. Professor acessa lista de alunos
-2. Registro de presença
-3. Lançamento de atividades/avaliações
-4. Acompanhamento de desempenho
-5. Geração de relatórios
+**Objetivo**: Apresentar o curso e permitir pré-matrícula.
 
-## 5. Regras de Negócio
+**Elementos obrigatórios**:
 
-### 5.1 Matrículas
-- Idade mínima: 4 anos completos
-- Documentação obrigatória: RG, CPF, comprovante de residência e foto 3x4
-- Taxa de matrícula: R$ 50,00 (valor sujeito a alteração)
+* Informações institucionais
+* Menu: Início | Sobre IBUC | Módulos
+* Botão: Pré-matrícula
 
-### 5.2 Frequência
-- Frequência mínima: 75%
-- Justificativas de falta devem ser enviadas em até 48h
-- 3 faltas consecutivas sem justificativa geram notificação
+**Ação principal**:
 
-### 5.3 Financeiro
-- Mensalidade: R$ 120,00
-- Vencimento: Todo dia 10
-- Multa por atraso: 2% ao mês
-- Juros: 1% ao mês
+* Formulário de pré-matrícula com upload de documentos
 
-## 6. Requisitos Não-Funcionais
+### 5.2 Pré-matrícula
 
-### 6.1 Desempenho
-- Tempo de resposta médio: < 2s
-- Suporte a 1000 usuários concorrentes
-- Tempo de indisponibilidade máximo: 99,9% uptime
+**Campos obrigatórios**:
 
-### 6.2 Usabilidade
-- Interface responsiva
-- Navegação intuitiva
-- Tempo de aprendizado: máximo 1 hora
-- Suporte a múltiplos dispositivos
+* Nome do aluno
+* Data de nascimento
+* Polo desejado
+* Dados do responsável
+* Upload de documentos
 
-### 6.3 Segurança
-- Backup diário
-- Criptografia em trânsito (HTTPS)
-- Proteção contra injeção SQL
-- Controle de acesso baseado em funções (RBAC)
+**Regra**:
 
-## 7. Roadmap
+* Nenhuma matrícula é concluída nesta etapa
 
-### Fase 1 (MVP)
-- [ ] Cadastro de alunos e responsáveis
-- [ ] Matrículas online
-- [ ] Controle de frequência
-- [ ] Módulo financeiro básico
+## 6. Estrutura de Rotas (Estado Alvo)
 
-### Fase 2
-- [ ] Portal do aluno
-- [ ] Aplicativo móvel
-- [ ] Integração com meios de pagamento
-- [ ] Relatórios avançados
+* Públicas: /, /sobre, /modulos, /pre-matricula, /login
+* Aluno: /app/dashboard, /app/modulos, /app/boletim, /app/frequencia, /app/financeiro
+* Admin: /admin/dashboard, /admin/polos, /admin/turmas, /admin/alunos, /admin/matriculas, /admin/frequencia, /admin/financeiro, /admin/relatorios, /admin/usuarios, /admin/configuracoes
 
-### Fase 3
-- [ ] Gamificação
-- [ ] Biblioteca virtual
-- [ ] Aulas online
-- [ ] Fórum de discussão
+## 7. Área do Aluno
 
-## 8. Métricas de Sucesso
+### 7.1 Dashboard
 
-### 8.1 Indicadores de Uso
-- Número de matrículas mensais
-- Taxa de conversão de pré-matrículas
-- Frequência média dos alunos
-- Tempo médio de uso diário
+**Objetivo**: Visão geral acadêmica
 
-### 8.2 Indicadores Financeiros
-- Inadimplência
-- Taxa de renovação
-- Custo de aquisição por aluno
-- Ticket médio
+**Conteúdo**:
 
-## 9. Anexos
+* Progresso no curso
+* Status financeiro
+* Avisos
 
-### 9.1 Modelo de Dados
-```mermaid
-erDiagram
-    POLO ||--o{ TURMA : possui
-    TURMA ||--o{ ALUNO : contém
-    ALUNO ||--o{ MATRICULA : possui
-    ALUNO ||--o{ RESPONSAVEL : possui
-    TURMA ||--o{ AULA : possui
-    AULA ||--o{ PRESENCA : registra
-    ALUNO ||--o{ MENSALIDADE : possui
-    MENSALIDADE ||--o{ PAGAMENTO : gera
-```
+### 7.2 Módulos
 
-### 9.2 Fluxos de Tela
-- [Link para protótipos no Figma](#)
+* Visualização de conteúdo liberado
+* Progresso por módulo
 
-### 9.3 API Documentation
-- [Documentação Swagger](/api/docs)
+### 7.3 Boletim
 
-## 10. Histórico de Revisões
+* Notas
+* Observações
 
-| Data | Versão | Descrição | Autor |
-|------|--------|-----------|-------|
-| 11/12/2025 | 1.0 | Versão inicial do PRD | IBUC Tech Team |
+### 7.4 Frequência
+
+* Presenças registradas
+
+### 7.5 Financeiro
+
+* Mensalidades
+* Pagamentos
+
+## 8. Área Administrativa (DETALHADA)
+
+### 8.1 Admin Dashboard
+
+**Papéis**: Super Admin, Admin Geral, Diretores, Coordenadores
+
+**Ações**:
+
+* Visualizar indicadores (alunos, matrículas, inadimplência, drácmas acumuladas)
+
+**DoD**:
+
+* Indicadores carregam corretamente
 
 ---
-**IBUC - Instituto Bíblico Único Caminho**  
-*Sistema desenvolvido com ❤️ para educação cristã*
+
+### 8.2 Gestão de Polos
+
+**Papéis**: Super Admin, Admin Geral
+
+**Ações**:
+
+* Criar polo
+* Editar polo
+* Ativar/desativar polo
+
+**Regras**:
+
+* Polo inativo não recebe novas turmas
+
+**DoD**:
+
+* CRUD funcional com validações
+
+---
+
+### 8.3 Gestão de Turmas
+
+**Papéis**: Admin Geral, Diretor/Coordenador de Polo
+
+**Ações**:
+
+* Criar turma
+* Definir professor
+* Definir vagas
+
+**Regras**:
+
+* Turma deve pertencer a um polo ativo
+
+---
+
+### 8.4 Gestão de Alunos
+
+**Papéis**: Admin Geral, Secretário
+
+**Ações**:
+
+* Aprovar pré-matrícula
+* Editar dados
+
+**Regras**:
+
+* Aluno só acessa após matrícula ativa
+
+---
+
+### 8.5 Matrículas
+
+**Papéis**: Admin Geral, Secretário
+
+**Ações**:
+
+* Validar documentos
+* Concluir matrícula
+
+**Regras**:
+
+* Matrícula gera vínculo aluno-turma
+
+---
+
+### 8.6 Frequência
+
+**Papéis**: Professor
+
+**Ações**:
+
+* Registrar presença por aula
+
+---
+
+### 8.7 Sistema de Recompensas (Drácmas)
+
+**Objetivo**: Incentivar participação, disciplina e bom comportamento dos alunos.
+
+**Papéis**:
+
+* Professor: lança drácmas
+* Coordenador: visualiza
+* Aluno: consulta saldo
+
+**Regras Gerais**:
+
+* Drácma é uma unidade simbólica de recompensa
+* Não possui valor financeiro real
+* Apenas lançamentos positivos são permitidos no MVP
+
+**Critérios de Lançamento (configuráveis)**:
+
+* Presença em aula
+* Participação ativa
+* Responder perguntas
+* Comportamento exemplar
+
+**Regra de Pontuação**:
+
+* Cada ação positiva gera +1 drácma
+
+**Ações do Professor**:
+
+* Selecionar aluno
+* Selecionar critério
+* Confirmar lançamento
+
+**Restrições**:
+
+* Professor só lança drácmas para alunos da sua turma
+* Lançamentos não podem ser editados ou excluídos
+
+**DoD**:
+
+* Lançamento registrado corretamente
+* Saldo atualizado para o aluno
+
+---
+
+### 8.8 Financeiro
+
+**Papéis**: Tesoureiro
+
+**Ações**:
+
+* Gerar mensalidades
+* Registrar pagamentos
+
+**Regras**:
+
+* Inadimplência bloqueia novos módulos
+
+---
+
+### 8.9 Relatórios
+
+**Papéis**: Diretores, Coordenadores
+
+**Ações**:
+
+* Visualizar relatórios acadêmicos, financeiros e de drácmas
+
+---
+
+### 8.10 Usuários
+
+**Papéis**: Super Admin
+
+**Ações**:
+
+* Criar usuários
+* Definir papéis
+
+---
+
+### 8.11 Configurações
+
+**Papéis**: Super Admin
+
+**Ações**:
+
+* Definir critérios ativos de drácmas
+* Definir parâmetros globais
+
+## 9. Modelo de Dados (Resumo)
+
+* users
+* students
+* guardians
+* polos
+* turmas
+* matriculas
+* frequencias
+* dracma_criteria
+* dracma_transactions
+* pagamentos
+* users
+* students
+* guardians
+* polos
+* turmas
+* matriculas
+* frequencias
+* pagamentos
+
+## 10. Regras Anti-Alucinação
+
+* Implementar apenas o que está descrito neste PRD
+* Qualquer dúvida deve ser questionada antes da execução
+
+---
+
+**Este documento é a FONTE ÚNICA DA VERDADE para o MVP.**
