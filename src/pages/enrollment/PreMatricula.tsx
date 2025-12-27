@@ -4,14 +4,15 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PoloService } from '../services/polo.service';
-import { DocumentosAPI, PreMatriculasAPI } from '../lib/api';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import type { Polo, TipoDocumento } from '../types/database';
-import { FileUpload } from '../components/ui/FileUpload';
+import { PolosAPI, PoloService } from '../../services/polo.service';
+import { PreMatriculasAPI } from '../../services/matricula.service';
+import { DocumentosAPI } from '../../services/documento.service';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import type { Polo, TipoDocumento } from '../../types/database';
+import { FileUpload } from '../../components/ui/FileUpload';
 
 const PreMatricula: React.FC = () => {
   const navigate = useNavigate();

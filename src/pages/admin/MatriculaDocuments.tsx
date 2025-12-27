@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { ArrowLeft, FileText } from 'lucide-react';
-import { DocumentosAPI } from '../../lib/api';
+import { DocumentosAPI } from '../../services/matricula.service';
 
 interface DocumentoMatricula {
   name: string;

@@ -52,11 +52,22 @@ export interface Endereco {
 export interface PreMatricula {
   id: string;
   nome_completo: string;
+  nome_social?: string;
   cpf: string;
+  rg?: string;
   data_nascimento: string;
+  sexo: Sexo;
+  naturalidade?: string;
+  nacionalidade?: string;
   email_responsavel: string;
   telefone_responsavel: string;
+  endereco: Endereco;
+  saude?: any;
+  responsaveis?: any[];
   polo_id: string;
+  nivel_id?: string;
+  escola_origem?: string;
+  ano_escolar?: string;
   status: StatusPreMatricula;
   created_at: string;
   updated_at: string;
@@ -171,6 +182,7 @@ export interface Aluno {
   nacionalidade?: string;
   naturalidade?: string;
   cpf?: string;
+  rg?: string;
   certidao_numero?: string;
   endereco: Endereco;
   foto_url?: string;
@@ -183,15 +195,20 @@ export interface Aluno {
   alergias?: string;
   restricao_alimentar?: string;
   medicacao_continua?: string;
+  doencas_cronicas?: string;
   contato_emergencia_nome?: string;
   contato_emergencia_telefone?: string;
   convenio_medico?: string;
+  hospital_preferencia?: string;
+  autorizacao_medica?: boolean;
   observacoes_medicas?: string;
+  saude?: any; // Para compatibilidade com fluxos JSONB
   // Dados escolares
   escola_atual?: string;
   serie?: string;
   dificuldades_aprendizagem?: boolean;
   descricao_dificuldades?: string;
+  responsaveis?: any[]; // Array de responsáveis unificado
   data_criacao: string;
   data_atualizacao: string;
 }
@@ -319,6 +336,7 @@ export interface Mensalidade {
   id: string;
   aluno_id: string;
   polo_id: string;
+  titulo: string; // Ex: "Módulo 1", "Taxa de Matrícula"
   valor_cents: number;
   vencimento: string;
   status: StatusMensalidade;

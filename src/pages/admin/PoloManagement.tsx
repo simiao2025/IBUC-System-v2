@@ -45,15 +45,6 @@ const PoloManagement: React.FC = () => {
     }
   };
 
-  const handleLevelChange = (level: Level) => {
-    setFormData(prev => ({
-      ...prev,
-      availableLevels: prev.availableLevels.includes(level)
-        ? prev.availableLevels.filter(l => l !== level)
-        : [...prev.availableLevels, level]
-    }));
-  };
-
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -152,8 +143,10 @@ const PoloManagement: React.FC = () => {
         city: polo.endereco.cidade,
         state: polo.endereco.estado,
         cep: polo.endereco.cep,
+        phone: polo.telefone,
+        email: polo.email,
       },
-      pastor: '',
+      pastor: polo.pastor_responsavel || '',
       coordinator: { name: '', cpf: '' },
       teachers: [],
       assistants: [],
@@ -229,8 +222,10 @@ const PoloManagement: React.FC = () => {
           city: dbPolo.endereco.cidade,
           state: dbPolo.endereco.estado,
           cep: dbPolo.endereco.cep,
+          phone: dbPolo.telefone,
+          email: dbPolo.email,
         },
-        pastor: '',
+        pastor: dbPolo.pastor_responsavel || '',
         coordinator: { name: '', cpf: '' },
         teachers: [],
         assistants: [],

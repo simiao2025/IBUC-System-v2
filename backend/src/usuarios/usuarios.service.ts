@@ -637,6 +637,8 @@ export class UsuariosService {
       { value: 'admin_geral', label: 'Admin Geral' },
       { value: 'diretor_geral', label: 'Diretor Geral' },
       { value: 'coordenador_geral', label: 'Coordenador Geral' },
+      { value: 'secretario_geral', label: 'Secretário(a) Geral' },
+      { value: 'tesoureiro_geral', label: 'Tesoureiro(a) Geral' },
       { value: 'diretor_polo', label: 'Diretor de Polo' },
       { value: 'coordenador_polo', label: 'Coordenador de Polo' },
       { value: 'professor', label: 'Professor' },

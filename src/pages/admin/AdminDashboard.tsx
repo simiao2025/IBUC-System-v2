@@ -1,12 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useAccessControl } from '../../components/AccessControl';
 import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
-import { AlunoService } from '../../services/aluno.service';
-import { MatriculaService } from '../../services/matricula.service';
-import { DracmasAPI } from '../../lib/api';
-import type { Aluno, Matricula } from '../../types/database';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -19,58 +15,26 @@ import {
   Award,
   BarChart3,
   Settings,
+  DollarSign,
+  ClipboardList,
+  Building2
 } from 'lucide-react';
-import dashboardIcon from '/icons/3d/dashboard.png';
-import equipesPolosIcon from '/icons/3d/equipes_polos.png';
-import studentIcon from '/icons/3d/student.png';
 
 const AdminDashboard: React.FC = () => {
-  const { polos, logout, currentUser } = useApp();
-  const [realStudents, setRealStudents] = useState<Aluno[]>([]);
-  const [realEnrollments, setRealEnrollments] = useState<Matricula[]>([]);
-  const [totalDracmas, setTotalDracmas] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  
+  const { students, enrollments, polos, logout, currentUser } = useApp();
   const {
-    canAccessModule,
+    canManageUsers,
+    canManageStaff,
+    canManagePolos,
+    canViewReports,
+    canManageEnrollments,
     getFilteredPolos
   } = useAccessControl();
 
   const { isDialogOpen, confirmNavigation, handleConfirm, handleCancel } = useNavigationConfirm({
     title: 'Confirmar saída',
-    message: 'Você tem certeza que deseja sair do Ambiente Administrativo?'
+    message: 'Você tem certeza que deseja sair do sistema?'
   });
-
-  // Carregar dados reais do banco
-  useEffect(() => {
-    const carregarDados = async () => {
-      try {
-        const poloId = currentUser?.adminUser?.accessLevel === 'polo_especifico'
-          ? currentUser.adminUser.poloId
-          : undefined;
-
-        const [studentsData, enrollmentsData, dracmasData] = await Promise.all([
-          AlunoService.listarAlunos({}),
-          MatriculaService.listarMatriculas(),
-          DracmasAPI.total(poloId),
-        ]);
-        setRealStudents(studentsData || []);
-        setRealEnrollments(enrollmentsData || []);
-
-        const total = (dracmasData as any)?.total;
-        setTotalDracmas(typeof total === 'number' ? total : 0);
-      } catch (error) {
-        console.error('Erro ao carregar dados do dashboard:', error);
-        setRealStudents([]);
-        setRealEnrollments([]);
-        setTotalDracmas(0);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    carregarDados();
-  }, []);
 
   // Filtra polos baseado no nível de acesso do usuário
   const accessiblePolos = getFilteredPolos(polos);
@@ -78,24 +42,17 @@ const AdminDashboard: React.FC = () => {
   const stats = [
     {
       title: 'Total de Alunos',
-      value: loading ? '...' : realStudents.length,
+      value: students.length,
       icon: Users,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
     },
     {
       title: 'Matrículas Ativas',
-      value: loading ? '...' : realEnrollments.filter(e => e.status === 'ativa').length,
+      value: enrollments.length,
       icon: BookOpen,
       color: 'text-green-600',
       bgColor: 'bg-green-50'
-    },
-    {
-      title: 'Drácmas Acumuladas',
-      value: loading ? '...' : totalDracmas,
-      icon: Award,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50'
     },
     {
       title: 'Polos Acessíveis',
@@ -106,7 +63,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Certificados Emitidos',
-      value: '0', // Será calculado do banco
+      value: '12', // Mock data
       icon: Award,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50'
@@ -117,11 +74,10 @@ const AdminDashboard: React.FC = () => {
     {
       title: 'Diretoria Geral',
       description: 'Cadastro da diretoria executiva do IBUC',
-      href: '/admin/directorate',
-      icon: Settings,
+      href: '/admin/diretoria',
+      icon: Building2,
       color: 'bg-red-600 hover:bg-red-700',
-      image: null,
-      permission: canAccessModule('directorate')
+      permission: true
     },
     {
       title: 'Gerenciar Polos',
@@ -129,53 +85,63 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/polos',
       icon: MapPin,
       color: 'bg-blue-600 hover:bg-blue-700',
-      image: null,
-      permission: canAccessModule('polos')
-    },
-    {
-      title: 'Equipes dos Polos',
-      description: 'Professores, auxiliares, secretários e tesoureiros',
-      href: '/admin/staff',
-      icon: UserCheck,
-      color: 'bg-purple-600 hover:bg-purple-700',
-      image: equipesPolosIcon,
-      permission: canAccessModule('staff')
-    },
-    {
-      title: 'Configurações',
-      description: 'Usuários, acessos e configurações do sistema',
-      href: '/admin/settings',
-      icon: Settings,
-      color: 'bg-indigo-600 hover:bg-indigo-700',
-      image: null,
-      permission: canAccessModule('settings')
+      permission: canManagePolos
     },
     {
       title: 'Gerenciar Alunos',
       description: 'Visualizar, editar e gerenciar dados dos alunos',
-      href: '/admin/students',
-      icon: BookOpen,
-      color: 'bg-orange-600 hover:bg-orange-700',
-      image: studentIcon,
-      permission: canAccessModule('students')
+      href: '/admin/alunos',
+      icon: Users,
+      color: 'bg-green-600 hover:bg-green-700',
+      permission: true
     },
     {
-      title: 'Matrículas',
-      description: 'Acompanhar e gerenciar matrículas',
-      href: '/admin/enrollments',
-      icon: BarChart3,
+      title: 'Equipe de Polos',
+      description: 'Coordenadores, professores e auxiliares',
+      href: '/admin/equipe',
+      icon: UserCheck,
+      color: 'bg-teal-600 hover:bg-teal-700',
+      permission: canManageStaff
+    },
+    {
+      title: 'Gerenciar Turmas',
+      description: 'Cadastro e gestão de turmas e níveis',
+      href: '/admin/turmas',
+      icon: BookOpen,
+      color: 'bg-purple-600 hover:bg-purple-700',
+      permission: true
+    },
+    {
+      title: 'Frequência',
+      description: 'Controle de presença e chamadas',
+      href: '/admin/frequencia',
+      icon: ClipboardList,
+      color: 'bg-orange-600 hover:bg-orange-700',
+      permission: true
+    },
+    {
+      title: 'Financeiro',
+      description: 'Gestão de mensalidades e pagamentos',
+      href: '/admin/financeiro',
+      icon: DollarSign,
       color: 'bg-yellow-600 hover:bg-yellow-700',
-      image: null,
-      permission: canAccessModule('enrollments')
+      permission: true
     },
     {
       title: 'Relatórios',
       description: 'Gerar relatórios e estatísticas',
-      href: '/admin/reports',
+      href: '/admin/relatorios',
       icon: BarChart3,
       color: 'bg-gray-600 hover:bg-gray-700',
-      image: null,
-      permission: canAccessModule('reports')
+      permission: canViewReports
+    },
+    {
+      title: 'Configurações',
+      description: 'Usuários, acessos e configurações do sistema',
+      href: '/admin/configuracoes',
+      icon: Settings,
+      color: 'bg-indigo-600 hover:bg-indigo-700',
+      permission: true
     }
   ];
 
@@ -187,27 +153,25 @@ const AdminDashboard: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <div className="h-40 w-40 flex items-center justify-center bg-white rounded-xl shadow-sm p-3">
-                <img
-                  src={dashboardIcon}
-                  alt="Painel Administrativo"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div className="ml-6">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center space-x-3">
+              <img
+                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
+                alt="IBUC Logo"
+                className="h-10 w-auto"
+              />
+              <div>
                 <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
                 <p className="text-sm text-gray-600">
                   IBUC - Palmas, TO
                   {currentUser?.adminUser && (
                     <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                      {currentUser.adminUser.role === 'coordenador_geral' && 'Coordenador Geral'}
-                      {currentUser.adminUser.role === 'diretor_geral' && 'Diretor Geral'}
-                      {currentUser.adminUser.role === 'coordenador_polo' && 'Coordenador de Polo'}
-                      {currentUser.adminUser.role === 'diretor_polo' && 'Diretor de Polo'}
+                      {currentUser.adminUser.role === 'super_admin' && 'Super Admin'}
+                      {currentUser.adminUser.role === 'admin_geral' && 'Admin Geral'}
+                      {currentUser.adminUser.role === 'admin_polo' && 'Admin de Polo'}
+                      {currentUser.adminUser.role === 'coordenador' && 'Coordenador'}
                       {currentUser.adminUser.role === 'professor' && 'Professor'}
-                      {currentUser.adminUser.role === 'auxiliar' && 'Auxiliar'}
+                      {currentUser.adminUser.role === 'monitor' && 'Monitor'}
                       {currentUser.adminUser.role === 'secretario' && 'Secretário(a)'}
                       {currentUser.adminUser.role === 'tesoureiro' && 'Tesoureiro(a)'}
                     </span>
@@ -216,12 +180,6 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button asChild variant="outline" size="sm">
-                <Link to="/admin/settings">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configurações
-                </Link>
-              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -259,19 +217,9 @@ const AdminDashboard: React.FC = () => {
             {quickActions.map((action, index) => (
               <Card key={index} className="hover:shadow-lg transition-shadow">
                 <div className="text-center">
-                  {action.image ? (
-                    <div className="mx-auto mb-4 h-16 w-16 flex items-center justify-center bg-white rounded-xl shadow-sm p-1">
-                      <img
-                        src={action.image}
-                        alt={action.title}
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className={`inline-flex p-3 rounded-full text-white mb-4 ${action.color}`}>
-                      <action.icon className="h-6 w-6" />
-                    </div>
-                  )}
+                  <div className={`inline-flex p-3 rounded-full text-white mb-4 ${action.color}`}>
+                    <action.icon className="h-6 w-6" />
+                  </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{action.title}</h3>
                   <p className="text-sm text-gray-600 mb-4">{action.description}</p>
                   <Button asChild size="sm" className="w-full">
@@ -291,24 +239,24 @@ const AdminDashboard: React.FC = () => {
               <UserCheck className="inline h-5 w-5 mr-2 text-green-600" />
               Matrículas Recentes
             </h3>
-            {realEnrollments.length > 0 ? (
+            {enrollments.length > 0 ? (
               <div className="space-y-3">
-                {realEnrollments.slice(-5).map((enrollment) => (
+                {enrollments.slice(-5).map((enrollment) => (
                   <div key={enrollment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
-                      <p className="font-medium text-gray-900">Aluno ID: {enrollment.aluno_id}</p>
-                      <p className="text-sm text-gray-600">Status: {enrollment.status}</p>
+                      <p className="font-medium text-gray-900">{enrollment.studentName}</p>
+                      <p className="text-sm text-gray-600">{enrollment.level}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">
-                        {new Date(enrollment.data_matricula).toLocaleDateString('pt-BR')}
+                        {new Date(enrollment.enrollmentDate).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">Nenhuma matr��cula registrada ainda</p>
+              <p className="text-gray-500 text-center py-4">Nenhuma matrícula registrada ainda</p>
             )}
           </Card>
 

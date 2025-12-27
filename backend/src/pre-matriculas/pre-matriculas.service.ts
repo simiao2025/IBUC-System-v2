@@ -14,11 +14,22 @@ export class PreMatriculasService {
       .from('pre_matriculas')
       .insert({
         nome_completo: dto.nome_completo,
+        nome_social: dto.nome_social,
         cpf: dto.cpf,
+        rg: dto.rg,
         data_nascimento: dto.data_nascimento,
+        sexo: dto.sexo || 'Outro',
+        naturalidade: dto.naturalidade,
+        nacionalidade: dto.nacionalidade,
         email_responsavel: dto.email_responsavel,
         telefone_responsavel: dto.telefone_responsavel,
+        endereco: dto.endereco || {},
+        saude: dto.saude || {},
+        responsaveis: dto.responsaveis || [],
         polo_id: dto.polo_id,
+        nivel_id: dto.nivel_id,
+        escola_origem: dto.escola_origem,
+        ano_escolar: dto.ano_escolar,
         status,
       })
       .select()
@@ -125,21 +136,25 @@ export class PreMatriculasService {
         .from('alunos')
         .insert({
           nome: preMatricula.nome_completo,
+          nome_social: preMatricula.nome_social,
           data_nascimento: preMatricula.data_nascimento,
-          sexo: 'Outro',
+          sexo: preMatricula.sexo || 'Outro',
+          nacionalidade: preMatricula.nacionalidade || 'Brasileira',
+          naturalidade: preMatricula.naturalidade,
           cpf: cpf || null,
-          endereco: {
-            cep: '',
-            rua: '',
-            numero: '',
-            bairro: '',
-            cidade: '',
-            estado: '',
-          },
+          rg: preMatricula.rg,
+          endereco: preMatricula.endereco || {},
           polo_id: preMatricula.polo_id,
           turma_id: body.turma_id,
           nivel_atual_id: turma.nivel_id,
           status: 'ativo',
+          // Mapeamento de Saúde (JSONB -> Colunas Flat)
+          alergias: preMatricula.saude?.alergias || '',
+          medicacao_continua: preMatricula.saude?.medicamentos || '',
+          convenio_medico: preMatricula.saude?.plano_saude || '',
+          hospital_preferencia: preMatricula.saude?.hospital_preferencia || '',
+          autorizacao_medica: preMatricula.saude?.autorizacao_medica || false,
+          observacoes: preMatricula.observacoes,
         })
         .select('id')
         .single();

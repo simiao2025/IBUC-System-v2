@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, BookOpen, MapPin, Award, Calendar, ChevronDown, ChevronUp, MessageCircle, Search, Phone, Mail } from 'lucide-react';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Input from '../../components/ui/Input';
 
 const Home: React.FC = () => {
   return (

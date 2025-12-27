@@ -40,6 +40,64 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['polos']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['polos']['Insert']>;
       };
+      documentos: {
+        Row: {
+          id: string;
+          owner_type: string;
+          owner_id: string;
+          tipo_documento: string;
+          url: string;
+          file_name: string;
+          validade: string | null;
+          uploaded_by: string | null;
+          uploaded_at: string;
+          validado: boolean;
+          validado_por: string | null;
+          validado_em: string | null;
+        };
+        Insert: Omit<Database['public']['Tables']['documentos']['Row'], 'id' | 'uploaded_at'>;
+        Update: Partial<Database['public']['Tables']['documentos']['Insert']>;
+      };
+      usuarios: {
+        Row: {
+          id: string;
+          email: string;
+          nome_completo: string;
+          cpf: string | null;
+          role: string;
+          polo_id: string | null;
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['usuarios']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['usuarios']['Insert']>;
+      };
+      diretoria_geral: {
+        Row: {
+          id: string;
+          usuario_id: string;
+          cargo: string;
+          data_inicio: string;
+          data_fim: string | null;
+          ativo: boolean;
+        };
+        Insert: Omit<Database['public']['Tables']['diretoria_geral']['Row'], 'id'>;
+        Update: Partial<Database['public']['Tables']['diretoria_geral']['Insert']>;
+      };
+      diretoria_polo: {
+        Row: {
+          id: string;
+          polo_id: string;
+          usuario_id: string;
+          cargo: string;
+          data_inicio: string;
+          data_fim: string | null;
+          ativo: boolean;
+        };
+        Insert: Omit<Database['public']['Tables']['diretoria_polo']['Row'], 'id'>;
+        Update: Partial<Database['public']['Tables']['diretoria_polo']['Insert']>;
+      };
       // Adicionar outras tabelas conforme necessário
     };
     Views: {

@@ -9,6 +9,7 @@ export interface CreateAlunoDto {
   nacionalidade?: string;
   naturalidade?: string;
   cpf?: string;
+  rg?: string;
   certidao_numero?: string;
   endereco?: any;
   foto_url?: string;
@@ -21,9 +22,12 @@ export interface CreateAlunoDto {
   alergias?: string;
   restricao_alimentar?: string;
   medicacao_continua?: string;
+  doencas_cronicas?: string;
   contato_emergencia_nome?: string;
   contato_emergencia_telefone?: string;
   convenio_medico?: string;
+  hospital_preferencia?: string;
+  autorizacao_medica?: boolean;
   observacoes_medicas?: string;
   // Dados escolares
   escola_atual?: string;
@@ -40,6 +44,7 @@ export interface UpdateAlunoDto {
   nacionalidade?: string;
   naturalidade?: string;
   cpf?: string;
+  rg?: string;
   certidao_numero?: string;
   endereco?: any;
   foto_url?: string;
@@ -50,9 +55,12 @@ export interface UpdateAlunoDto {
   alergias?: string;
   restricao_alimentar?: string;
   medicacao_continua?: string;
+  doencas_cronicas?: string;
   contato_emergencia_nome?: string;
   contato_emergencia_telefone?: string;
   convenio_medico?: string;
+  hospital_preferencia?: string;
+  autorizacao_medica?: boolean;
   observacoes_medicas?: string;
   escola_atual?: string;
   serie?: string;
@@ -114,6 +122,7 @@ export class AlunosService {
         nacionalidade: dto.nacionalidade,
         naturalidade: dto.naturalidade,
         cpf: dto.cpf,
+        rg: dto.rg,
         certidao_numero: dto.certidao_numero,
         endereco: dto.endereco,
         foto_url: dto.foto_url,
@@ -125,9 +134,12 @@ export class AlunosService {
         alergias: dto.alergias,
         restricao_alimentar: dto.restricao_alimentar,
         medicacao_continua: dto.medicacao_continua,
+        doencas_cronicas: dto.doencas_cronicas,
         contato_emergencia_nome: dto.contato_emergencia_nome,
         contato_emergencia_telefone: dto.contato_emergencia_telefone,
         convenio_medico: dto.convenio_medico,
+        hospital_preferencia: dto.hospital_preferencia,
+        autorizacao_medica: dto.autorizacao_medica || false,
         observacoes_medicas: dto.observacoes_medicas,
         escola_atual: dto.escola_atual,
         serie: dto.serie,
@@ -254,6 +266,7 @@ export class AlunosService {
     if (dto.nacionalidade !== undefined) updateData.nacionalidade = dto.nacionalidade;
     if (dto.naturalidade !== undefined) updateData.naturalidade = dto.naturalidade;
     if (dto.cpf !== undefined) updateData.cpf = dto.cpf;
+    if (dto.rg !== undefined) updateData.rg = dto.rg;
     if (dto.certidao_numero !== undefined) updateData.certidao_numero = dto.certidao_numero;
     if (dto.endereco !== undefined) updateData.endereco = dto.endereco;
     if (dto.foto_url !== undefined) updateData.foto_url = dto.foto_url;
@@ -264,9 +277,12 @@ export class AlunosService {
     if (dto.alergias !== undefined) updateData.alergias = dto.alergias;
     if (dto.restricao_alimentar !== undefined) updateData.restricao_alimentar = dto.restricao_alimentar;
     if (dto.medicacao_continua !== undefined) updateData.medicacao_continua = dto.medicacao_continua;
+    if (dto.doencas_cronicas !== undefined) updateData.doencas_cronicas = dto.doencas_cronicas;
     if (dto.contato_emergencia_nome !== undefined) updateData.contato_emergencia_nome = dto.contato_emergencia_nome;
     if (dto.contato_emergencia_telefone !== undefined) updateData.contato_emergencia_telefone = dto.contato_emergencia_telefone;
     if (dto.convenio_medico !== undefined) updateData.convenio_medico = dto.convenio_medico;
+    if (dto.hospital_preferencia !== undefined) updateData.hospital_preferencia = dto.hospital_preferencia;
+    if (dto.autorizacao_medica !== undefined) updateData.autorizacao_medica = dto.autorizacao_medica;
     if (dto.observacoes_medicas !== undefined) updateData.observacoes_medicas = dto.observacoes_medicas;
     if (dto.escola_atual !== undefined) updateData.escola_atual = dto.escola_atual;
     if (dto.serie !== undefined) updateData.serie = dto.serie;

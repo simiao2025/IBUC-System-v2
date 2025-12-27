@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileUpload } from '../../components/ui/FileUpload';
-import { DocumentosAPI, PreMatriculasAPI } from '../../lib/api';
+import { DocumentosAPI, PreMatriculasAPI } from '../../services/matricula.service';
 import { useApp } from '../../context/AppContext';
 import Button from '../../components/ui/Button';
 import type { PreMatricula, StatusPreMatricula, TipoDocumento } from '../../types/database';

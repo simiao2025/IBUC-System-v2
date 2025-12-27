@@ -2,8 +2,33 @@
 // IBUC System - Serviço de Diretoria
 // ============================================
 
-import type { Database } from '../types/database';
-import { DiretoriaAPI } from '../lib/api';
+import { api } from '../lib/api';
+import { Database } from '../lib/database.types';
+
+export const DiretoriaAPI = {
+  // Diretoria Geral
+  criarGeral: (data: unknown) => api.post('/diretoria/geral', data),
+  listarGeral: (ativo?: boolean) => {
+    const query = ativo !== undefined ? `?ativo=${ativo}` : '';
+    return api.get(`/diretoria/geral${query}`);
+  },
+  buscarGeralPorId: (id: string) => api.get(`/diretoria/geral/${id}`),
+  atualizarGeral: (id: string, data: unknown) => api.put(`/diretoria/geral/${id}`, data),
+  desativarGeral: (id: string) => api.put(`/diretoria/geral/${id}/desativar`),
+  
+  // Diretoria Polo
+  criarPolo: (poloId: string, data: unknown) => api.post(`/diretoria/polo/${poloId}`, data),
+  listarPolo: (poloId?: string, ativo?: boolean) => {
+    const params = new URLSearchParams();
+    if (poloId) params.append('polo_id', poloId);
+    if (ativo !== undefined) params.append('ativo', String(ativo));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return api.get(`/diretoria/polo${query}`);
+  },
+  buscarPoloPorId: (id: string) => api.get(`/diretoria/polo/${id}`),
+  atualizarPolo: (id: string, data: unknown) => api.put(`/diretoria/polo/${id}`, data),
+  desativarPolo: (id: string) => api.put(`/diretoria/polo/${id}/desativar`),
+};
 
 // Tipos auxiliares baseados no banco
 type DiretoriaGeral = Database['public']['Tables']['diretoria_geral']['Row'];

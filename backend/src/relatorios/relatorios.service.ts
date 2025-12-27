@@ -56,11 +56,13 @@ export class RelatoriosService {
           .select('*', { count: 'exact', head: true })
           .eq('polo_id', polo.id);
 
-        if (periodo) {
+        if (periodo && periodo.includes('|')) {
           const [inicio, fim] = periodo.split('|');
-          matriculasQuery = matriculasQuery
-            .gte('created_at', inicio)
-            .lte('created_at', fim);
+          if (inicio && fim) {
+             matriculasQuery = matriculasQuery
+               .gte('created_at', inicio)
+               .lte('created_at', fim);
+          }
         }
 
         const { count: totalMatriculas, error: matriculasError } = await matriculasQuery;
@@ -77,15 +79,27 @@ export class RelatoriosService {
         if (professoresError) throw professoresError;
 
         // Média de frequência (simplificada - baseada em presenças recentes)
-        const { data: presencas, error: presencasError } = await client
-          .from('presencas')
-          .select('status')
+        // Precisamos buscar as turmas deste polo para filtrar as presenças
+        const { data: turmasDoPolo } = await client
+          .from('turmas')
+          .select('id')
           .eq('polo_id', polo.id);
+          
+        const turmaIds = turmasDoPolo?.map(t => t.id) || [];
 
-        if (presencasError) throw presencasError;
+        let presencas: any[] = [];
+        if (turmaIds.length > 0) {
+           const { data: presencasData, error: presencasError } = await client
+            .from('presencas')
+            .select('status')
+            .in('turma_id', turmaIds);
 
-        const totalPresencas = presencas?.length || 0;
-        const presencasPresentes = presencas?.filter(p => p.status === 'presente').length || 0;
+           if (presencasError) throw presencasError;
+           presencas = presencasData || [];
+        }
+
+        const totalPresencas = presencas.length;
+        const presencasPresentes = presencas.filter(p => p.status === 'presente').length;
         const mediaFrequencia = totalPresencas > 0 ? (presencasPresentes / totalPresencas) * 100 : 0;
 
         estatisticas.push({

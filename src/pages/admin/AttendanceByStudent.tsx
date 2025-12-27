@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { PresencasAPI } from '../../lib/api';
+import { PresencasAPI } from '../../services/presenca.service';
 
 const AttendanceByStudent: React.FC = () => {
   const [alunoId, setAlunoId] = useState('');

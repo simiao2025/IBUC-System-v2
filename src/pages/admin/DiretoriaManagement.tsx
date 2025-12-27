@@ -5,9 +5,8 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { DiretoriaService } from '../../services/diretoria.service';
 import { useApp } from '../../context/AppContext';
-import type { Database } from '../../types/database';
+import type { Database } from '../../lib/database.types';
 import {
-  ArrowLeft,
   Crown,
   UserCheck,
   FileText,
@@ -18,6 +17,7 @@ import {
   Shield,
   Loader2
 } from 'lucide-react';
+import PageHeader from '../../components/ui/PageHeader';
 
 interface DirectoratePosition {
   id: string;
@@ -33,13 +33,10 @@ interface DirectoratePosition {
   polo_nome?: string;
 }
 
-type DiretoriaGeralRow = Database['public']['Tables']['diretoria_geral']['Row'];
-type DiretoriaPoloRow = Database['public']['Tables']['diretoria_polo']['Row'];
-
-type DiretoriaPoloApiRow = DiretoriaPoloRow & {
-  polo?: { id: string; nome: string; codigo?: string } | null;
-  usuario?: { id: string; nome_completo: string; email: string; role: string } | null;
-};
+// type DiretoriaPoloApiRow = DiretoriaPoloRow & {
+//   polo?: { id: string; nome: string; codigo?: string } | null;
+//   usuario?: { id: string; nome_completo: string; email: string; role: string } | null;
+// };
 
 const cargoOptions = [
   { value: 'diretor_geral', label: 'Diretor Geral' },
@@ -65,7 +62,7 @@ const reverseCargoMapping: Record<string, string> = {
   tesoureiro: 'tesoureiro_geral',
 };
 
-const DirectorateManagement: React.FC = () => {
+const DiretoriaManagement: React.FC = () => {
   const { polos, currentUser } = useApp();
   const [directorate, setDirectorate] = useState<DirectoratePosition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,36 +101,36 @@ const DirectorateManagement: React.FC = () => {
           return;
         }
         const data = await DiretoriaService.listarDiretoriaPolo(selectedPoloId, true);
-        const formattedData = (data as DiretoriaPoloApiRow[]).map((item) => ({
+        const formattedData = (data as any[]).map((item) => ({
           id: item.id,
-          nome_completo: item.nome_completo,
-          telefone: item.telefone || undefined,
-          email: item.email,
-          cargo: item.cargo,
+          nome_completo: item.usuario?.nome_completo || item.nome_completo || 'N/A',
+          telefone: (item.usuario?.telefone || item.telefone) || undefined,
+          email: item.usuario?.email || item.email || 'N/A',
+          cargo: item.cargo as DirectoratePosition['cargo'],
           data_inicio: item.data_inicio,
           data_fim: item.data_fim || undefined,
-          status: item.status,
+          status: item.ativo ? 'ativa' : 'inativa',
           usuario_id: item.usuario_id,
           polo_id: item.polo_id,
           polo_nome: item.polo?.nome || undefined,
         }));
-        setDirectorate(formattedData);
+        setDirectorate(formattedData as DirectoratePosition[]);
         return;
       }
 
       const data = await DiretoriaService.listarDiretoriaGeral(true);
-      const formattedData = (data as DiretoriaGeralRow[]).map((item) => ({
+      const formattedData = (data as any[]).map((item) => ({
         id: item.id,
-        nome_completo: item.nome_completo,
-        telefone: item.telefone,
-        email: item.email,
-        cargo: item.cargo,
+        nome_completo: item.usuario?.nome_completo || item.nome_completo || 'N/A',
+        telefone: item.usuario?.telefone || item.telefone,
+        email: item.usuario?.email || item.email || 'N/A',
+        cargo: item.cargo as DirectoratePosition['cargo'],
         data_inicio: item.data_inicio,
         data_fim: item.data_fim,
-        status: item.status,
+        status: item.ativo ? 'ativa' : 'inativa',
         usuario_id: item.usuario_id
       }));
-      setDirectorate(formattedData);
+      setDirectorate(formattedData as DirectoratePosition[]);
     } catch (error: unknown) {
       console.error('Erro ao carregar diretorias:', error);
       alert('Erro ao carregar diretorias. Verifique o console.');
@@ -320,76 +317,61 @@ const DirectorateManagement: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Button asChild variant="outline" size="sm">
-                <Link to="/admin/dashboard">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {directorateMode === 'polo' ? 'Diretoria do Polo' : 'Diretoria Geral'}
-                </h1>
-                <p className="text-sm text-gray-600">
-                  {directorateMode === 'polo'
-                    ? 'Cadastro e gestão da liderança dos polos (Diretor/Coordenador)'
-                    : 'Cadastro e gestão da diretoria executiva do IBUC'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
+      <PageHeader
+        title={directorateMode === 'polo' ? 'Diretoria do Polo' : 'Diretoria Geral'}
+        subtitle={directorateMode === 'polo' 
+          ? 'Cadastro e gestão da liderança dos polos (Diretor/Coordenador)' 
+          : 'Cadastro e gestão da diretoria executiva do IBUC'}
+        actionLabel="Adicionar Cargo"
+        actionIcon={<Crown className="h-4 w-4" />}
+        onAction={() => {
+          if (directorateMode === 'polo' && !isDiretorGeral) {
+            alert('Apenas o Diretor Geral pode adicionar cargos na diretoria do polo.');
+            return;
+          }
+          setShowForm(true);
+        }}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-lg shadow-sm mb-6">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Visão:</span>
+            <select
+              value={directorateMode}
+              onChange={(e) => {
+                const value = e.target.value as 'geral' | 'polo';
+                setDirectorateMode(value);
+                setEditingPosition(null);
+                setShowForm(false);
+                if (value === 'polo') {
+                  setFormData(prev => ({ ...prev, cargo: 'diretor' }));
+                } else {
+                  setFormData(prev => ({ ...prev, cargo: 'secretario_geral' }));
+                }
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            >
+              <option value="geral">Diretoria Geral</option>
+              <option value="polo">Diretoria do Polo</option>
+            </select>
+          </div>
+
+          {directorateMode === 'polo' && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Polo:</span>
               <select
-                value={directorateMode}
-                onChange={(e) => {
-                  const value = e.target.value as 'geral' | 'polo';
-                  setDirectorateMode(value);
-                  setEditingPosition(null);
-                  setShowForm(false);
-                  if (value === 'polo') {
-                    setFormData(prev => ({ ...prev, cargo: 'diretor' }));
-                  } else {
-                    setFormData(prev => ({ ...prev, cargo: 'secretario_geral' }));
-                  }
-                }}
+                value={selectedPoloId}
+                onChange={(e) => setSelectedPoloId(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               >
-                <option value="geral">Diretoria Geral</option>
-                <option value="polo">Diretoria do Polo</option>
+                <option value="">Selecione um polo</option>
+                {polos.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
               </select>
-
-              {directorateMode === 'polo' && (
-                <select
-                  value={selectedPoloId}
-                  onChange={(e) => setSelectedPoloId(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                >
-                  <option value="">Selecione um polo</option>
-                  {polos.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              )}
-
-              <Button
-                onClick={() => {
-                  if (directorateMode === 'polo' && !isDiretorGeral) {
-                    alert('Apenas o Diretor Geral pode adicionar cargos na diretoria do polo.');
-                    return;
-                  }
-                  setShowForm(true);
-                }}
-                disabled={directorateMode === 'polo' && !selectedPoloId}
-              >
-                <Crown className="h-4 w-4 mr-2" />
-                Adicionar Cargo
-              </Button>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -783,4 +765,4 @@ const DirectorateManagement: React.FC = () => {
   );
 };
 
-export default DirectorateManagement;
+export default DiretoriaManagement;

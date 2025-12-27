@@ -1,513 +1,210 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { AlunoService, AlunosAPI } from '../../services/aluno.service';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import StudentForm from '../../components/admin/StudentForm';
-import { AlunoService } from '../../services/aluno.service';
+import PageHeader from '../../components/ui/PageHeader';
 import { 
-  ArrowLeft,
   Users, 
-  Plus, 
   Search, 
-  Edit2, 
+  Plus, 
+  Edit, 
   Trash2, 
   Eye,
-  Download,
   Filter,
-  Calendar,
-  Mail,
-  Phone,
-  MapPin,
-  User,
   CheckCircle,
-  AlertCircle,
+  XCircle,
   Clock,
-  GraduationCap,
-  Loader2
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  Download
 } from 'lucide-react';
-import type { StudentData, Level } from '../../types';
-import { LEVELS } from '../../types';
-
-interface ExtendedStudentData extends StudentData {
-  level: keyof typeof LEVELS;
-  polo: string;
-  enrollmentDate: string;
-  status: 'active' | 'inactive';
-  attendance: number;
-  parents: {
-    name: string;
-    email: string;
-    phone: string;
-  };
-}
 
 const StudentManagement: React.FC = () => {
   const { polos } = useApp();
-  const [students, setStudents] = useState<any[]>([]);
+  const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterLevel, setFilterLevel] = useState<Level | 'all'>('all');
-  const [filterPolo, setFilterPolo] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [showForm, setShowForm] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<StudentData | null>(null);
-  const [viewingStudent, setViewingStudent] = useState<ExtendedStudentData | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('todos');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  // Carregar alunos ao montar
   useEffect(() => {
-    carregarAlunos();
+    const fetchAlunos = async () => {
+      try {
+        setLoading(true);
+        const data = await AlunosAPI.listar();
+        setAlunos(data);
+      } catch (error) {
+        console.error('Erro ao buscar alunos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlunos();
   }, []);
 
-  // Recarregar quando filtros mudarem
-  useEffect(() => {
-    if (!loading) {
-      carregarAlunos();
-    }
-  }, [filterPolo, filterLevel, filterStatus, searchTerm]);
+  const filteredAlunos = alunos.filter(aluno => {
+    const matchesSearch = 
+      aluno.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      aluno.cpf.includes(searchTerm);
+    
+    const matchesStatus = filterStatus === 'todos' || aluno.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
 
-  const carregarAlunos = async () => {
-    try {
-      setLoading(true);
-      const filtros: any = {};
-      if (filterPolo !== 'all') filtros.poloId = filterPolo;
-      if (filterStatus !== 'all') {
-        filtros.status = filterStatus === 'active' ? 'ativo' : 'inativo';
-      }
-      if (searchTerm) filtros.search = searchTerm;
+  const totalPages = Math.ceil(filteredAlunos.length / itemsPerPage);
+  const paginatedAlunos = filteredAlunos.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
-      const data = await AlunoService.listarAlunos(filtros);
-      
-      const reverseLevelMap: Record<string, Level> = {
-        'Nível I': 'NIVEL_I',
-        'Nível II': 'NIVEL_II',
-        'Nível III': 'NIVEL_III',
-        'Nível IV': 'NIVEL_IV',
-      };
-      
-      // Mapear dados da API para o formato do componente
-      const alunosMapeados = data.map((a: any) => ({
-        id: a.id,
-        name: a.nome,
-        birthDate: a.data_nascimento,
-        cpf: a.cpf || '',
-        gender: a.sexo === 'M' ? 'male' : a.sexo === 'F' ? 'female' : 'other',
-        address: a.endereco || {},
-        phone: a.usuario?.telefone || '',
-        email: a.usuario?.email || '',
-        status: a.status === 'ativo' ? 'active' : 'inactive',
-        enrollmentDate: a.data_criacao?.split('T')[0] || new Date().toISOString().split('T')[0],
-        level: (a.nivel?.nome && reverseLevelMap[a.nivel.nome]) ? reverseLevelMap[a.nivel.nome] : 'NIVEL_I',
-        polo: a.polo_id,
-        attendance: 0, // Será calculado depois
-        lastActivity: a.data_atualizacao?.split('T')[0] || a.data_criacao?.split('T')[0] || new Date().toISOString().split('T')[0],
-        parents: {}, // Será carregado separadamente se necessário
-      }));
-
-      // Aplicar filtros locais
-      let alunosFiltrados = alunosMapeados;
-      if (filterLevel !== 'all') {
-        alunosFiltrados = alunosFiltrados.filter(a => a.level === filterLevel);
-      }
-
-      setStudents(alunosFiltrados);
-    } catch (error) {
-      console.error('Erro ao carregar alunos:', error);
-      alert('Erro ao carregar alunos. Verifique o console.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredStudents = students;
-
-  const handleEdit = (student: any) => {
-    setEditingStudent(student);
-    setShowForm(true);
-  };
-
-  const handleView = async (student: any) => {
-    try {
-      const data = await AlunoService.buscarAlunoPorId(student.id);
-
-      if (!data) throw new Error('Aluno não encontrado');
-
-      const reverseLevelMap: Record<string, Level> = {
-        'Nível I': 'NIVEL_I',
-        'Nível II': 'NIVEL_II',
-        'Nível III': 'NIVEL_III',
-        'Nível IV': 'NIVEL_IV',
-      };
-
-      const mappedStudent = {
-        id: data.id,
-        name: data.nome,
-        birthDate: data.data_nascimento,
-        cpf: data.cpf || '',
-        gender: data.sexo === 'M' ? 'male' : data.sexo === 'F' ? 'female' : 'other',
-        address: data.endereco || {},
-        phone: (data as any).usuario?.telefone || '',
-        email: (data as any).usuario?.email || '',
-        status: data.status === 'ativo' ? 'active' : 'inactive',
-        enrollmentDate: data.data_criacao?.split('T')[0] || new Date().toISOString().split('T')[0],
-        level: ((data as any).nivel?.nome && reverseLevelMap[(data as any).nivel.nome]) ? reverseLevelMap[(data as any).nivel.nome] : 'NIVEL_I',
-        polo: data.polo_id,
-        attendance: 0,
-        parents: {},
-      };
-
-      setViewingStudent(mappedStudent as any);
-    } catch (error: any) {
-      console.error('Erro ao buscar aluno:', error);
-      alert(error.message || 'Erro ao buscar aluno. Verifique o console.');
-    }
-  };
-
-  const handleDelete = async (studentId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este aluno?')) return;
-
-    try {
-      await AlunoService.deletarAluno(studentId);
-      alert('Aluno deletado com sucesso!');
-      await carregarAlunos();
-    } catch (error: any) {
-      console.error('Erro ao deletar aluno:', error);
-      alert(error.message || 'Erro ao deletar aluno. Verifique o console.');
-    }
-  };
-
-  const exportStudents = () => {
-    // TODO: Implementar exportação real
-    alert('Lista de alunos exportada com sucesso!');
-  };
-
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-red-100 text-red-800';
+      case 'ativo':
+        return <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Ativo</span>;
+      case 'inativo':
+        return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Inativo</span>;
+      case 'pendente':
+        return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">Pendente</span>;
       default:
-        return 'bg-gray-100 text-gray-800';
+        return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">{status}</span>;
     }
-  };
-
-  const getAttendanceColor = (attendance: number) => {
-    if (attendance >= 90) return 'text-green-600';
-    if (attendance >= 80) return 'text-yellow-600';
-    return 'text-red-600';
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Button asChild variant="outline" size="sm">
-                <Link to="/admin/dashboard">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Alunos</h1>
-                <p className="text-sm text-gray-600">Cadastro e acompanhamento de todos os alunos</p>
-              </div>
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={exportStudents}>
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-              <Button onClick={() => setShowForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Aluno
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Gerenciar Alunos"
+        subtitle="Visualizar, editar e gerenciar dados dos alunos"
+        actionLabel="Adicionar Aluno"
+        actionIcon={<Plus className="h-4 w-4 mr-2" />}
+        onAction={() => console.log('Adicionar aluno')}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-red-600" />
-            <span className="ml-2 text-gray-600">Carregando alunos...</span>
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 border-b bg-gray-50 flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input 
+              placeholder="Buscar por nome ou CPF..." 
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-        ) : (
-          <>
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="text-center bg-blue-50 border-blue-200">
-            <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <h3 className="text-2xl font-bold text-blue-900">{students.length}</h3>
-            <p className="text-blue-700">Total de Alunos</p>
-          </Card>
-          <Card className="text-center bg-green-50 border-green-200">
-            <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <h3 className="text-2xl font-bold text-green-900">
-              {students.filter(s => s.status === 'active').length}
-            </h3>
-            <p className="text-green-700">Alunos Ativos</p>
-          </Card>
-          <Card className="text-center bg-purple-50 border-purple-200">
-            <GraduationCap className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <h3 className="text-2xl font-bold text-purple-900">
-              {students.length > 0 ? Math.round(students.reduce((acc, s) => acc + (s.attendance || 0), 0) / students.length) : 0}%
-            </h3>
-            <p className="text-purple-700">Frequência Média</p>
-          </Card>
-          <Card className="text-center bg-orange-50 border-orange-200">
-            <Clock className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-            <h3 className="text-2xl font-bold text-orange-900">
-              {students.filter(s => {
-                const daysDiff = Math.floor((new Date().getTime() - new Date(s.lastActivity).getTime()) / (1000 * 3600 * 24));
-                return daysDiff <= 7;
-              }).length}
-            </h3>
-            <p className="text-orange-700">Ativos esta Semana</p>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Buscar por nome, CPF ou email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select
-              value={filterLevel}
-              onChange={(value) => setFilterLevel(value as Level | 'all')}
-              options={[
-                { value: 'all', label: 'Todos os Níveis' },
-                ...Object.entries(LEVELS).map(([key, label]) => ({ value: key, label }))
-              ]}
-            />
-            <Select
-              value={filterPolo}
-              onChange={(value) => setFilterPolo(value)}
-              options={[
-                { value: 'all', label: 'Todos os Polos' },
-                ...polos.map(polo => ({ value: polo.id, label: polo.name }))
-              ]}
-            />
-            <Select
+          <div className="flex items-center space-x-2 w-full md:w-auto">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <select 
+              className="border rounded-lg px-3 py-2 text-sm bg-white"
               value={filterStatus}
-              onChange={(value) => setFilterStatus(value as 'all' | 'active' | 'inactive')}
-              options={[
-                { value: 'all', label: 'Todos os Status' },
-                { value: 'active', label: 'Ativos' },
-                { value: 'inactive', label: 'Inativos' }
-              ]}
-            />
-            <div className="flex items-center text-sm text-gray-600">
-              <Filter className="h-4 w-4 mr-2" />
-              {filteredStudents.length} aluno(s) encontrado(s)
-            </div>
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="todos">Todos os Status</option>
+              <option value="ativo">Ativos</option>
+              <option value="inativo">Inativos</option>
+              <option value="pendente">Pendentes</option>
+            </select>
           </div>
-        </Card>
-
-        {/* Students List */}
-        <div className="grid gap-4">
-          {filteredStudents.map((student) => {
-            const polo = polos.find(p => p.id === student.polo);
-            return (
-              <Card key={student.id} className="hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-6 w-6 text-blue-600" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-900">{student.name}</h3>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(student.status)}`}>
-                          {student.status === 'active' ? 'Ativo' : 'Inativo'}
-                        </span>
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {LEVELS[student.level]}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {new Date().getFullYear() - new Date(student.birthDate).getFullYear()} anos
-                        </div>
-                        <div className="flex items-center">
-                          <Phone className="h-3 w-3 mr-1" />
-                          {student.phone}
-                        </div>
-                        <div className="flex items-center">
-                          <Mail className="h-3 w-3 mr-1" />
-                          {student.email}
-                        </div>
-                        <div className="flex items-center">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {polo?.name ? `Polo ${polo.name}` : 'Polo não encontrado'}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4 mt-2 text-sm">
-                        <span className="text-gray-600">
-                          Matrícula: {new Date(student.enrollmentDate).toLocaleDateString('pt-BR')}
-                        </span>
-                        <span className={`font-medium ${getAttendanceColor(student.attendance)}`}>
-                          Frequência: {student.attendance}%
-                        </span>
-                        <span className="text-gray-600">
-                          Último acesso: {new Date(student.lastActivity).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleView(student)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(student)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(student.id)}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
         </div>
 
-        {filteredStudents.length === 0 && (
-          <Card className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum aluno encontrado</h3>
-            <p className="text-gray-600">Ajuste os filtros ou cadastre um novo aluno.</p>
-          </Card>
-        )}
-          </>
-        )}
-      </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <tr>
+                <th className="px-6 py-3">Aluno</th>
+                <th className="px-6 py-3">CPF</th>
+                <th className="px-6 py-3">Polo</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Data Cadastro</th>
+                <th className="px-6 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                    <Clock className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    Carregando alunos...
+                  </td>
+                </tr>
+              ) : paginatedAlunos.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                    Nenhum aluno encontrado
+                  </td>
+                </tr>
+              ) : (
+                paginatedAlunos.map((aluno) => (
+                  <tr key={aluno.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold">
+                          {aluno.nome_completo.charAt(0)}
+                        </div>
+                        <div className="font-medium text-gray-900">{aluno.nome_completo}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">{aluno.cpf}</td>
+                    <td className="px-6 py-4">{aluno.polo_id || 'Norte'}</td>
+                    <td className="px-6 py-4">
+                      {getStatusBadge(aluno.status || 'ativo')}
+                    </td>
+                    <td className="px-6 py-4">{new Date(aluno.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end space-x-2">
+                        <button className="p-1 hover:bg-gray-100 rounded text-gray-600" title="Ver">
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button className="p-1 hover:bg-gray-100 rounded text-blue-600" title="Editar">
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button className="p-1 hover:bg-gray-100 rounded text-red-600" title="Excluir">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      {/* Student Details Modal */}
-      {viewingStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Detalhes do Aluno</h2>
-              <Button variant="outline" size="sm" onClick={() => setViewingStudent(null)}>
-                ✕
+        {/* Pagination */}
+        {!loading && filteredAlunos.length > 0 && (
+          <div className="p-4 bg-white border-t flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              Mostrando {Math.min(filteredAlunos.length, (currentPage - 1) * itemsPerPage + 1)} a {Math.min(filteredAlunos.length, currentPage * itemsPerPage)} de {filteredAlunos.length} alunos
+            </span>
+            <div className="flex space-x-2">
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Student Info */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Informações Pessoais</h3>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p><strong>Nome:</strong> {viewingStudent.name}</p>
-                  <p><strong>CPF:</strong> {viewingStudent.cpf}</p>
-                  <p><strong>Data de Nascimento:</strong> {new Date(viewingStudent.birthDate).toLocaleDateString('pt-BR')}</p>
-                  <p><strong>Gênero:</strong> {viewingStudent.gender === 'male' ? 'Masculino' : viewingStudent.gender === 'female' ? 'Feminino' : 'Outro'}</p>
-                  <p><strong>Telefone:</strong> {viewingStudent.phone}</p>
-                  <p><strong>Email:</strong> {viewingStudent.email}</p>
-                </div>
-
-                <h3 className="text-lg font-semibold text-gray-900">Endereço</h3>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p><strong>CEP:</strong> {viewingStudent.address.cep}</p>
-                  <p><strong>Rua:</strong> {viewingStudent.address.street}, {viewingStudent.address.number}</p>
-                  <p><strong>Bairro:</strong> {viewingStudent.address.neighborhood}</p>
-                  <p><strong>Cidade:</strong> {viewingStudent.address.city}/{viewingStudent.address.state}</p>
-                </div>
-              </div>
-
-              {/* Parents & Academic Info */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Informações dos Pais</h3>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p><strong>Pai:</strong> {viewingStudent.parents.fatherName}</p>
-                  <p><strong>CPF do Pai:</strong> {viewingStudent.parents.fatherCpf}</p>
-                  <p><strong>Mãe:</strong> {viewingStudent.parents.motherName}</p>
-                  <p><strong>CPF da Mãe:</strong> {viewingStudent.parents.motherCpf}</p>
-                  <p><strong>Telefone:</strong> {viewingStudent.parents.phone}</p>
-                  <p><strong>Email:</strong> {viewingStudent.parents.email}</p>
-                </div>
-
-                <h3 className="text-lg font-semibold text-gray-900">Informações Acadêmicas</h3>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p><strong>Nível:</strong> {LEVELS[viewingStudent.level]}</p>
-                  <p><strong>Polo:</strong> {polos.find(p => p.id === viewingStudent.polo)?.name}</p>
-                  <p><strong>Data de Matrícula:</strong> {new Date(viewingStudent.enrollmentDate).toLocaleDateString('pt-BR')}</p>
-                  <p><strong>Status:</strong> <span className={`px-2 py-1 rounded text-xs ${getStatusColor(viewingStudent.status)}`}>
-                    {viewingStudent.status === 'active' ? 'Ativo' : 'Inativo'}
-                  </span></p>
-                  <p><strong>Frequência:</strong> <span className={getAttendanceColor(viewingStudent.attendance)}>
-                    {viewingStudent.attendance}%
-                  </span></p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Student Form Modal */}
-      {showForm && (
-        <StudentForm
-          student={editingStudent}
-          polos={polos}
-          onSave={async (studentData) => {
-            try {
-              setSaving(true);
-              if (editingStudent) {
-                await AlunoService.atualizarAluno(editingStudent.id, studentData);
-                alert('Aluno atualizado com sucesso!');
-              } else {
-                await AlunoService.criarAluno(studentData);
-                alert('Aluno cadastrado com sucesso!');
-              }
-              setShowForm(false);
-              setEditingStudent(null);
-              carregarAlunos();
-            } catch (error) {
-              console.error('Erro ao salvar aluno:', error);
-              alert('Erro ao salvar aluno. Tente novamente.');
-            } finally {
-              setSaving(false);
-            }
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingStudent(null);
-          }}
-          loading={saving}
-        />
-      )}
+          </div>
+        )}
+      </Card>
+      </div>
     </div>
   );
 };

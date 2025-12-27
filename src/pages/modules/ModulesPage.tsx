@@ -95,7 +95,7 @@ const modules = [
   },
 ];
 
-const ModulesPageClone: React.FC = () => {
+const ModulesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
@@ -165,4 +165,4 @@ const ModulesPageClone: React.FC = () => {
   );
 };
 
-export default ModulesPageClone;
+export default ModulesPage;

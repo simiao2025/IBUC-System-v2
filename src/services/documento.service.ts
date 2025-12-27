@@ -2,8 +2,18 @@
 // IBUC System - Serviço de Documentos
 // ============================================
 
+import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import type { Documento, OwnerType, TipoDocumento } from '../types/database';
+
+export const DocumentosAPI = {
+  listarPorMatricula: (matriculaId: string) => api.get(`/documentos/matriculas/${matriculaId}`),
+  uploadPorPreMatricula: (preMatriculaId: string, formData: FormData, tipo?: string) => {
+    const query = tipo ? `?tipo=${encodeURIComponent(tipo)}` : '';
+    return api.upload(`/documentos/pre-matriculas/${preMatriculaId}${query}`, formData);
+  },
+  listarPorPreMatricula: (preMatriculaId: string) => api.get(`/documentos/pre-matriculas/${preMatriculaId}`),
+};
 
 export class DocumentoService {
   static readonly BUCKET_NAME = 'matriculas';

@@ -11,11 +11,9 @@ const Header: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const navItems = [
-    { path: '/', label: 'Início', needsConfirm: true },
-    { path: '/conheca-o-ibuc', label: 'Conheça o IBUC', needsConfirm: false },
-    { path: '/modulos', label: 'Módulos', needsConfirm: false },
-    // Pré-matrícula integrada ao Supabase e termo LGPD
-    { path: '/pre-matricula', label: 'Pré-matrícula', needsConfirm: true },
+    { path: '/', label: 'Início', needsConfirm: false },
+    { path: '/sobre', label: 'Sobre o IBUC', needsConfirm: false },
+    { path: '/materiais', label: 'Matrícula', needsConfirm: false },
     { path: '/acesso-aluno', label: 'Área do Aluno', needsConfirm: false, isSpecial: true },
     { path: '/admin', label: 'Área Administrativa', needsConfirm: false, isSpecial: true },
   ];
@@ -40,7 +38,6 @@ const Header: React.FC = () => {
           {!isAdminRoute && (
             <nav className="hidden md:flex space-x-6">
               {navItems.map((item) => {
-              const Icon = item.icon;
               let className = `px-3 py-2 rounded-md text-sm font-medium transition-colors `;
               if (item.isSpecial) {
                 className += isActive(item.path)
@@ -93,7 +90,6 @@ const Header: React.FC = () => {
           <div className="md:hidden border-t border-gray-200">
             <nav className="py-2">
               {navItems.map((item) => {
-                const Icon = item.icon;
                 let className = `block px-4 py-2 text-sm font-medium transition-colors `;
                 if (item.isSpecial) {
                   className += isActive(item.path)

@@ -1,9 +1,13 @@
 export interface Student {
   id: string;
   name: string;
+  name_social?: string;
   birthDate: string;
   cpf: string;
+  rg?: string;
   gender: 'male' | 'female' | 'other';
+  naturalidade?: string;
+  nacionalidade?: string;
   address: {
     cep: string;
     street: string;
@@ -15,6 +19,19 @@ export interface Student {
   };
   phone: string;
   email: string;
+  // Dados de saúde
+  alergias?: string;
+  medicamentos?: string;
+  doencas_cronicas?: string;
+  plano_saude?: string;
+  hospital_preferencia?: string;
+  autorizacao_medica?: boolean;
+  // Dados escolares
+  escola_origem?: string;
+  ano_escolar?: string;
+  // Metadata
+  status: 'active' | 'inactive' | 'pending';
+  registrationDate: string;
 }
 
 export interface Parent {
@@ -59,6 +76,8 @@ export interface Polo {
     city: string;
     state: string;
     cep: string;
+    phone?: string;
+    email?: string;
   };
   pastor: string;
   coordinator: {

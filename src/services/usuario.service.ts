@@ -2,8 +2,34 @@
 // IBUC System - Serviço de Usuários
 // ============================================
 
-import type { Database } from '../types/database';
-import { UsuariosAPI } from '../lib/api';
+import { api } from '../lib/api';
+import { Database } from '../lib/database.types';
+
+export const UsuariosAPI = {
+  criar: (data: unknown) => api.post('/usuarios', data),
+  login: (data: { email: string; password: string }) => api.post('/usuarios/login', data),
+  solicitarCodigoRecuperacaoSenha: (data: { email: string }) => api.post('/usuarios/recuperar-senha/solicitar-codigo', data),
+  confirmarCodigoRecuperacaoSenha: (data: { email: string; codigo: string; senhaNova: string }) =>
+    api.post('/usuarios/recuperar-senha/confirmar-codigo', data),
+  listar: (filtros?: { role?: string; polo_id?: string; ativo?: boolean; search?: string }) => {
+    const params = new URLSearchParams();
+    if (filtros?.role) params.append('role', filtros.role);
+    if (filtros?.polo_id) params.append('polo_id', filtros.polo_id);
+    if (filtros?.ativo !== undefined) params.append('ativo', String(filtros.ativo));
+    if (filtros?.search) params.append('search', filtros.search);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return api.get(`/usuarios${query}`);
+  },
+  buscarPorId: (id: string) => api.get(`/usuarios/${id}`),
+  buscarPorEmail: (email: string) => api.get(`/usuarios/email/${email}`),
+  atualizar: (id: string, data: unknown) => api.put(`/usuarios/${id}`, data),
+  ativar: (id: string) => api.put(`/usuarios/${id}/ativar`),
+  desativar: (id: string) => api.put(`/usuarios/${id}/desativar`),
+  deletar: (id: string) => api.delete(`/usuarios/${id}`),
+  // Metadados para selects dinâmicos
+  listarRoles: () => api.get('/usuarios/meta/roles'),
+  listarAccessLevels: () => api.get('/usuarios/meta/access-levels'),
+};
 
 type Usuario = Database['public']['Tables']['usuarios']['Row'];
 

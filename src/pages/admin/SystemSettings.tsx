@@ -22,11 +22,12 @@ import {
 import { useApp } from '../../context/AppContext';
 import { UsuarioService } from '../../services/usuario.service';
 import { PoloService } from '../../services/polo.service';
-import { DracmasAPI } from '../../lib/api';
+import { DracmasAPI } from '../../services/dracmas.service';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import PageHeader from '../../components/ui/PageHeader';
 
 type DracmasCriterio = {
   id: string;
@@ -141,6 +142,14 @@ const SystemSettings: React.FC = () => {
 
   const [dracmasCriterios, setDracmasCriterios] = useState<DracmasCriterio[]>([]);
   const [dracmasCriteriosLoading, setDracmasCriteriosLoading] = useState(false);
+  const [showDracmasModal, setShowDracmasModal] = useState(false);
+  const [editingDracma, setEditingDracma] = useState<DracmasCriterio | null>(null);
+  const [dracmaForm, setDracmaForm] = useState({
+    codigo: '',
+    nome: '',
+    descricao: '',
+    quantidade_padrao: 1
+  });
   
   // Estados para dados dinâmicos dos selects (migrado do UserManagement)
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -391,12 +400,12 @@ const SystemSettings: React.FC = () => {
     carregarUsuarios();
   }, [filterRole, filterAccessLevel, searchTerm, carregarUsuarios, loading]);
 
-  const roleLabels: Record<AdminRole, string> = {};
+  const roleLabels = {} as Record<AdminRole, string>;
   roles.forEach(role => {
     roleLabels[role.value as AdminRole] = role.label;
   });
 
-  const accessLevelLabels: Record<AccessLevel, string> = {};
+  const accessLevelLabels = {} as Record<AccessLevel, string>;
   accessLevels.forEach(level => {
     accessLevelLabels[level.value as AccessLevel] = level.label;
   });
@@ -416,7 +425,7 @@ const SystemSettings: React.FC = () => {
         ...prev,
         name: existing.nome_completo || prev.name,
         cpf: existing.cpf || prev.cpf,
-        phone: existing.telefone || prev.phone,
+        phone: existing.phone || prev.phone,
       }));
     } catch (error: unknown) {
       console.error('Erro ao buscar usuário por e-mail:', error);
@@ -660,27 +669,61 @@ const SystemSettings: React.FC = () => {
     }
   };
 
+  const handleOpenDracmaModal = (criterio?: DracmasCriterio) => {
+    if (criterio) {
+      setEditingDracma(criterio);
+      setDracmaForm({
+        codigo: criterio.codigo,
+        nome: criterio.nome,
+        descricao: criterio.descricao || '',
+        quantidade_padrao: criterio.quantidade_padrao
+      });
+    } else {
+      setEditingDracma(null);
+      setDracmaForm({
+        codigo: '',
+        nome: '',
+        descricao: '',
+        quantidade_padrao: 1
+      });
+    }
+    setShowDracmasModal(true);
+  };
+
+  const handleSaveDracma = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingDracma) {
+        await DracmasAPI.atualizarCriterio(editingDracma.id, {
+          nome: dracmaForm.nome,
+          descricao: dracmaForm.descricao,
+          quantidade_padrao: Number(dracmaForm.quantidade_padrao)
+        });
+        alert('Critério atualizado com sucesso!');
+      } else {
+        await DracmasAPI.criarCriterio({
+          codigo: dracmaForm.codigo,
+          nome: dracmaForm.nome,
+          descricao: dracmaForm.descricao,
+          quantidade_padrao: Number(dracmaForm.quantidade_padrao),
+          ativo: true
+        });
+        alert('Critério criado com sucesso!');
+      }
+      setShowDracmasModal(false);
+      carregarDracmasCriterios();
+    } catch (error) {
+      console.error('Erro ao salvar critério:', error);
+      alert('Erro ao salvar critério.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Link to="/admin/dashboard" className="text-gray-600 hover:text-gray-900">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Configurações do Sistema</h1>
-                <p className="text-sm text-gray-600">Gerencie as configurações gerais do sistema</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Settings className="h-6 w-6 text-gray-400" />
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Configurações do Sistema"
+        subtitle="Usuários, acessos e configurações gerais"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs Navigation */}
@@ -1173,10 +1216,18 @@ const SystemSettings: React.FC = () => {
         {/* Dracmas Tab */}
         {activeTab === 'dracmas' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900">Configuração de Drácmas (Critérios)</h2>
-            <p className="text-sm text-gray-600">
-              Defina quais critérios ficam ativos para lançamento e consulta.
-            </p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Configuração de Drácmas (Critérios)</h2>
+                <p className="text-sm text-gray-600">
+                  Defina quais critérios ficam ativos para lançamento e consulta.
+                </p>
+              </div>
+              <Button onClick={() => handleOpenDracmaModal()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Critério
+              </Button>
+            </div>
 
             <Card>
               <div className="flex items-center justify-between mb-4">
@@ -1217,6 +1268,13 @@ const SystemSettings: React.FC = () => {
                           Padrão: <span className="font-semibold">{c.quantidade_padrao}</span>
                         </div>
                         <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenDracmaModal(c)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
                           variant="outline"
                           size="sm"
                           onClick={() => void toggleCriterioAtivo(c)}
@@ -1229,6 +1287,69 @@ const SystemSettings: React.FC = () => {
                 </div>
               )}
             </Card>
+
+            {/* Modal de Cadastro/Edição de Drácmas */}
+            {showDracmasModal && (
+              <div className="fixed inset-0 z-50 overflow-y-auto">
+                <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                  <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+                    <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+                  </div>
+                  <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                  <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <form onSubmit={handleSaveDracma}>
+                      <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                          {editingDracma ? 'Editar Critério' : 'Novo Critério'}
+                        </h3>
+                        <div className="space-y-4">
+                          {!editingDracma && (
+                            <Input
+                              label="Código (slug)"
+                              value={dracmaForm.codigo}
+                              onChange={e => setDracmaForm(prev => ({ ...prev, codigo: e.target.value }))}
+                              placeholder="ex: frequencia-ebd"
+                              required
+                            />
+                          )}
+                          <Input
+                            label="Nome"
+                            value={dracmaForm.nome}
+                            onChange={e => setDracmaForm(prev => ({ ...prev, nome: e.target.value }))}
+                            placeholder="ex: Frequência na EBD"
+                            required
+                          />
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                            <textarea
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              value={dracmaForm.descricao}
+                              onChange={e => setDracmaForm(prev => ({ ...prev, descricao: e.target.value }))}
+                              rows={3}
+                            />
+                          </div>
+                          <Input
+                            label="Quantidade Padrão"
+                            type="number"
+                            value={dracmaForm.quantidade_padrao}
+                            onChange={e => setDracmaForm(prev => ({ ...prev, quantidade_padrao: Number(e.target.value) }))}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                        <Button type="submit">
+                          Salvar
+                        </Button>
+                        <Button variant="outline" type="button" onClick={() => setShowDracmasModal(false)}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

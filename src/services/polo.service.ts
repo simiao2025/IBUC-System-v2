@@ -2,8 +2,20 @@
 // IBUC System - Serviço de Polos
 // ============================================
 
+import { api } from '../lib/api';
 import type { Polo } from '../types/database';
-import { PolosAPI } from '../lib/api';
+
+export const PolosAPI = {
+  criar: (data: unknown) => api.post('/polos', data),
+  listar: (ativo?: boolean) => {
+    const query = ativo !== undefined ? `?ativo=${ativo}` : '';
+    return api.get(`/polos${query}`);
+  },
+  buscarPorId: (id: string) => api.get(`/polos/${id}`),
+  buscarPorCodigo: (codigo: string) => api.get(`/polos/codigo/${codigo}`),
+  atualizar: (id: string, data: unknown) => api.put(`/polos/${id}`, data),
+  deletar: (id: string) => api.delete(`/polos/${id}`),
+};
 
 export class PoloService {
   /**

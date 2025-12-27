@@ -45,6 +45,13 @@ export class DracmasController {
     return this.service.listarCriterios();
   }
 
+  @Post('criterios')
+  async criarCriterio(
+    @Body() body: { codigo: string; nome: string; descricao?: string; quantidade_padrao: number; ativo?: boolean },
+  ) {
+    return this.service.criarCriterio(body);
+  }
+
   @Put('criterios/:id')
   async atualizarCriterio(
     @Param('id') id: string,

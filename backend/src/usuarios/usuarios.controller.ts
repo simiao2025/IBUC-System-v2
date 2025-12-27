@@ -89,16 +89,16 @@ export class UsuariosController {
     return this.usuariosService.listarUsuarios(filtros);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Buscar usuário por ID' })
-  async buscarUsuarioPorId(@Param('id') id: string) {
-    return this.usuariosService.buscarUsuarioPorId(id);
-  }
-
   @Get('email/:email')
   @ApiOperation({ summary: 'Buscar usuário por email' })
   async buscarUsuarioPorEmail(@Param('email') email: string) {
     return this.usuariosService.buscarUsuarioPorEmail(email);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Buscar usuário por ID' })
+  async buscarUsuarioPorId(@Param('id') id: string) {
+    return this.usuariosService.buscarUsuarioPorId(id);
   }
 
   @Put(':id')

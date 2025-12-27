@@ -3,7 +3,11 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import { NiveisAPI, PolosAPI, TurmasAPI, UsuariosAPI } from '../../lib/api';
+import PageHeader from '../../components/ui/PageHeader';
+import { TurmasAPI, NiveisAPI } from '../../services/turma.service';
+import { PolosAPI } from '../../services/polo.service';
+import { UsuariosAPI } from '../../services/usuario.service';
+import { BookOpen, Plus } from 'lucide-react';
 
 type PoloOption = { id: string; nome: string };
 type NivelOption = { id: string; nome: string; ordem?: number };
@@ -234,13 +238,16 @@ const AdminTurmas: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-8">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Turmas</h1>
-        <Button type="button" variant="outline" onClick={startCreate}>
-          Nova turma
-        </Button>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <PageHeader
+        title="Gerenciar Turmas"
+        subtitle="Cadastro e gestão de turmas e níveis"
+        actionLabel="Adicionar Turma"
+        actionIcon={<Plus className="h-4 w-4 mr-2" />}
+        onAction={startCreate}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
       {error && (
         <Card className="p-4 mb-4">
@@ -253,7 +260,7 @@ const AdminTurmas: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Polo</label>
-            <Select value={filterPolo} onChange={e => setFilterPolo(e.target.value)}>
+            <Select value={filterPolo} onChange={val => setFilterPolo(val)}>
               <option value="">Todos</option>
               {polos.map(p => (
                 <option key={p.id} value={p.id}>
@@ -264,7 +271,7 @@ const AdminTurmas: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <Select value={filterStatus} onChange={val => setFilterStatus(val)}>
               <option value="">Todos</option>
               <option value="ativa">Ativa</option>
               <option value="inativa">Inativa</option>
@@ -288,7 +295,7 @@ const AdminTurmas: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Polo (apenas ativos)</label>
-            <Select value={form.polo_id} onChange={e => setForm(prev => ({ ...prev, polo_id: e.target.value }))}>
+            <Select value={form.polo_id} onChange={val => setForm(prev => ({ ...prev, polo_id: val }))}>
               <option value="">Selecione</option>
               {polos.map(p => (
                 <option key={p.id} value={p.id}>
@@ -299,7 +306,7 @@ const AdminTurmas: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nível</label>
-            <Select value={form.nivel_id} onChange={e => setForm(prev => ({ ...prev, nivel_id: e.target.value }))}>
+            <Select value={form.nivel_id} onChange={val => setForm(prev => ({ ...prev, nivel_id: val }))}>
               <option value="">Selecione</option>
               {niveis.map(n => (
                 <option key={n.id} value={n.id}>
@@ -310,7 +317,7 @@ const AdminTurmas: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Professor</label>
-            <Select value={form.professor_id} onChange={e => setForm(prev => ({ ...prev, professor_id: e.target.value }))}>
+            <Select value={form.professor_id} onChange={val => setForm(prev => ({ ...prev, professor_id: val }))}>
               <option value="">(sem professor)</option>
               {professores.map(p => (
                 <option key={p.id} value={p.id}>
@@ -338,7 +345,7 @@ const AdminTurmas: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Turno</label>
-            <Select value={form.turno} onChange={e => setForm(prev => ({ ...prev, turno: e.target.value as any }))}>
+            <Select value={form.turno} onChange={val => setForm(prev => ({ ...prev, turno: val as any }))}>
               <option value="manha">Manhã</option>
               <option value="tarde">Tarde</option>
               <option value="noite">Noite</option>
@@ -346,7 +353,7 @@ const AdminTurmas: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <Select value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value as any }))}>
+            <Select value={form.status} onChange={val => setForm(prev => ({ ...prev, status: val as any }))}>
               <option value="ativa">Ativa</option>
               <option value="inativa">Inativa</option>
               <option value="concluida">Concluída</option>
@@ -417,6 +424,7 @@ const AdminTurmas: React.FC = () => {
           </div>
         )}
       </Card>
+      </div>
     </div>
   );
 };

@@ -114,14 +114,20 @@ export class DracmasService {
     let query = this.supabase
       .getAdminClient()
       .from('dracmas_transacoes')
-      .select('quantidade, turma:turmas!fk_turma(polo_id)');
+      .select('quantidade');
 
+    // Se houver poloId, precisamos filtrar via join, mas faremos de forma mais robusta
     if (poloId) {
-      query = query.eq('turma.polo_id', poloId);
+      // Usando query builder para filtrar por polo_id através da relação com turmas
+      // Verificamos se o join 'turma!inner' funciona (padrão Supabase para filtrar por relação)
+      query = query.select('quantidade, turma:turmas!inner(polo_id)').eq('turma.polo_id', poloId);
     }
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error('Erro na consulta de dracmas:', error);
+      throw new Error(error.message);
+    }
 
     const total = (data || []).reduce((acc, row: any) => acc + (row.quantidade || 0), 0);
     return { polo_id: poloId || null, total };
@@ -136,6 +142,30 @@ export class DracmasService {
 
     if (error) throw new Error(error.message);
     return data || [];
+  }
+
+  async criarCriterio(body: {
+    codigo: string;
+    nome: string;
+    descricao?: string;
+    quantidade_padrao: number;
+    ativo?: boolean;
+  }) {
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('dracmas_criterios')
+      .insert({
+        codigo: body.codigo,
+        nome: body.nome,
+        descricao: body.descricao || null,
+        quantidade_padrao: body.quantidade_padrao,
+        ativo: body.ativo !== undefined ? body.ativo : true,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async atualizarCriterio(

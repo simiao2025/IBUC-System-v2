@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { DracmasAPI } from '../../lib/api';
+import { DracmasAPI } from '../../services/dracmas.service';
 
 type DracmaTransacao = {
   id: string;

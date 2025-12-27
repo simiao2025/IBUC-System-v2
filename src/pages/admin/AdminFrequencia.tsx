@@ -3,8 +3,13 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import { AlunosAPI, DracmasAPI, PresencasAPI, TurmasAPI } from '../../lib/api';
+import PageHeader from '../../components/ui/PageHeader';
+import { AlunosAPI } from '../../services/aluno.service';
+import { DracmasAPI } from '../../services/dracmas.service';
+import { PresencasAPI } from '../../services/presenca.service';
+import { TurmasAPI } from '../../services/turma.service';
 import { useApp } from '../../context/AppContext';
+import { ClipboardList } from 'lucide-react';
 
 type TurmaOption = {
   id: string;
@@ -36,11 +41,35 @@ const AdminFrequencia: React.FC = () => {
   const [loadingAlunos, setLoadingAlunos] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tipoDracma, setTipoDracma] = useState('presenca');
+  const [criteriosDracma, setCriteriosDracma] = useState<{ codigo: string, nome: string }[]>([]);
+  const [tipoDracma, setTipoDracma] = useState('');
   const [descricaoDracma, setDescricaoDracma] = useState('');
 
   const hasAnyPresence = useMemo(() => alunos.some(a => Boolean(a.status)), [alunos]);
   const hasAnyDracmas = useMemo(() => alunos.some(a => a.dracmas > 0), [alunos]);
+
+  useEffect(() => {
+    // Carregar critérios de Drácmas
+    const carregarCriterios = async () => {
+      try {
+        const response: any = await DracmasAPI.listarCriterios();
+        const lista = Array.isArray(response) ? response : [];
+        const ativos = lista.filter((c: any) => c.ativo);
+        
+        setCriteriosDracma(ativos);
+        if (ativos.length > 0) {
+          setTipoDracma(ativos[0].codigo);
+        } else {
+          // Fallback se não houver critérios
+          setTipoDracma('presenca'); 
+        }
+      } catch (error) {
+        console.error('Erro ao carregar critérios:', error);
+      }
+    };
+    
+    carregarCriterios();
+  }, []);
 
   useEffect(() => {
     const carregarTurmas = async () => {
@@ -175,8 +204,14 @@ const AdminFrequencia: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">Frequência</h1>
+    <div className="min-h-screen bg-gray-50">
+      <PageHeader
+        title="Controle de Frequência"
+        subtitle="Gerenciar presença dos alunos nas aulas"
+        showBackButton={true}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
       <Card className="p-6 mb-6">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -187,7 +222,7 @@ const AdminFrequencia: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-              <Select value={turmaId} onChange={e => setTurmaId(e.target.value)} required>
+              <Select value={turmaId} onChange={val => setTurmaId(val)} required>
                 <option value="">{loadingTurmas ? 'Carregando...' : 'Selecione a turma'}</option>
                 {turmas.map(t => (
                   <option key={t.id} value={t.id}>
@@ -198,11 +233,14 @@ const AdminFrequencia: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Drácma (opcional)</label>
-              <Select value={tipoDracma} onChange={e => setTipoDracma(e.target.value)}>
-                <option value="presenca">Presença</option>
-                <option value="participacao">Participação</option>
-                <option value="pergunta">Pergunta Respondida</option>
-                <option value="comportamento">Comportamento</option>
+              <Select value={tipoDracma} onChange={val => setTipoDracma(val)}>
+                {criteriosDracma.length > 0 ? (
+                  criteriosDracma.map(c => (
+                    <option key={c.codigo} value={c.codigo}>{c.nome}</option>
+                  ))
+                ) : (
+                  <option value="presenca">Presença (Padrão)</option>
+                )}
                 <option value="outro">Outro</option>
               </Select>
             </div>
@@ -239,7 +277,7 @@ const AdminFrequencia: React.FC = () => {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:items-center">
                       <Select
                         value={aluno.status ?? ''}
-                        onChange={e => updateStatus(aluno.aluno_id, (e.target.value || null) as StatusPresenca)}
+                        onChange={val => updateStatus(aluno.aluno_id, (val || null) as StatusPresenca)}
                       >
                         <option value="">Sem registro</option>
                         <option value="presente">Presente</option>
@@ -283,6 +321,7 @@ const AdminFrequencia: React.FC = () => {
           </div>
         </form>
       </Card>
+      </div>
     </div>
   );
 };

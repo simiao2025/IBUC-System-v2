@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { StudentData, Enrollment, Polo as UiPolo, User, AdminUser, AccessLevel, Level } from '../types';
 import type { Polo as DbPolo } from '../types/database';
 import { PoloService } from '../services/polo.service';
-import { UsuariosAPI } from '../lib/api';
+import { UsuariosAPI } from '../services/usuario.service';
 
 interface AppContextType {
   // Student registration

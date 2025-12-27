@@ -3,7 +3,9 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import { DracmasAPI, TurmasAPI, AlunosAPI } from '../../lib/api';
+import { DracmasAPI } from '../../services/dracmas.service';
+import { TurmasAPI } from '../../services/turma.service';
+import { AlunosAPI } from '../../services/aluno.service';
 import { useApp } from '../../context/AppContext';
 
 interface AlunoDracma {
@@ -19,26 +21,39 @@ interface TurmaOption {
 
 const DracmasLaunch: React.FC = () => {
   const { currentUser } = useApp();
+  const [criterios, setCriterios] = useState<{ codigo: string; nome: string; quantidade_padrao: number }[]>([]);
   const [data, setData] = useState(new Date().toISOString().split('T')[0]);
   const [turmaId, setTurmaId] = useState('');
-  const [tipo, setTipo] = useState('assiduidade');
+  const [tipo, setTipo] = useState(''); // Inicializa vazio, será setado ao carregar critérios
   const [descricao, setDescricao] = useState('');
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
   const [alunos, setAlunos] = useState<AlunoDracma[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const carregarTurmas = async () => {
+    const carregarDadosIniciais = async () => {
       try {
+        // Carregar Turmas
         const params = currentUser?.id ? { professor_id: currentUser.id } : undefined;
-        const lista = (await TurmasAPI.listar(params as any)) as any[];
-        setTurmas((Array.isArray(lista) ? lista : []).map(t => ({ id: t.id, nome: t.nome })));
+        const listaTurmas = (await TurmasAPI.listar(params as any)) as any[];
+        setTurmas((Array.isArray(listaTurmas) ? listaTurmas : []).map(t => ({ id: t.id, nome: t.nome })));
+
+        // Carregar Critérios
+        const listaCriterios: any = await DracmasAPI.listarCriterios();
+        const ativos = Array.isArray(listaCriterios) ? listaCriterios.filter((c: any) => c.ativo) : [];
+        setCriterios(ativos);
+        
+        if (ativos.length > 0) {
+          setTipo(ativos[0].codigo);
+        } else {
+          setTipo('assiduidade');
+        }
       } catch (error) {
-        console.error('Erro ao carregar turmas:', error);
+        console.error('Erro ao carregar dados iniciais:', error);
       }
     };
 
-    carregarTurmas();
+    carregarDadosIniciais();
   }, []);
 
   useEffect(() => {
@@ -121,7 +136,7 @@ const DracmasLaunch: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-              <Select value={turmaId} onChange={e => setTurmaId(e.target.value)} required>
+              <Select value={turmaId} onChange={val => setTurmaId(val)} required>
                 <option value="">Selecione a turma</option>
                 {turmas.map(t => (
                   <option key={t.id} value={t.id}>
@@ -132,11 +147,28 @@ const DracmasLaunch: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Recompensa</label>
-              <Select value={tipo} onChange={e => setTipo(e.target.value)}>
-                <option value="assiduidade">Assiduidade</option>
-                <option value="tarefa">Tarefa</option>
-                <option value="participacao">Participação</option>
-                <option value="pergunta">Pergunta Respondida</option>
+              <Select 
+                value={tipo} 
+                onChange={val => {
+                  const novoTipo = val;
+                  setTipo(novoTipo);
+                  
+                  // Opcional: Auto-preencher quantidade para todos alunos se o critério tiver padrão
+                  // const criterio = criterios.find(c => c.codigo === novoTipo);
+                  // if (criterio && criterio.quantidade_padrao > 0) {
+                  //   if (confirm(`Deseja aplicar o valor padrão de ${criterio.quantidade_padrao} drácmas para todos?`)) {
+                  //      setAlunos(prev => prev.map(a => ({ ...a, quantidade: criterio.quantidade_padrao })));
+                  //   }
+                  // }
+                }}
+              >
+                {criterios.length > 0 ? (
+                  criterios.map(c => (
+                    <option key={c.codigo} value={c.codigo}>{c.nome}</option>
+                  ))
+                ) : (
+                  <option value="assiduidade">Assiduidade (Padrão)</option>
+                )}
                 <option value="outro">Outro</option>
               </Select>
             </div>

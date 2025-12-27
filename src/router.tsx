@@ -1,289 +1,109 @@
-import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { useApp } from './context/AppContext';
+
+// Layouts
 import PublicLayout from './components/PublicLayout';
-import AppLayout from './components/AppLayout';
-import AdminLayout from './components/AdminLayout';
-import Home from './pages/Home';
-import AboutIBUC from './pages/AboutIBUC';
-import Login from './pages/Login';
-import RecoverPassword from './pages/RecoverPassword';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Auth Pages
+import StudentAccess from './pages/auth/StudentAccess';
+import AdminAccess from './pages/auth/AdminAccess';
+
+// Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
-import PoloManagement from './pages/admin/PoloManagement';
-import SystemSettings from './pages/admin/SystemSettings';
-import EducationalReports from './pages/admin/EducationalReports';
 import StudentManagement from './pages/admin/StudentManagement';
-import EnrollmentManagement from './pages/admin/EnrollmentManagement';
-import Materials from './pages/Materials';
-import PreMatricula from './pages/PreMatricula';
+import AdminTurmas from './pages/admin/AdminTurmas';
+import AdminFrequencia from './pages/admin/AdminFrequencia';
+import AdminFinanceiro from './pages/admin/AdminFinanceiro';
+import PoloManagement from './pages/admin/PoloManagement';
+import DiretoriaManagement from './pages/admin/DiretoriaManagement';
+import EducationalReports from './pages/admin/EducationalReports'; 
+import SystemSettings from './pages/admin/SystemSettings';
+import StaffManagement from './pages/admin/StaffManagement';
+
+// Enrollment Pages
+import PreMatricula from './pages/enrollment/PreMatricula';
+import StudentRegistration from './pages/enrollment/StudentRegistration';
+
+// App Pages (Student Area)
 import AppDashboard from './pages/app/AppDashboard';
-import AppModulos from './pages/app/AppModulos';
 import AppBoletim from './pages/app/AppBoletim';
 import AppFrequencia from './pages/app/AppFrequencia';
 import AppFinanceiro from './pages/app/AppFinanceiro';
 import AppDocumentos from './pages/app/AppDocumentos';
-import AdminTurmas from './pages/admin/AdminTurmas';
-import AdminFrequencia from './pages/admin/AdminFrequencia';
-import AdminFinanceiro from './pages/admin/AdminFinanceiro';
-import UserManagement from './pages/admin/UserManagement';
-import DracmasLaunch from './pages/admin/DracmasLaunch';
-import DracmasByStudent from './pages/admin/DracmasByStudent';
-import DracmasByClass from './pages/admin/DracmasByClass';
+import AppModulos from './pages/app/AppModulos';
 
-// Protected Route Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({
-  children,
-  adminOnly = false,
-}) => {
-  const { currentUser, authLoading } = useApp();
-  
-  if (authLoading) {
-    return (
-      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Carregando...
-      </div>
-    );
-  }
-
-  const hasStoredSession = Boolean(
-    localStorage.getItem('auth_token') || localStorage.getItem('auth_user'),
-  );
-  
-  if (!currentUser) {
-    if (hasStoredSession) {
-      return (
-        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          Carregando...
-        </div>
-      );
-    }
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (adminOnly && currentUser.role !== 'admin') {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
+// Public Pages
+import Home from './pages/public/Home';
+import AboutIBUC from './pages/public/AboutIBUC';
+import Materials from './pages/public/Materials';
 
 export const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <PublicLayout><Home /></PublicLayout>,
+  // Public Routes (with layout)
+  { path: '/', element: <PublicLayout><Home /></PublicLayout> },
+  { path: '/sobre', element: <PublicLayout><AboutIBUC /></PublicLayout> },
+  { path: '/materiais', element: <PublicLayout><Materials /></PublicLayout> },
+  
+  // Auth Routes (with layout)
+  { path: '/login', element: <PublicLayout><StudentAccess /></PublicLayout> },
+  { path: '/acesso-aluno', element: <PublicLayout><StudentAccess /></PublicLayout> },
+  { path: '/login-admin', element: <PublicLayout><AdminAccess /></PublicLayout> },
+
+  // Enrollment Routes (with layout)
+  { path: '/pre-matricula', element: <PublicLayout><PreMatricula /></PublicLayout> },
+  { path: '/cadastro-aluno', element: <PublicLayout><StudentRegistration /></PublicLayout> },
+
+  // Admin Routes (protected)
+  { path: '/admin', element: <Navigate to="/admin/dashboard" replace /> },
+  { 
+    path: '/admin/dashboard', 
+    element: <ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute> 
   },
-  {
-    path: '/pre-matricula',
-    element: <PublicLayout><PreMatricula /></PublicLayout>,
+  { 
+    path: '/admin/alunos', 
+    element: <ProtectedRoute requireAdmin><StudentManagement /></ProtectedRoute> 
   },
-  {
-    path: '/sobre',
-    element: <PublicLayout><AboutIBUC /></PublicLayout>,
+  { 
+    path: '/admin/turmas', 
+    element: <ProtectedRoute requireAdmin><AdminTurmas /></ProtectedRoute> 
   },
-  {
-    path: '/materiais',
-    element: <PublicLayout><Materials /></PublicLayout>,
+  { 
+    path: '/admin/frequencia', 
+    element: <ProtectedRoute requireAdmin><AdminFrequencia /></ProtectedRoute> 
   },
-  {
-    path: '/login',
-    element: <PublicLayout><Login /></PublicLayout>,
+  { 
+    path: '/admin/financeiro', 
+    element: <ProtectedRoute requireAdmin><AdminFinanceiro /></ProtectedRoute> 
   },
-  {
-    path: '/recuperar-senha',
-    element: <PublicLayout><RecoverPassword /></PublicLayout>,
+  { 
+    path: '/admin/polos', 
+    element: <ProtectedRoute requireAdmin><PoloManagement /></ProtectedRoute> 
   },
-  {
-    path: '/app/dashboard',
-    element: (
-      <AppLayout>
-        <ProtectedRoute>
-          <AppDashboard />
-        </ProtectedRoute>
-      </AppLayout>
-    ),
+  { 
+    path: '/admin/diretoria', 
+    element: <ProtectedRoute requireAdmin><DiretoriaManagement /></ProtectedRoute> 
   },
-  {
-    path: '/app/modulos',
-    element: (
-      <AppLayout>
-        <ProtectedRoute>
-          <AppModulos />
-        </ProtectedRoute>
-      </AppLayout>
-    ),
+  { 
+    path: '/admin/relatorios', 
+    element: <ProtectedRoute requireAdmin><EducationalReports /></ProtectedRoute> 
   },
-  {
-    path: '/app/boletim',
-    element: (
-      <AppLayout>
-        <ProtectedRoute>
-          <AppBoletim />
-        </ProtectedRoute>
-      </AppLayout>
-    ),
+  { 
+    path: '/admin/configuracoes', 
+    element: <ProtectedRoute requireAdmin><SystemSettings /></ProtectedRoute> 
   },
-  {
-    path: '/app/frequencia',
-    element: (
-      <AppLayout>
-        <ProtectedRoute>
-          <AppFrequencia />
-        </ProtectedRoute>
-      </AppLayout>
-    ),
+  { 
+    path: '/admin/equipe', 
+    element: <ProtectedRoute requireAdmin><StaffManagement /></ProtectedRoute> 
   },
-  {
-    path: '/app/financeiro',
-    element: (
-      <AppLayout>
-        <ProtectedRoute>
-          <AppFinanceiro />
-        </ProtectedRoute>
-      </AppLayout>
-    ),
-  },
-  {
-    path: '/app/documentos',
-    element: (
-      <AppLayout>
-        <ProtectedRoute>
-          <AppDocumentos />
-        </ProtectedRoute>
-      </AppLayout>
-    ),
-  },
-  {
-    path: '/admin/dashboard',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <AdminDashboard />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/polos',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <PoloManagement />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/turmas',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <AdminTurmas />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/alunos',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <StudentManagement />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/matriculas',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <EnrollmentManagement />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/frequencia',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <AdminFrequencia />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/dracmas/lancamento',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <DracmasLaunch />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/dracmas/por-aluno',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <DracmasByStudent />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/dracmas/por-turma',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <DracmasByClass />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/financeiro',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <AdminFinanceiro />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/relatorios',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <EducationalReports />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/usuarios',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <UserManagement />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '/admin/configuracoes',
-    element: (
-      <AdminLayout>
-        <ProtectedRoute adminOnly>
-          <SystemSettings />
-        </ProtectedRoute>
-      </AdminLayout>
-    ),
-  },
-  {
-    path: '*',
-    element: <Navigate to="/" replace />,
-  },
+
+  // Student App Routes
+  { path: '/app', element: <Navigate to="/app/dashboard" replace /> },
+  { path: '/app/dashboard', element: <AppDashboard /> },
+  { path: '/app/boletim', element: <AppBoletim /> },
+  { path: '/app/frequencia', element: <AppFrequencia /> },
+  { path: '/app/financeiro', element: <AppFinanceiro /> },
+  { path: '/app/documentos', element: <AppDocumentos /> },
+  { path: '/app/modulos', element: <AppModulos /> },
+
+  // Catch all
+  { path: '*', element: <Navigate to="/" replace /> },
 ]);

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
-import { useNavigationConfirm } from '../hooks/useNavigationConfirm';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { useApp } from '../../context/AppContext';
+import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
+import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { User, Lock, BookOpen, Calendar, Award } from 'lucide-react';
-import { AlunosAPI, DracmasAPI } from '../lib/api';
+import { AlunosAPI } from '../../services/aluno.service';
+// import { DracmasAPI } from '../../services/dracmas.service';
 
 const StudentAccess: React.FC = () => {
   const { login, currentUser } = useApp();

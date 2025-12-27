@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../context/AppContext';
-import { useNavigationConfirm } from '../hooks/useNavigationConfirm';
-import { StudentData } from '../types';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { useApp } from '../../context/AppContext';
+import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
+import { StudentData } from '../../types';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { User, Users, MapPin, Phone, Mail } from 'lucide-react';
 
 const StudentRegistration: React.FC = () => {

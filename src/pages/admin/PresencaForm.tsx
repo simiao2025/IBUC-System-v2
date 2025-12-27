@@ -4,7 +4,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import { PresencasAPI } from '../../lib/api';
+import { PresencasAPI } from '../../services/presenca.service';
 
 interface AlunoPresenca {
   aluno_id: string;

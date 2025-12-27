@@ -1,9 +1,40 @@
-// ============================================
-// IBUC System - Serviço de Matrículas
-// ============================================
-
+import { api } from '../lib/api';
 import type { Matricula, StatusMatricula } from '../types/database';
-import { MatriculaAPI } from '../lib/api';
+import { ApiError, AppError } from '../lib/errors';
+
+export const MatriculaAPI = {
+  criar: (data: unknown) => api.post('/matriculas', data),
+  uploadDocumentos: (id: string, formData: FormData) => api.upload(`/documentos/matriculas/${id}`, formData),
+  listar: (params?: { polo_id?: string; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        if (typeof value === 'string' && value.trim().length > 0) {
+          searchParams.append(key, value);
+        }
+      }
+    }
+    const query = searchParams.toString();
+    return api.get(`/matriculas${query ? `?${query}` : ''}`);
+  },
+  buscarPorProtocolo: (protocolo: string) => api.get(`/matriculas/protocolo/${protocolo}`),
+  buscarPorId: (id: string) => api.get(`/matriculas/${id}`),
+  aprovar: (id: string, data: { approved_by: string }) => api.put(`/matriculas/${id}/aprovar`, data),
+  recusar: (id: string, data: { motivo: string; user_id: string }) => api.put(`/matriculas/${id}/recusar`, data),
+};
+
+export const PreMatriculasAPI = {
+  criar: (data: any) => api.post('/pre-matriculas', data),
+  listar: (params?: { polo_id?: string; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.polo_id) searchParams.append('polo_id', params.polo_id);
+    if (params?.status) searchParams.append('status', params.status);
+    const query = searchParams.toString();
+    return api.get(`/pre-matriculas${query ? `?${query}` : ''}`);
+  },
+  atualizarStatus: (id: string, data: { status: string }) => api.put(`/pre-matriculas/${id}/status`, data),
+  concluir: (id: string, data: { turma_id: string; approved_by: string }) => api.post(`/pre-matriculas/${id}/concluir`, data),
+};
 
 export class MatriculaService {
   /**
@@ -40,8 +71,12 @@ export class MatriculaService {
    * Busca matrícula por ID
    */
   static async buscarMatriculaPorId(id: string): Promise<Matricula | null> {
-    const data = await MatriculaAPI.buscarPorId(id);
-    return data as Matricula;
+    try {
+      const data = await MatriculaAPI.buscarPorId(id);
+      return data as Matricula;
+    } catch (error: any) {
+      throw new ApiError('Erro ao buscar matrícula por ID', error);
+    }
   }
 
   /**
@@ -63,7 +98,7 @@ export class MatriculaService {
     approvedBy?: string,
     motivoRecusa?: string
   ): Promise<Matricula> {
-    if (status === 'aprovada') {
+    if (status === 'ativa' as StatusMatricula) {
       const data = await MatriculaAPI.aprovar(id, { approved_by: approvedBy || '' });
       return data as Matricula;
     }
@@ -74,6 +109,6 @@ export class MatriculaService {
     }
 
     // Para outros status, poderia haver um endpoint genérico; por enquanto, lança erro explícito
-    throw new Error('Atualização de status não suportada por esta API');
+    throw new AppError('Atualização de status não suportada por esta API', 'VALIDATION_ERROR');
   }
 }
