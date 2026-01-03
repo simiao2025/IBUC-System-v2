@@ -8,22 +8,26 @@ const cepRegex = /^\d{5}-\d{3}$/;
 const phoneRegex = /^\(\d{2}\) \d{5}-\d{4}$/;
 
 export const saudeSchema = z.object({
-  alergias: z.string().optional(),
-  medicamentos: z.string().optional(),
-  plano_saude: z.string().optional(),
+  alergias: z.string().min(1, 'Informe as alergias ou "Nenhuma"'),
+  restricao_alimentar: z.string().optional(),
+  medicacao_continua: z.string().min(1, 'Informe a medicação ou "Nenhuma"'),
+  doencas_cronicas: z.string().optional(),
+  contato_emergencia_nome: z.string().min(1, 'Nome de emergência obrigatório'),
+  contato_emergencia_telefone: z.string().min(1, 'Telefone de emergência obrigatório'),
+  convenio_medico: z.string().optional(),
   hospital_preferencia: z.string().optional(),
   autorizacao_medica: z.boolean().default(false),
 });
 
 export const preMatriculaSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  nome_social: z.string().optional(),
   data_nascimento: z.string().min(1, 'Data de nascimento é obrigatória'),
-  sexo: z.enum(['masculino', 'feminino', 'outro'], {
+  sexo: z.enum(['M', 'F'], {
     errorMap: () => ({ message: 'Selecione o sexo' }),
   }),
   cpf: z.string().regex(cpfRegex, 'CPF inválido (000.000.000-00)'),
-  rg: z.string().optional(),
+  rg_orgao: z.string().optional(),
+  rg_data_expedicao: z.string().optional(),
   naturalidade: z.string().optional(),
   nacionalidade: z.string().default('Brasileira'),
   
@@ -45,11 +49,20 @@ export const preMatriculaSchema = z.object({
   telefone_responsavel: z.string().regex(phoneRegex, 'Telefone inválido ((00) 00000-0000)'),
   email_responsavel: z.string().email('E-mail inválido'),
   
+  // Responsável 2 (opcional)
+  nome_responsavel_2: z.string().optional(),
+  cpf_responsavel_2: z.string().optional(),
+  telefone_responsavel_2: z.string().optional(),
+  email_responsavel_2: z.string().email('E-mail inválido').optional().or(z.literal('')),
+  tipo_parentesco_2: z.string().optional(),
+  
   // Saúde
   saude: saudeSchema,
   
   // Matrícula
   polo_id: z.string().min(1, 'Selecione um polo'),
+  nivel_id: z.string().min(1, 'Selecione um nível'),
+  turma_id: z.string().optional(),
   escola_origem: z.string().optional(),
   ano_escolar: z.string().optional(),
   observacoes: z.string().optional(),

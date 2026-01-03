@@ -5,11 +5,11 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import { UsuarioService } from '../../services/usuario.service';
+import { UserServiceV2 } from '../../services/userService.v2';
 import {
   ArrowLeft,
-  Plus,
   Search,
+  Plus,
   Edit2,
   Trash2,
   Users,
@@ -22,16 +22,16 @@ import {
   FileText,
   Loader2
 } from 'lucide-react';
-import type { StaffMember, AdminRole } from '../../types';
+import type { AdminUser, AdminRole } from '../../types';
 
 // Roles que são considerados "staff" (equipe)
 // Apenas valores válidos para o enum role_usuario no banco de dados
-const STAFF_ROLES: AdminRole[] = ['professor', 'coordenador_polo', 'diretor_polo', 'auxiliar'];
+const STAFF_ROLES: AdminRole[] = ['professor', 'coordenador_polo', 'diretor_polo', 'auxiliar', 'secretario_polo', 'tesoureiro_polo'];
 
 const StaffManagement: React.FC = () => {
-  const { polos } = useApp();
+  const { polos, currentUser, showFeedback, showConfirm } = useApp();
   console.log('StaffManagement - polos no contexto:', polos);
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [staffMembers, setStaffMembers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -39,9 +39,20 @@ const StaffManagement: React.FC = () => {
   const [filterPolo, setFilterPolo] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<AdminRole | 'all'>('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [editingStaff, setEditingStaff] = useState<AdminUser | null>(null);
+
+  const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
+  const userPoloId = currentUser?.adminUser?.poloId || '';
+  const visiblePolos = isPoloScoped ? polos.filter(p => p.id === userPoloId) : polos;
+
+  useEffect(() => {
+    if (isPoloScoped && userPoloId && filterPolo !== userPoloId) {
+      setFilterPolo(userPoloId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPoloScoped, userPoloId]);
   
-  const [newStaff, setNewStaff] = useState<Partial<StaffMember>>({
+  const [newStaff, setNewStaff] = useState<Partial<AdminUser>>({
     name: '',
     cpf: '',
     phone: '',
@@ -56,17 +67,22 @@ const StaffManagement: React.FC = () => {
   const roleLabels: Record<AdminRole, string> = {
     coordenador_geral: 'Coordenador Geral',
     diretor_geral: 'Diretor Geral',
+    secretario_geral: 'Secretário(a) Geral',
+    tesoureiro_geral: 'Tesoureiro(a) Geral',
     coordenador_polo: 'Coordenador de Polo',
     diretor_polo: 'Diretor de Polo',
+    secretario_polo: 'Secretário(a) do Polo',
+    tesoureiro_polo: 'Tesoureiro(a) do Polo',
     professor: 'Professor',
     auxiliar: 'Auxiliar',
-    secretario: 'Secretário(a)',
-    tesoureiro: 'Tesoureiro(a)'
+    super_admin: 'Super Admin',
+    admin_geral: 'Admin Geral'
   };
 
   // Carregar staff ao montar
   useEffect(() => {
     carregarStaff();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Recarregar quando filtros mudarem
@@ -74,51 +90,35 @@ const StaffManagement: React.FC = () => {
     if (!loading) {
       carregarStaff();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterPolo, filterRole, searchTerm]);
 
   const carregarStaff = async () => {
     try {
       setLoading(true);
       
-      // Buscar todos os usuários com roles de staff
-      const rolesFiltro = filterRole !== 'all' ? [filterRole] : STAFF_ROLES;
-      const usuarios: any[] = [];
-      
-      for (const role of rolesFiltro) {
-        const filtros: any = { role };
-        if (filterPolo !== 'all') filtros.polo_id = filterPolo;
-        if (searchTerm) filtros.search = searchTerm;
-        
-        const data = await UsuarioService.listarUsuarios(filtros);
-        usuarios.push(...data);
-      }
-
-      // Remover duplicatas e mapear para StaffMember
-      const uniqueUsuarios = Array.from(new Map(usuarios.map(u => [u.id, u])).values());
-      
-      const staffMapeados = uniqueUsuarios
-        .filter((u: any) => STAFF_ROLES.includes(u.role))
-        .map((u: any) => ({
-          id: u.id,
-          name: u.nome_completo,
-          cpf: u.cpf || '',
-          phone: u.telefone || '',
-          email: u.email,
-          role: u.role as AdminRole,
-          poloId: u.polo_id || '',
-          isActive: u.ativo,
-          qualifications: u.metadata?.qualifications || [],
-          hireDate: u.metadata?.hireDate || u.created_at?.split('T')[0] || new Date().toISOString().split('T')[0]
-        }));
-
-      // Aplicar filtros locais
-      let staffFiltrados = staffMapeados;
-      if (filterPolo !== 'all') {
-        staffFiltrados = staffFiltrados.filter(s => s.poloId === filterPolo);
+      const filtros: any = {};
+      if (isPoloScoped && userPoloId) {
+        filtros.polo_id = userPoloId;
+      } else if (filterPolo !== 'all') {
+        filtros.polo_id = filterPolo;
       }
       if (filterRole !== 'all') {
-        staffFiltrados = staffFiltrados.filter(s => s.role === filterRole);
+        filtros.role = filterRole;
+      } else {
+        // Se quisermos filtrar por múltiplos roles, teríamos que fazer múltiplas chamadas ou o backend suportar array
+        // Como o UserServiceV2 atual suporta apenas um role por vez no params, e a listagem original fazia loop:
+        // Mas podemos listar todos e filtrar no frontend se o backend não for eficiente para múltiplos papéis.
+        // Vamos manter a lógica de carregar todos do polo e filtrar por STAFF_ROLES no front por enquanto, 
+        // ou fazer o loop se necessário. O UserServiceV2.listUsers sem role trará todos.
       }
+      
+      const usuarios = await UserServiceV2.listUsers(filtros);
+      
+      const staffMapeados = usuarios.filter(u => STAFF_ROLES.includes(u.role));
+
+      // Aplicar filtros manuais de busca se não foram aplicados no backend
+      let staffFiltrados = staffMapeados;
       if (searchTerm) {
         staffFiltrados = staffFiltrados.filter(s => 
           s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -129,7 +129,7 @@ const StaffManagement: React.FC = () => {
       setStaffMembers(staffFiltrados);
     } catch (error) {
       console.error('Erro ao carregar equipe:', error);
-      alert('Erro ao carregar equipe. Verifique o console.');
+      showFeedback('error', 'Erro', 'Erro ao carregar equipe. Verifique o console.');
     } finally {
       setLoading(false);
     }
@@ -139,27 +139,18 @@ const StaffManagement: React.FC = () => {
 
   const handleCreateStaff = async () => {
     if (!newStaff.name || !newStaff.email || !newStaff.cpf || !newStaff.phone || !newStaff.poloId) {
-      alert('Preencha todos os campos obrigatórios');
+      showFeedback('warning', 'Atenção', 'Preencha todos os campos obrigatórios');
       return;
     }
 
     try {
       setSaving(true);
-      await UsuarioService.criarUsuario({
-        nome_completo: newStaff.name,
-        email: newStaff.email,
-        cpf: newStaff.cpf,
-        telefone: newStaff.phone,
-        role: newStaff.role,
-        polo_id: newStaff.poloId,
-        ativo: newStaff.isActive !== false,
-        metadata: {
-          qualifications: newStaff.qualifications || [],
-          hireDate: newStaff.hireDate,
-        },
+      await UserServiceV2.createUser({
+        ...newStaff,
+        accessLevel: 'polo_especifico'
       });
 
-      alert('Membro da equipe criado com sucesso!');
+      showFeedback('success', 'Sucesso', 'Membro da equipe criado com sucesso!');
       await carregarStaff();
       setNewStaff({
         name: '',
@@ -175,7 +166,7 @@ const StaffManagement: React.FC = () => {
       setShowCreateForm(false);
     } catch (error: any) {
       console.error('Erro ao criar membro da equipe:', error);
-      alert(error.message || 'Erro ao criar membro da equipe. Verifique o console.');
+      showFeedback('error', 'Erro', error.message || 'Erro ao criar membro da equipe. Verifique o console.');
     } finally {
       setSaving(false);
     }
@@ -186,42 +177,30 @@ const StaffManagement: React.FC = () => {
 
     try {
       setSaving(true);
-      await UsuarioService.atualizarUsuario(editingStaff.id, {
-        nome_completo: editingStaff.name,
-        email: editingStaff.email,
-        cpf: editingStaff.cpf,
-        telefone: editingStaff.phone,
-        role: editingStaff.role,
-        polo_id: editingStaff.poloId,
-        ativo: editingStaff.isActive,
-        metadata: {
-          qualifications: editingStaff.qualifications || [],
-          hireDate: editingStaff.hireDate,
-        },
-      });
+      await UserServiceV2.updateUser(editingStaff.id, editingStaff);
 
-      alert('Membro da equipe atualizado com sucesso!');
+      showFeedback('success', 'Sucesso', 'Membro da equipe atualizado com sucesso!');
       await carregarStaff();
       setEditingStaff(null);
     } catch (error: any) {
       console.error('Erro ao atualizar membro da equipe:', error);
-      alert(error.message || 'Erro ao atualizar membro da equipe. Verifique o console.');
+      showFeedback('error', 'Erro', error.message || 'Erro ao atualizar membro da equipe. Verifique o console.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteStaff = async (staffId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este membro da equipe?')) return;
-
-    try {
-      await UsuarioService.deletarUsuario(staffId);
-      alert('Membro da equipe deletado com sucesso!');
-      await carregarStaff();
-    } catch (error: any) {
-      console.error('Erro ao deletar membro da equipe:', error);
-      alert(error.message || 'Erro ao deletar membro da equipe. Verifique o console.');
-    }
+    showConfirm('Confirmar exclusão', 'Tem certeza que deseja excluir este membro da equipe?', async () => {
+      try {
+        await UserServiceV2.deleteUser(staffId);
+        showFeedback('success', 'Sucesso', 'Membro da equipe deletado com sucesso!');
+        await carregarStaff();
+      } catch (error: any) {
+        console.error('Erro ao deletar membro da equipe:', error);
+        showFeedback('error', 'Erro', error.message || 'Erro ao deletar membro da equipe. Verifique o console.');
+      }
+    });
   };
 
   const toggleStaffStatus = async (staffId: string) => {
@@ -229,16 +208,12 @@ const StaffManagement: React.FC = () => {
     if (!staff) return;
 
     try {
-      if (staff.isActive) {
-        await UsuarioService.atualizarUsuario(staffId, { ativo: false });
-      } else {
-        await UsuarioService.atualizarUsuario(staffId, { ativo: true });
-      }
-      alert(`Membro da equipe ${staff.isActive ? 'desativado' : 'ativado'} com sucesso!`);
+      await UserServiceV2.updateUser(staffId, { isActive: !staff.isActive });
+      showFeedback('success', 'Sucesso', `Membro da equipe ${staff.isActive ? 'desativado' : 'ativado'} com sucesso!`);
       await carregarStaff();
     } catch (error: any) {
       console.error('Erro ao alterar status:', error);
-      alert(error.message || 'Erro ao alterar status. Verifique o console.');
+      showFeedback('error', 'Erro', error.message || 'Erro ao alterar status. Verifique o console.');
     }
   };
 
@@ -252,9 +227,11 @@ const StaffManagement: React.FC = () => {
         return <GraduationCap className="h-4 w-4 text-green-600" />;
       case 'auxiliar':
         return <BookOpen className="h-4 w-4 text-orange-600" />;
-      case 'secretario':
+      case 'secretario_geral':
+      case 'secretario_polo':
         return <FileText className="h-4 w-4 text-indigo-600" />;
-      case 'tesoureiro':
+      case 'tesoureiro_geral':
+      case 'tesoureiro_polo':
         return <DollarSign className="h-4 w-4 text-yellow-600" />;
       default:
         return <Users className="h-4 w-4 text-gray-600" />;
@@ -297,8 +274,8 @@ const StaffManagement: React.FC = () => {
                 />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Equipes de Polos</h1>
-                <p className="text-sm text-gray-600">Coordenadores, professores, auxiliares, secretários e tesoureiros dos polos</p>
+                <h1 className="text-2xl font-bold text-gray-900">{isPoloScoped ? 'Gerenciamento da Equipe do Polo' : 'Gerenciamento de Equipes de Polos'}</h1>
+                <p className="text-sm text-gray-600">{isPoloScoped ? 'Coordenadores, professores, auxiliares, secretários e tesoureiros do polo' : 'Coordenadores, professores, auxiliares, secretários e tesoureiros dos polos'}</p>
               </div>
             </div>
             <Button onClick={() => setShowCreateForm(true)}>
@@ -329,15 +306,21 @@ const StaffManagement: React.FC = () => {
                 className="pl-10"
               />
             </div>
-            <Select
-              value={filterPolo}
-              onChange={(value) => setFilterPolo(value)}
-            >
-              <option value="all">Todos os polos</option>
-              {polos.map((polo) => (
-                <option key={polo.id} value={polo.id}>{polo.name}</option>
-              ))}
-            </Select>
+            {isPoloScoped ? (
+              <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-900">
+                {visiblePolos[0]?.name || 'Polo'}
+              </div>
+            ) : (
+              <Select
+                value={filterPolo}
+                onChange={(value) => setFilterPolo(value)}
+              >
+                <option value="all">Todos os polos</option>
+                {visiblePolos.map((polo) => (
+                  <option key={polo.id} value={polo.id}>{polo.name}</option>
+                ))}
+              </Select>
+            )}
             <Select
               value={filterRole}
               onChange={(value) => setFilterRole(value as AdminRole | 'all')}
@@ -468,11 +451,12 @@ const StaffManagement: React.FC = () => {
                 <label className="text-sm font-medium text-gray-700">Polo</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
-                  value={newStaff.poloId || ''}
+                  value={(isPoloScoped ? userPoloId : (newStaff.poloId || ''))}
                   onChange={(e) => setNewStaff({ ...newStaff, poloId: e.target.value })}
+                  disabled={isPoloScoped}
                 >
                   <option value="">Selecione um polo</option>
-                  {polos.map((polo) => (
+                  {(isPoloScoped ? visiblePolos : polos).map((polo) => (
                     <option key={polo.id} value={polo.id}>{polo.name}</option>
                   ))}
                 </select>
@@ -565,10 +549,11 @@ const StaffManagement: React.FC = () => {
                 <label className="text-sm font-medium text-gray-700">Polo</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
-                  value={editingStaff.poloId}
+                  value={(isPoloScoped ? userPoloId : editingStaff.poloId)}
                   onChange={(e) => setEditingStaff({ ...editingStaff, poloId: e.target.value })}
+                  disabled={isPoloScoped}
                 >
-                  {polos.map((polo) => (
+                  {(isPoloScoped ? visiblePolos : polos).map((polo) => (
                     <option key={polo.id} value={polo.id}>{polo.name}</option>
                   ))}
                 </select>

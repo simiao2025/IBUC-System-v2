@@ -10,9 +10,19 @@ import {
   HttpCode,
   HttpStatus,
   Headers,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { UsuariosService, CreateUsuarioDto, UpdateUsuarioDto } from './usuarios.service';
+import { 
+  UsuariosService, 
+  CreateUsuarioDto, 
+  UpdateUsuarioDto,
+  LoginDto,
+  LoginPorCpfDto,
+  AlterarSenhaDto,
+  SolicitarCodigoDto,
+  ConfirmarCodigoDto
+} from './usuarios.service';
 
 @ApiTags('Usuários')
 @Controller('usuarios')
@@ -35,41 +45,36 @@ export class UsuariosController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login de usuário (admin/funcional)' })
-  async login(@Body() body: any) {
-    const { email, password } = body || {};
-    return this.usuariosService.login(email, password);
+  async login(@Body() dto: LoginDto) {
+    return this.usuariosService.login(dto.email, dto.password);
   }
 
   @Post('login-aluno')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login de aluno via CPF' })
-  async loginAluno(@Body() body: any) {
-    const { cpf, password } = body || {};
-    return this.usuariosService.loginPorCpf(cpf, password);
+  async loginAluno(@Body() dto: LoginPorCpfDto) {
+    return this.usuariosService.loginPorCpf(dto.cpf, dto.password);
   }
 
   @Post('alterar-senha')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Alterar senha do usuário' })
-  async alterarSenha(@Body() body: any) {
-    const { email, senhaAtual, senhaNova } = body || {};
-    return this.usuariosService.alterarSenha(email, senhaAtual, senhaNova);
+  async alterarSenha(@Body() dto: AlterarSenhaDto) {
+    return this.usuariosService.alterarSenha(dto.email, dto.senhaAtual, dto.senhaNova);
   }
 
   @Post('recuperar-senha/solicitar-codigo')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Solicitar código de recuperação de senha via e-mail' })
-  async solicitarCodigoRecuperacaoSenha(@Body() body: any) {
-    const { email } = body || {};
-    return this.usuariosService.solicitarCodigoRecuperacaoSenha(email);
+  async solicitarCodigoRecuperacaoSenha(@Body() dto: SolicitarCodigoDto) {
+    return this.usuariosService.solicitarCodigoRecuperacaoSenha(dto.email);
   }
 
   @Post('recuperar-senha/confirmar-codigo')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirmar código e redefinir senha via e-mail' })
-  async confirmarCodigoRecuperacaoSenha(@Body() body: any) {
-    const { email, codigo, senhaNova } = body || {};
-    return this.usuariosService.confirmarCodigoRecuperacaoSenha(email, codigo, senhaNova);
+  async confirmarCodigoRecuperacaoSenha(@Body() dto: ConfirmarCodigoDto) {
+    return this.usuariosService.confirmarCodigoRecuperacaoSenha(dto.email, dto.codigo, dto.senhaNova);
   }
 
   @Get()
@@ -92,7 +97,14 @@ export class UsuariosController {
   @Get('email/:email')
   @ApiOperation({ summary: 'Buscar usuário por email' })
   async buscarUsuarioPorEmail(@Param('email') email: string) {
-    return this.usuariosService.buscarUsuarioPorEmail(email);
+    try {
+      return await this.usuariosService.buscarUsuarioPorEmail(email);
+    } catch (e) {
+      if (e instanceof NotFoundException) {
+        return null;
+      }
+      throw e;
+    }
   }
 
   @Get(':id')

@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { api } from '../lib/api';
 import { StudentData, Enrollment, Polo as UiPolo, User, AdminUser, AccessLevel, Level } from '../types';
-import type { Polo as DbPolo } from '../types/database';
+import type { Polo as DbPolo, PreMatricula } from '../types/database';
 import { PoloService } from '../services/polo.service';
-import { UsuariosAPI } from '../services/usuario.service';
+import { UserServiceV2 } from '../services/userService.v2';
+import { PreMatriculasAPI } from '../features/enrollments/matricula.service';
+import FeedbackDialog, { FeedbackType } from '../components/ui/FeedbackDialog';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 interface AppContextType {
   // Student registration
@@ -16,6 +20,10 @@ interface AppContextType {
   // Enrollments
   enrollments: Enrollment[];
   addEnrollment: (enrollment: Enrollment) => void;
+  
+  // Pre-enrollments
+  preMatriculas: PreMatricula[];
+  refreshPreMatriculas: () => Promise<void>;
   
   // Polos
   polos: UiPolo[];
@@ -38,6 +46,10 @@ interface AppContextType {
   // Form state management
   hasUnsavedChanges: boolean;
   setHasUnsavedChanges: (hasChanges: boolean) => void;
+
+  // Global Feedback & Confirmation
+  showFeedback: (type: FeedbackType, title: string, message: string, confirmText?: string) => void;
+  showConfirm: (title: string, message: string, onConfirm: () => void, confirmText?: string, cancelText?: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -82,10 +94,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [currentStudent, setCurrentStudent] = useState<Partial<StudentData> | null>(null);
   const [students, setStudents] = useState<StudentData[]>(mockStudents);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [preMatriculas, setPreMatriculas] = useState<PreMatricula[]>([]);
   const [polos, setPolos] = useState<UiPolo[]>(mockPolos);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Feedback Dialog State
+  const [feedback, setFeedback] = useState<{
+    isOpen: boolean;
+    type: FeedbackType;
+    title: string;
+    message: string;
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
+
+  // Confirmation Dialog State
+  const [confirm, setConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
 
   const extractToken = (payload: any): string | null => {
     if (!payload) return null;
@@ -112,8 +154,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const hasGlobalAccessForRole = (role?: string): boolean => {
     if (!role) return false;
-    return ['super_admin', 'admin_geral', 'coordenador_geral', 'diretor_geral'].includes(role);
+    return ['super_admin', 'admin_geral', 'coordenador_geral', 'diretor_geral', 'secretario_geral', 'tesoureiro_geral'].includes(role);
   };
+
+  useEffect(() => {
+    api.setErrorHandler((error: Error) => {
+      showFeedback('error', 'Erro na API', error.message);
+    });
+  }, []);
 
   useEffect(() => {
     const carregarPolosReais = async () => {
@@ -136,39 +184,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const token = localStorage.getItem('auth_token');
       const cachedUserRaw = localStorage.getItem('auth_user');
 
-      if (cachedUserRaw) {
-        try {
-          const cachedUser = JSON.parse(cachedUserRaw);
-          const isAdminCached = isAdminRoleValue(cachedUser?.role);
-
-          if (isAdminCached) {
-            setCurrentUser({
-              id: cachedUser.id,
-              email: cachedUser.email,
-              role: 'admin',
-              adminUser: {
-                role: cachedUser.role,
-                accessLevel: hasGlobalAccessForRole(cachedUser.role) ? 'geral' : cachedUser.polo_id ? 'polo_especifico' : 'geral',
-                poloId: cachedUser.polo_id || undefined,
-                permissions: cachedUser.metadata?.permissions,
-              } as AdminUser,
-            });
-          } else {
-            setCurrentUser({
-              id: cachedUser.id,
-              email: cachedUser.email || cachedUser.cpf || '',
-              role: 'student',
-              studentId: cachedUser.aluno_id || undefined,
-            });
-          }
-        } catch {
-          localStorage.removeItem('auth_user');
-        }
-      }
-
       if (!token) {
+        localStorage.removeItem('auth_user');
+        setCurrentUser(null);
         setAuthLoading(false);
         return;
+      }
+
+      if (cachedUserRaw) {
+        // Do not set currentUser yet. Wait for validation.
+        // We can use the cached user only if the backend is unreachable but we want to allow offline access (which is risky for admin apps).
+        // For security, we should validate first.
       }
 
       try {
@@ -203,11 +229,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             email: user.email,
             role: 'admin',
             adminUser: {
+              id: user.id,
+              name: user.nome_completo || user.name || '',
+              email: user.email,
               role: user.role,
               accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral',
               poloId: user.polo_id || undefined,
               permissions: user.metadata?.permissions,
-            } as AdminUser,
+            } as any as AdminUser,
           });
           setAuthLoading(false);
           return;
@@ -250,9 +279,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPolos(prev => prev.filter(polo => polo.id !== id));
   };
 
-  const login = async (email: string, password: string, _role: 'admin' | 'student'): Promise<'admin' | 'student' | null> => {
+  const login = async (identifier: string, password: string, role: 'admin' | 'student'): Promise<'admin' | 'student' | null> => {
     try {
-      const rawPayload = await UsuariosAPI.login({ email, password });
+      let rawPayload;
+      if (role === 'student') {
+        rawPayload = await UserServiceV2.loginAluno({ cpf: identifier, password });
+      } else {
+        rawPayload = await UserServiceV2.login({ email: identifier, password });
+      }
+      
       const token = extractToken(rawPayload);
       if (token) {
         localStorage.setItem('auth_token', token);
@@ -268,6 +303,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           email: user.email,
           role: 'admin',
           adminUser: {
+            id: user.id,
+            name: user.nome_completo || user.name || user.email.split('@')[0],
+            email: user.email,
             role: user.role,
             accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral',
             poloId: user.polo_id || undefined,
@@ -279,7 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setCurrentUser({
         id: user.id,
-        email: user.email || email,
+        email: user.email || identifier,
         role: 'student',
         studentId: user.aluno_id || undefined,
       });
@@ -302,7 +340,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentUser.adminUser) return true; // Admin padrão tem acesso geral
 
     return currentUser.adminUser.accessLevel === 'geral' &&
-           ['coordenador_geral', 'diretor_geral', 'secretario', 'tesoureiro'].includes(currentUser.adminUser.role);
+           ['coordenador_geral', 'diretor_geral', 'secretario_geral', 'tesoureiro_geral', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
   };
 
   const hasAccessToPolo = (poloId: string): boolean => {
@@ -338,6 +376,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return [];
   };
 
+  const showFeedback = (type: FeedbackType, title: string, message: string, confirmText?: string) => {
+    setFeedback({ isOpen: true, type, title, message, confirmText });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, confirmText?: string, cancelText?: string) => {
+    setConfirm({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirm(prev => ({ ...prev, isOpen: false }));
+      },
+      confirmText,
+      cancelText
+    });
+  };
+
+  const refreshPreMatriculas = useCallback(async () => {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    
+    try {
+      const isAdminRestricted = currentUser.adminUser?.accessLevel === 'polo_especifico';
+      const poloId = isAdminRestricted ? currentUser.adminUser?.poloId : undefined;
+      
+      const data = await PreMatriculasAPI.listar({ polo_id: poloId });
+      setPreMatriculas(data as PreMatricula[]);
+    } catch (error) {
+      console.error('AppContext - Erro ao carregar pré-matrículas:', error);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      refreshPreMatriculas();
+    } else {
+      setPreMatriculas([]);
+    }
+  }, [currentUser, refreshPreMatriculas]);
+
   return (
     <AppContext.Provider value={{
       currentStudent,
@@ -346,6 +424,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addStudent,
       enrollments,
       addEnrollment,
+      preMatriculas,
+      refreshPreMatriculas,
       polos,
       addPolo,
       updatePolo,
@@ -359,9 +439,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       getCurrentUserAccessLevel,
       getUserAllowedPolos,
       hasUnsavedChanges,
-      setHasUnsavedChanges
+      setHasUnsavedChanges,
+      showFeedback,
+      showConfirm
     }}>
       {children}
+      
+      {/* Diálogos Globais */}
+      <FeedbackDialog
+        isOpen={feedback.isOpen}
+        type={feedback.type}
+        title={feedback.title}
+        message={feedback.message}
+        confirmText={feedback.confirmText}
+        onClose={() => setFeedback(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <ConfirmDialog
+        isOpen={confirm.isOpen}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={() => setConfirm(prev => ({ ...prev, isOpen: false }))}
+      />
     </AppContext.Provider>
   );
 };

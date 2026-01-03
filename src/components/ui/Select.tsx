@@ -37,7 +37,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {/* Se options for fornecido, usa options. Caso contrário, usa children */}
           {options && options.length > 0 ? (
             <>
-              <option value="">Selecione...</option>
+              <option key="default" value="">Selecione...</option>
               {options.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}

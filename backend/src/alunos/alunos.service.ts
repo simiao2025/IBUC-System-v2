@@ -3,13 +3,14 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 export interface CreateAlunoDto {
   nome: string;
-  nome_social?: string;
   data_nascimento: string;
-  sexo: 'M' | 'F' | 'Outro';
+  sexo: 'M' | 'F';
   nacionalidade?: string;
   naturalidade?: string;
   cpf?: string;
   rg?: string;
+  rg_orgao?: string;
+  rg_data_expedicao?: string;
   certidao_numero?: string;
   endereco?: any;
   foto_url?: string;
@@ -34,17 +35,29 @@ export interface CreateAlunoDto {
   serie?: string;
   dificuldades_aprendizagem?: boolean;
   descricao_dificuldades?: string;
+  // Responsáveis
+  nome_responsavel?: string;
+  cpf_responsavel?: string;
+  telefone_responsavel?: string;
+  email_responsavel?: string;
+  tipo_parentesco?: string;
+  nome_responsavel_2?: string;
+  cpf_responsavel_2?: string;
+  telefone_responsavel_2?: string;
+  email_responsavel_2?: string;
+  tipo_parentesco_2?: string;
 }
 
 export interface UpdateAlunoDto {
   nome?: string;
-  nome_social?: string;
   data_nascimento?: string;
-  sexo?: 'M' | 'F' | 'Outro';
+  sexo?: 'M' | 'F';
   nacionalidade?: string;
   naturalidade?: string;
   cpf?: string;
   rg?: string;
+  rg_orgao?: string;
+  rg_data_expedicao?: string;
   certidao_numero?: string;
   endereco?: any;
   foto_url?: string;
@@ -66,6 +79,11 @@ export interface UpdateAlunoDto {
   serie?: string;
   dificuldades_aprendizagem?: boolean;
   descricao_dificuldades?: string;
+  nome_responsavel_2?: string;
+  cpf_responsavel_2?: string;
+  telefone_responsavel_2?: string;
+  email_responsavel_2?: string;
+  tipo_parentesco_2?: string;
 }
 
 @Injectable()
@@ -116,13 +134,14 @@ export class AlunosService {
       .from('alunos')
       .insert({
         nome: dto.nome,
-        nome_social: dto.nome_social,
         data_nascimento: dto.data_nascimento,
         sexo: dto.sexo,
         nacionalidade: dto.nacionalidade,
         naturalidade: dto.naturalidade,
         cpf: dto.cpf,
         rg: dto.rg,
+        rg_orgao: dto.rg_orgao,
+        rg_data_expedicao: dto.rg_data_expedicao,
         certidao_numero: dto.certidao_numero,
         endereco: dto.endereco,
         foto_url: dto.foto_url,
@@ -145,6 +164,18 @@ export class AlunosService {
         serie: dto.serie,
         dificuldades_aprendizagem: dto.dificuldades_aprendizagem || false,
         descricao_dificuldades: dto.descricao_dificuldades,
+        // Guardian 1 mapping
+        nome_responsavel: dto.nome_responsavel,
+        cpf_responsavel: dto.cpf_responsavel,
+        telefone_responsavel: dto.telefone_responsavel,
+        email_responsavel: dto.email_responsavel,
+        tipo_parentesco: dto.tipo_parentesco,
+        // Responsable 2 mapping
+        nome_responsavel_2: dto.nome_responsavel_2,
+        cpf_responsavel_2: dto.cpf_responsavel_2,
+        telefone_responsavel_2: dto.telefone_responsavel_2,
+        email_responsavel_2: dto.email_responsavel_2,
+        tipo_parentesco_2: dto.tipo_parentesco_2,
       })
       .select()
       .single();
@@ -260,13 +291,14 @@ export class AlunosService {
     };
 
     if (dto.nome !== undefined) updateData.nome = dto.nome;
-    if (dto.nome_social !== undefined) updateData.nome_social = dto.nome_social;
     if (dto.data_nascimento !== undefined) updateData.data_nascimento = dto.data_nascimento;
     if (dto.sexo !== undefined) updateData.sexo = dto.sexo;
     if (dto.nacionalidade !== undefined) updateData.nacionalidade = dto.nacionalidade;
     if (dto.naturalidade !== undefined) updateData.naturalidade = dto.naturalidade;
     if (dto.cpf !== undefined) updateData.cpf = dto.cpf;
     if (dto.rg !== undefined) updateData.rg = dto.rg;
+    if (dto.rg_orgao !== undefined) updateData.rg_orgao = dto.rg_orgao;
+    if (dto.rg_data_expedicao !== undefined) updateData.rg_data_expedicao = dto.rg_data_expedicao;
     if (dto.certidao_numero !== undefined) updateData.certidao_numero = dto.certidao_numero;
     if (dto.endereco !== undefined) updateData.endereco = dto.endereco;
     if (dto.foto_url !== undefined) updateData.foto_url = dto.foto_url;
@@ -288,6 +320,11 @@ export class AlunosService {
     if (dto.serie !== undefined) updateData.serie = dto.serie;
     if (dto.dificuldades_aprendizagem !== undefined) updateData.dificuldades_aprendizagem = dto.dificuldades_aprendizagem;
     if (dto.descricao_dificuldades !== undefined) updateData.descricao_dificuldades = dto.descricao_dificuldades;
+    if (dto.nome_responsavel_2 !== undefined) updateData.nome_responsavel_2 = dto.nome_responsavel_2;
+    if (dto.cpf_responsavel_2 !== undefined) updateData.cpf_responsavel_2 = dto.cpf_responsavel_2;
+    if (dto.telefone_responsavel_2 !== undefined) updateData.telefone_responsavel_2 = dto.telefone_responsavel_2;
+    if (dto.email_responsavel_2 !== undefined) updateData.email_responsavel_2 = dto.email_responsavel_2;
+    if (dto.tipo_parentesco_2 !== undefined) updateData.tipo_parentesco_2 = dto.tipo_parentesco_2;
 
     const { data, error } = await this.supabase
       .getAdminClient()

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { DiretoriaService } from '../../services/diretoria.service';
+import { UserServiceV2 } from '../../services/userService.v2';
 import { useApp } from '../../context/AppContext';
-import type { Database } from '../../lib/database.types';
+import type { AdminUser, AdminRole } from '../../types';
 import {
   Crown,
   UserCheck,
@@ -64,17 +65,22 @@ const reverseCargoMapping: Record<string, string> = {
 
 const DiretoriaManagement: React.FC = () => {
   const { polos, currentUser } = useApp();
+  const [searchParams] = useSearchParams();
   const [directorate, setDirectorate] = useState<DirectoratePosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingPosition, setEditingPosition] = useState<DirectoratePosition | null>(null);
+  const [isNewUser, setIsNewUser] = useState(false);
   const [directorateMode, setDirectorateMode] = useState<'geral' | 'polo'>('geral');
   const [selectedPoloId, setSelectedPoloId] = useState<string>('');
   const [formData, setFormData] = useState({
     nome_completo: '',
     telefone: '',
     email: '',
+    cpf: '',
     cargo: 'secretario_geral' as string,
     data_inicio: new Date().toISOString().split('T')[0],
     usuario_id: '', // Será preenchido ao buscar/criar usuário
@@ -87,9 +93,55 @@ const DiretoriaManagement: React.FC = () => {
 
   useEffect(() => {
     void carregarDiretorias();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [directorateMode, selectedPoloId]);
 
-  const isDiretorGeral = currentUser?.adminUser?.role === 'diretor_geral';
+  const adminRole = currentUser?.adminUser?.role as AdminRole | undefined;
+  const canManagePoloDirectorate = adminRole ? (['diretor_geral', 'super_admin'] as AdminRole[]).includes(adminRole) : false;
+
+  const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
+  const userPoloId = currentUser?.adminUser?.poloId || '';
+
+  useEffect(() => {
+    if (!isPoloScoped || !userPoloId) return;
+    if (directorateMode !== 'polo') setDirectorateMode('polo');
+    if (selectedPoloId !== userPoloId) setSelectedPoloId(userPoloId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPoloScoped, userPoloId]);
+
+  // Capturar poloId da URL (redirecionamento do cadastro de polo)
+  useEffect(() => {
+    const urlPoloId = searchParams.get('poloId');
+    
+    if (urlPoloId) {
+      setSelectedPoloId(urlPoloId);
+      if (!isPoloScoped) {
+        setDirectorateMode('polo');
+      }
+    }
+  }, [searchParams, isPoloScoped]);
+
+  useEffect(() => {
+    const carregarUsuariosDoPolo = async () => {
+      if (!showForm) return;
+      if (directorateMode !== 'polo') return;
+      if (!selectedPoloId) return;
+
+      try {
+        setUsersLoading(true);
+        const users = await UserServiceV2.listUsers({ polo_id: selectedPoloId, ativo: true });
+        const sorted = [...users].sort((a, b) => a.name.localeCompare(b.name));
+        setAvailableUsers(sorted);
+      } catch (error: unknown) {
+        console.error('Erro ao carregar usuários do polo:', error);
+        setAvailableUsers([]);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    void carregarUsuariosDoPolo();
+  }, [directorateMode, selectedPoloId, showForm]);
 
   const carregarDiretorias = async () => {
     try {
@@ -109,7 +161,7 @@ const DiretoriaManagement: React.FC = () => {
           cargo: item.cargo as DirectoratePosition['cargo'],
           data_inicio: item.data_inicio,
           data_fim: item.data_fim || undefined,
-          status: item.ativo ? 'ativa' : 'inativa',
+          status: (item.status as DirectoratePosition['status']) || 'inativa',
           usuario_id: item.usuario_id,
           polo_id: item.polo_id,
           polo_nome: item.polo?.nome || undefined,
@@ -127,7 +179,7 @@ const DiretoriaManagement: React.FC = () => {
         cargo: item.cargo as DirectoratePosition['cargo'],
         data_inicio: item.data_inicio,
         data_fim: item.data_fim,
-        status: item.ativo ? 'ativa' : 'inativa',
+        status: (item.status as DirectoratePosition['status']) || 'inativa',
         usuario_id: item.usuario_id
       }));
       setDirectorate(formattedData as DirectoratePosition[]);
@@ -144,10 +196,14 @@ const DiretoriaManagement: React.FC = () => {
     coordenador_geral: 'Coordenador Geral',
     secretario_geral: 'Secretário Geral',
     tesoureiro_geral: 'Tesoureiro Geral',
-    diretor: 'Diretor Geral',
-    coordenador: 'Coordenador Geral',
-    secretario: 'Secretário Geral',
-    tesoureiro: 'Tesoureiro Geral',
+    diretor_polo: 'Diretor do Polo',
+    coordenador_polo: 'Coordenador do Polo',
+    secretario_polo: 'Secretário do Polo',
+    tesoureiro_polo: 'Tesoureiro do Polo',
+    diretor: 'Diretor',
+    coordenador: 'Coordenador',
+    secretario: 'Secretário',
+    tesoureiro: 'Tesoureiro',
   };
 
   const positionIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -155,6 +211,10 @@ const DiretoriaManagement: React.FC = () => {
     coordenador_geral: UserCheck,
     secretario_geral: FileText,
     tesoureiro_geral: Shield,
+    diretor_polo: Crown,
+    coordenador_polo: UserCheck,
+    secretario_polo: FileText,
+    tesoureiro_polo: Shield,
     diretor: Crown,
     coordenador: UserCheck,
     secretario: FileText,
@@ -179,13 +239,57 @@ const DiretoriaManagement: React.FC = () => {
       return;
     }
 
-    if (directorateMode === 'polo' && !isDiretorGeral) {
-      alert('Apenas o Diretor Geral pode cadastrar/alterar Diretor e Coordenador dos polos.');
+    if (directorateMode === 'polo' && !canManagePoloDirectorate) {
+      alert('Apenas Diretor Geral / Admin Geral pode cadastrar/alterar Diretor e Coordenador dos polos.');
       return;
     }
 
     try {
       setSaving(true);
+
+      let finalUsuarioId = formData.usuario_id || undefined;
+
+      // Se for novo usuário, criar primeiro
+      if (isNewUser && !editingPosition) {
+        if (!formData.cpf) {
+          alert('CPF é obrigatório para criar um novo usuário (usado para gerar a senha inicial).');
+          return;
+        }
+        
+        // Mapear cargo da diretoria para role do usuário
+        const roleMapping: Record<string, AdminRole> = {
+          diretor: 'diretor_polo',
+          coordenador: 'coordenador_polo',
+          secretario: 'secretario_polo',
+          tesoureiro: 'tesoureiro_polo',
+          diretor_geral: 'diretor_geral',
+          coordenador_geral: 'coordenador_geral',
+          secretario_geral: 'secretario_geral',
+          tesoureiro_geral: 'tesoureiro_geral',
+        };
+
+        const targetRole = roleMapping[formData.cargo] || 'auxiliar' as AdminRole;
+
+        // Senha inicial: 6 primeiros dígitos do CPF
+        const password = formData.cpf.replace(/\D/g, '').substring(0, 6);
+        
+        try {
+          const userRes = await UserServiceV2.createUser({
+            name: formData.nome_completo,
+            email: formData.email,
+            cpf: formData.cpf,
+            phone: formData.telefone,
+            role: targetRole,
+            poloId: selectedPoloId || undefined,
+            password: password,
+            accessLevel: directorateMode === 'polo' ? 'polo_especifico' : 'geral'
+          });
+          finalUsuarioId = userRes.id;
+        } catch (err: any) {
+          console.error('Erro ao criar usuário:', err);
+          throw new Error(`Falha ao criar usuário: ${err.message}`);
+        }
+      }
 
       // Mapear cargo do frontend para o backend
       const cargoBackend = cargoMapping[formData.cargo] || formData.cargo;
@@ -198,6 +302,7 @@ const DiretoriaManagement: React.FC = () => {
             email: formData.email,
             cargo: cargoBackend,
             data_inicio: formData.data_inicio,
+            usuario_id: finalUsuarioId,
           });
         } else {
           await DiretoriaService.atualizarDiretoriaGeral(editingPosition.id, {
@@ -206,15 +311,16 @@ const DiretoriaManagement: React.FC = () => {
             email: formData.email,
             cargo: cargoBackend,
             data_inicio: formData.data_inicio,
+            usuario_id: finalUsuarioId,
           });
         }
 
-        alert('Diretoria atualizada com sucesso!');
+        alert(`Diretoria atualizada com sucesso!${isNewUser ? ' Um novo usuário foi criado para este membro.' : ''}`);
       } else {
         if (directorateMode === 'polo') {
           await DiretoriaService.criarDiretoriaPolo({
             polo_id: selectedPoloId,
-            usuario_id: formData.usuario_id || undefined,
+            usuario_id: finalUsuarioId,
             cargo: cargoBackend,
             nome_completo: formData.nome_completo,
             telefone: formData.telefone,
@@ -223,7 +329,7 @@ const DiretoriaManagement: React.FC = () => {
           });
         } else {
           await DiretoriaService.criarDiretoriaGeral({
-            usuario_id: formData.usuario_id || undefined,
+            usuario_id: finalUsuarioId,
             cargo: cargoBackend,
             nome_completo: formData.nome_completo,
             telefone: formData.telefone,
@@ -231,7 +337,7 @@ const DiretoriaManagement: React.FC = () => {
             data_inicio: formData.data_inicio,
           });
         }
-        alert('Diretoria criada com sucesso!');
+        alert(`Diretoria criada com sucesso!${isNewUser ? ' Uma conta de usuário com senha (6 primeiros dígitos do CPF) também foi criada.' : ''}`);
       }
 
       // Recarregar lista
@@ -242,11 +348,13 @@ const DiretoriaManagement: React.FC = () => {
         nome_completo: '',
         telefone: '',
         email: '',
+        cpf: '',
         cargo: directorateMode === 'polo' ? 'diretor' : 'secretario_geral',
         data_inicio: new Date().toISOString().split('T')[0],
         usuario_id: '',
       });
       setShowForm(false);
+      setIsNewUser(false);
       setEditingPosition(null);
     } catch (error: unknown) {
       console.error('Erro ao salvar diretoria:', error);
@@ -258,8 +366,8 @@ const DiretoriaManagement: React.FC = () => {
   };
 
   const handleEdit = (position: DirectoratePosition) => {
-    if (directorateMode === 'polo' && !isDiretorGeral) {
-      alert('Apenas o Diretor Geral pode editar cargos da diretoria do polo.');
+    if (directorateMode === 'polo' && !canManagePoloDirectorate) {
+      alert('Apenas Diretor Geral / Admin Geral pode editar cargos da diretoria do polo.');
       return;
     }
     setEditingPosition(position);
@@ -272,7 +380,9 @@ const DiretoriaManagement: React.FC = () => {
       cargo: cargoFrontend,
       data_inicio: position.data_inicio,
       usuario_id: position.usuario_id || '',
+      cpf: '', // CPF can be fetched from DB if needed, but for now we keep it empty on edit
     });
+    setIsNewUser(!position.usuario_id);
     setShowForm(true);
   };
 
@@ -281,8 +391,8 @@ const DiretoriaManagement: React.FC = () => {
       const position = directorate.find(p => p.id === positionId);
       if (!position) return;
 
-      if (directorateMode === 'polo' && !isDiretorGeral) {
-        alert('Apenas o Diretor Geral pode ativar/desativar cargos da diretoria do polo.');
+      if (directorateMode === 'polo' && !canManagePoloDirectorate) {
+        alert('Apenas Diretor Geral / Admin Geral pode ativar/desativar cargos da diretoria do polo.');
         return;
       }
 
@@ -312,6 +422,8 @@ const DiretoriaManagement: React.FC = () => {
     ? [
         { value: 'diretor', label: 'Diretor do Polo' },
         { value: 'coordenador', label: 'Coordenador do Polo' },
+        { value: 'secretario', label: 'Secretário do Polo' },
+        { value: 'tesoureiro', label: 'Tesoureiro do Polo' },
       ]
     : cargoOptions;
 
@@ -325,8 +437,8 @@ const DiretoriaManagement: React.FC = () => {
         actionLabel="Adicionar Cargo"
         actionIcon={<Crown className="h-4 w-4" />}
         onAction={() => {
-          if (directorateMode === 'polo' && !isDiretorGeral) {
-            alert('Apenas o Diretor Geral pode adicionar cargos na diretoria do polo.');
+          if (directorateMode === 'polo' && !canManagePoloDirectorate) {
+            alert('Apenas Diretor Geral / Admin Geral pode adicionar cargos na diretoria do polo.');
             return;
           }
           setShowForm(true);
@@ -337,39 +449,51 @@ const DiretoriaManagement: React.FC = () => {
         <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-lg shadow-sm mb-6">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-700">Visão:</span>
-            <select
-              value={directorateMode}
-              onChange={(e) => {
-                const value = e.target.value as 'geral' | 'polo';
-                setDirectorateMode(value);
-                setEditingPosition(null);
-                setShowForm(false);
-                if (value === 'polo') {
-                  setFormData(prev => ({ ...prev, cargo: 'diretor' }));
-                } else {
-                  setFormData(prev => ({ ...prev, cargo: 'secretario_geral' }));
-                }
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-            >
-              <option value="geral">Diretoria Geral</option>
-              <option value="polo">Diretoria do Polo</option>
-            </select>
+            {isPoloScoped ? (
+              <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-900">
+                Diretoria do Polo
+              </div>
+            ) : (
+              <select
+                value={directorateMode}
+                onChange={(e) => {
+                  const value = e.target.value as 'geral' | 'polo';
+                  setDirectorateMode(value);
+                  setEditingPosition(null);
+                  setShowForm(false);
+                  if (value === 'polo') {
+                    setFormData(prev => ({ ...prev, cargo: 'diretor' }));
+                  } else {
+                    setFormData(prev => ({ ...prev, cargo: 'secretario_geral' }));
+                  }
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              >
+                <option value="geral">Diretoria Geral</option>
+                <option value="polo">Diretoria do Polo</option>
+              </select>
+            )}
           </div>
 
           {directorateMode === 'polo' && (
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700">Polo:</span>
-              <select
-                value={selectedPoloId}
-                onChange={(e) => setSelectedPoloId(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-              >
-                <option value="">Selecione um polo</option>
-                {polos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              {isPoloScoped ? (
+                <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-900">
+                  {polos.find(p => p.id === userPoloId)?.name || 'Polo'}
+                </div>
+              ) : (
+                <select
+                  value={selectedPoloId}
+                  onChange={(e) => setSelectedPoloId(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">Selecione um polo</option>
+                  {polos.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
         </div>
@@ -559,7 +683,7 @@ const DiretoriaManagement: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {directorateMode === 'polo' && (
+                  {directorateMode === 'polo' && !isPoloScoped && (
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Polo
                     </th>
@@ -592,7 +716,7 @@ const DiretoriaManagement: React.FC = () => {
                   const Icon = positionIcons[cargoKey] || FileText;
                   return (
                     <tr key={position.id}>
-                      {directorateMode === 'polo' && (
+                      {directorateMode === 'polo' && !isPoloScoped && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {position.polo_nome || '-'}
                         </td>
@@ -635,7 +759,7 @@ const DiretoriaManagement: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => handleEdit(position)}
-                          disabled={directorateMode === 'polo' && !isDiretorGeral}
+                          disabled={directorateMode === 'polo' && !canManagePoloDirectorate}
                         >
                           <Edit2 className="h-3 w-3" />
                         </Button>
@@ -643,7 +767,7 @@ const DiretoriaManagement: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => toggleStatus(position.id)}
-                          disabled={directorateMode === 'polo' && !isDiretorGeral}
+                          disabled={directorateMode === 'polo' && !canManagePoloDirectorate}
                         >
                           {position.status === 'ativa' ? 'Desativar' : 'Ativar'}
                         </Button>
@@ -668,14 +792,78 @@ const DiretoriaManagement: React.FC = () => {
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              {directorateMode === 'polo' && !editingPosition && (
+                <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="isNewUser"
+                    checked={isNewUser}
+                    onChange={(e) => {
+                      setIsNewUser(e.target.checked);
+                      if (e.target.checked) setFormData(p => ({ ...p, usuario_id: '' }));
+                    }}
+                    className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isNewUser" className="text-sm font-medium text-blue-800">
+                    Criar novo usuário automaticamente
+                  </label>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4">
-                <Input
-                  label="Nome Completo"
-                  name="nome_completo"
-                  value={formData.nome_completo || ''}
-                  onChange={handleInputChange}
-                  required
-                />
+                {directorateMode === 'polo' && !isNewUser ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Selecionar Usuário Existente
+                    </label>
+                    <select
+                      name="usuario_id"
+                      value={formData.usuario_id || ''}
+                      onChange={(e) => {
+                        const userId = e.target.value;
+                        const selected = availableUsers.find(u => u.id === userId);
+                        setFormData(prev => ({
+                          ...prev,
+                          usuario_id: userId,
+                          nome_completo: selected?.name || '',
+                          telefone: selected?.phone || '',
+                          email: selected?.email || '',
+                        }));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      required
+                      disabled={usersLoading}
+                    >
+                      <option value="">
+                        {usersLoading ? 'Carregando usuários...' : 'Selecione um usuário'}
+                      </option>
+                      {availableUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <Input
+                    label="Nome Completo"
+                    name="nome_completo"
+                    value={formData.nome_completo || ''}
+                    onChange={handleInputChange}
+                    required
+                  />
+                )}
+
+                {(isNewUser || directorateMode === 'geral') && (
+                  <Input
+                    label="CPF (Usado para senha inicial: 6 primeiros dígitos)"
+                    name="cpf"
+                    placeholder="000.000.000-00"
+                    value={formData.cpf || ''}
+                    onChange={handleInputChange}
+                    required={isNewUser}
+                  />
+                )}
                 
                 <Input
                   label="Telefone"

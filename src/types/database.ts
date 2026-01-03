@@ -20,7 +20,7 @@ export type RoleUsuario =
   | 'aluno';
 
 export type StatusAluno = 'pendente' | 'ativo' | 'inativo' | 'concluido';
-export type Sexo = 'M' | 'F' | 'Outro';
+export type Sexo = 'M' | 'F';
 export type TipoParentesco = 'pai' | 'mae' | 'tutor' | 'outro';
 export type Turno = 'manha' | 'tarde' | 'noite';
 export type StatusTurma = 'ativa' | 'inativa' | 'concluida';
@@ -34,7 +34,7 @@ export type MetodoPagamento = 'pix' | 'boleto' | 'cartao' | 'presencial';
 export type StatusPagamento = 'pending' | 'success' | 'failed';
 export type TipoNotificacao = 'sistema' | 'aviso_polo' | 'aviso_turma';
 export type TipoConsentimento = 'uso_imagem' | 'tratamento_dados' | 'comunicacao' | 'outros';
-export type TipoDocumento = 'certidao' | 'rg' | 'cpf' | 'comprovante_residencia' | 'laudo' | 'outro';
+export type TipoDocumento = 'certidao' | 'rg' | 'cpf' | 'comprovante_residencia' | 'laudo' | 'foto' | 'outro';
 export type OwnerType = 'aluno' | 'responsavel' | 'usuario';
 
 // Interfaces de Endereço
@@ -52,23 +52,45 @@ export interface Endereco {
 export interface PreMatricula {
   id: string;
   nome_completo: string;
-  nome_social?: string;
   cpf: string;
   rg?: string;
+  rg_orgao?: string;
+  rg_data_expedicao?: string;
   data_nascimento: string;
   sexo: Sexo;
   naturalidade?: string;
   nacionalidade?: string;
   email_responsavel: string;
   telefone_responsavel: string;
+  nome_responsavel?: string;
+  cpf_responsavel?: string;
+  tipo_parentesco?: TipoParentesco;
   endereco: Endereco;
+  // Explicit Health Fields
+  alergias?: string;
+  restricao_alimentar?: string;
+  medicacao_continua?: string;
+  doencas_cronicas?: string;
+  contato_emergencia_nome?: string;
+  contato_emergencia_telefone?: string;
+  convenio_medico?: string;
+  hospital_preferencia?: string;
+  autorizacao_medica?: boolean;
+  // Second Guardian
+  nome_responsavel_2?: string;
+  cpf_responsavel_2?: string;
+  telefone_responsavel_2?: string;
+  email_responsavel_2?: string;
+  tipo_parentesco_2?: string;
   saude?: any;
   responsaveis?: any[];
   polo_id: string;
   nivel_id?: string;
   escola_origem?: string;
   ano_escolar?: string;
+  observacoes?: string;
   status: StatusPreMatricula;
+  metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
 }
@@ -176,13 +198,14 @@ export interface Aluno {
   id: string;
   usuario_id?: string;
   nome: string;
-  nome_social?: string;
   data_nascimento: string;
   sexo: Sexo;
   nacionalidade?: string;
   naturalidade?: string;
   cpf?: string;
   rg?: string;
+  rg_orgao?: string;
+  rg_data_expedicao?: string;
   certidao_numero?: string;
   endereco: Endereco;
   foto_url?: string;
@@ -208,6 +231,12 @@ export interface Aluno {
   serie?: string;
   dificuldades_aprendizagem?: boolean;
   descricao_dificuldades?: string;
+  // Responsáveis
+  nome_responsavel_2?: string;
+  cpf_responsavel_2?: string;
+  telefone_responsavel_2?: string;
+  email_responsavel_2?: string;
+  tipo_parentesco_2?: string;
   responsaveis?: any[]; // Array de responsáveis unificado
   data_criacao: string;
   data_atualizacao: string;
@@ -423,3 +452,34 @@ export interface ResumoFinanceiroAluno {
   total_pendente_cents: number;
 }
 
+
+export type TipoCertificado = 'modulo' | 'curso_completo' | 'participacao';
+
+export interface Certificado {
+  id: string;
+  aluno_id: string;
+  modulo_id?: string;
+  turma_id?: string;
+  tipo: TipoCertificado;
+  data_emissao: string;
+  codigo_validacao: string;
+  url_arquivo?: string;
+  emitido_por: string;
+  created_at: string;
+  aluno?: { nome: string };
+  modulo?: { tit_modulo: string };
+}
+
+// 22. EVENTOS
+export interface Evento {
+  id: string;
+  titulo: string;
+  descricao?: string;
+  local?: string;
+  data_inicio: string;
+  data_fim?: string;
+  polo_id?: string;
+  criado_por?: string;
+  created_at: string;
+  updated_at: string;
+}

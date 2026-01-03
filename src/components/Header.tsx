@@ -13,7 +13,8 @@ const Header: React.FC = () => {
   const navItems = [
     { path: '/', label: 'Início', needsConfirm: false },
     { path: '/sobre', label: 'Sobre o IBUC', needsConfirm: false },
-    { path: '/materiais', label: 'Matrícula', needsConfirm: false },
+    { path: '/modulos', label: 'Módulos', needsConfirm: false },
+    { path: '/pre-matricula', label: 'Pré-Matrícula', needsConfirm: false },
     { path: '/acesso-aluno', label: 'Área do Aluno', needsConfirm: false, isSpecial: true },
     { path: '/admin', label: 'Área Administrativa', needsConfirm: false, isSpecial: true },
   ];

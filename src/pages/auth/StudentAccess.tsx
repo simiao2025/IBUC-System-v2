@@ -7,8 +7,8 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { User, Lock, BookOpen, Calendar, Award } from 'lucide-react';
-import { AlunosAPI } from '../../services/aluno.service';
-// import { DracmasAPI } from '../../services/dracmas.service';
+import { AlunosAPI } from '../../features/students/aluno.service';
+import { DracmasAPI } from '../../features/finance/dracmas.service';
 
 const StudentAccess: React.FC = () => {
   const { login, currentUser } = useApp();

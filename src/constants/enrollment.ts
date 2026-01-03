@@ -3,10 +3,11 @@ import type { TipoDocumento, StatusPreMatricula } from '../types/database';
 /**
  * Documentos obrigatórios para o processo de pré-matrícula e matrícula
  */
-export const REQUIRED_DOCUMENTS: { type: TipoDocumento; label: string }[] = [
-  { type: 'rg', label: 'Documento de Identidade (RG)' },
-  { type: 'certidao', label: 'Certidão de Nascimento' },
-  { type: 'comprovante_residencia', label: 'Comprovante de Residência' },
+export const REQUIRED_DOCUMENTS: { value: TipoDocumento; label: string }[] = [
+  { value: 'rg', label: 'Documento de Identidade (RG)' },
+  { value: 'certidao', label: 'Certidão de Nascimento' },
+  { value: 'comprovante_residencia', label: 'Comprovante de Residência' },
+  { value: 'foto', label: 'Foto 3x4' },
 ];
 
 /**
@@ -23,9 +24,8 @@ export const PRE_MATRICULA_STATUS_OPTIONS: Array<{ value: StatusPreMatricula; la
  * Opções de gênero (comum em formulários)
  */
 export const GENDER_OPTIONS = [
-  { value: 'male', label: 'Masculino' },
-  { value: 'female', label: 'Feminino' },
-  { value: 'other', label: 'Outro' }
+  { value: 'M', label: 'Masculino' },
+  { value: 'F', label: 'Feminino' },
 ];
 
 /**

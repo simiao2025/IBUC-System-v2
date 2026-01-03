@@ -56,6 +56,7 @@ export class MensalidadesService {
   async listarCobrancas(filtros?: {
     turma_id?: string;
     aluno_id?: string;
+    polo_id?: string;
     status?: string;
   }) {
     let query = this.supabase
@@ -69,6 +70,7 @@ export class MensalidadesService {
       .order('vencimento', { ascending: false });
 
     if (filtros?.aluno_id) query = query.eq('aluno_id', filtros.aluno_id);
+    if (filtros?.polo_id) query = query.eq('polo_id', filtros.polo_id);
     if (filtros?.status) query = query.eq('status', filtros.status);
 
     const { data, error } = await query;

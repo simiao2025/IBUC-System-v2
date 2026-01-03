@@ -100,36 +100,46 @@ export const useAccessControl = () => {
   const canAccessModule = (moduleKey: AdminModuleKey): boolean => {
     if (!currentUser?.adminUser) return false;
 
+    // Acesso ao Financeiro (dracmas/financeiro) restrito à Diretoria Geral
+    if (moduleKey === 'dracmas' || moduleKey === 'dracmas_settings' || moduleKey === 'financeiro') {
+      return ['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral', 'secretario_geral', 'tesoureiro_geral'].includes(currentUser.adminUser.role);
+    }
+
     if (moduleKey === 'polos') {
       return ['diretor_geral', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
     }
 
-    // Secretário Geral: acesso total (exceto Polos)
-    if (currentUser.adminUser.role === 'secretario' && currentUser.adminUser.accessLevel === 'geral') {
-      return true;
-    }
-
-    // Diretoria geral sempre tem acesso total
-    if (['coordenador_geral', 'diretor_geral'].includes(currentUser.adminUser.role)) return true;
+    // Administradores e coordenadores gerais têm acesso total aos demais módulos
+    if (['super_admin', 'admin_geral', 'coordenador_geral', 'diretor_geral', 'secretario_geral'].includes(currentUser.adminUser.role)) return true;
 
     // Diretor/Coordenador de polo: acesso total (limitado ao polo via accessLevel/poloId)
+    // Exceto Financeiro, que já foi tratado acima.
     if (['diretor_polo', 'coordenador_polo'].includes(currentUser.adminUser.role)) return true;
 
     const permissions = getUserPermissions();
     if (!permissions) return true; // fallback: mantém acesso total se não houver configuração
 
     if (permissions.mode === 'full') return true;
-    return Array.isArray(permissions.modules) && permissions.modules.includes(moduleKey);
+    
+    const isExplicitlyAllowed = Array.isArray(permissions.modules) && permissions.modules.includes(moduleKey);
+    
+    // Fallback: se for pré-matrículas e não estiver explícito, permite se tiver acesso a matrículas
+    if (!isExplicitlyAllowed && moduleKey === 'pre-enrollments') {
+      return Array.isArray(permissions.modules) && permissions.modules.includes('enrollments');
+    }
+
+    return isExplicitlyAllowed;
   };
 
   const canManageUsers = () => {
     if (!currentUser?.adminUser) return false;
-    return ['coordenador_geral', 'diretor_geral', 'diretor_polo'].includes(currentUser.adminUser.role);
+    if (canAccessModule('manage_users')) return true;
+    return ['coordenador_geral', 'diretor_geral', 'diretor_polo', 'super_admin', 'admin_geral', 'secretario_geral'].includes(currentUser.adminUser.role);
   };
 
   const canManageStaff = () => {
     if (!currentUser?.adminUser) return false;
-    return ['coordenador_geral', 'diretor_geral', 'coordenador_polo', 'diretor_polo'].includes(currentUser.adminUser.role);
+    return ['super_admin', 'admin_geral', 'coordenador_geral', 'diretor_geral', 'coordenador_polo', 'diretor_polo'].includes(currentUser.adminUser.role);
   };
 
   const canManagePolos = () => {
@@ -139,12 +149,12 @@ export const useAccessControl = () => {
 
   const canViewReports = () => {
     if (!currentUser?.adminUser) return false;
-    return ['coordenador_geral', 'diretor_geral', 'coordenador_polo', 'diretor_polo'].includes(currentUser.adminUser.role);
+    return ['coordenador_geral', 'diretor_geral', 'coordenador_polo', 'diretor_polo', 'secretario_geral', 'secretario_polo', 'tesoureiro_geral', 'tesoureiro_polo', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
   };
 
   const canManageEnrollments = () => {
     if (!currentUser?.adminUser) return false;
-    return ['coordenador_geral', 'diretor_geral', 'coordenador_polo', 'diretor_polo', 'secretario'].includes(currentUser.adminUser.role);
+    return ['coordenador_geral', 'diretor_geral', 'coordenador_polo', 'diretor_polo', 'secretario_geral', 'secretario_polo'].includes(currentUser.adminUser.role);
   };
 
   const getFilteredPolos = (allPolos: any[]) => {

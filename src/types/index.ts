@@ -111,12 +111,14 @@ export type AdminRole =
   | 'admin_geral'
   | 'coordenador_geral'
   | 'diretor_geral'
+  | 'secretario_geral'
+  | 'tesoureiro_geral'
   | 'coordenador_polo'
   | 'diretor_polo'
+  | 'secretario_polo'
+  | 'tesoureiro_polo'
   | 'professor'
-  | 'auxiliar'
-  | 'secretario'
-  | 'tesoureiro';
+  | 'auxiliar';
 
 export type AccessLevel = 'geral' | 'polo_especifico';
 
@@ -131,7 +133,13 @@ export type AdminModuleKey =
   | 'reports'
   | 'dracmas'
   | 'attendance'
-  | 'directorate';
+  | 'pre-enrollments'
+  | 'directorate'
+  | 'manage_users'
+  | 'security'
+  | 'backup'
+  | 'dracmas_settings'
+  | 'financeiro';
 
 export interface AdminPermissions {
   mode: PermissionMode;
@@ -149,6 +157,8 @@ export interface AdminUser {
   poloId?: string; // Para usuários com acesso específico a um polo
   permissions?: AdminPermissions; // Preferencialmente persistido em usuarios.metadata.permissions
   isActive: boolean;
+  qualifications?: string[];
+  hireDate?: string;
   createdAt: string;
   updatedAt: string;
 }

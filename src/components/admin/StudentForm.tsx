@@ -63,7 +63,7 @@ const StudentForm: React.FC<StudentFormProps> = ({
     // Dados Pessoais
     nome: student?.nome || '',
     data_nascimento: student?.data_nascimento || '',
-    sexo: student?.sexo || 'M' as 'M' | 'F' | 'Outro',
+    sexo: student?.sexo || 'M' as 'M' | 'F',
     cpf: student?.cpf || '',
     rg: student?.rg || '',
     naturalidade: student?.naturalidade || '',
@@ -350,7 +350,6 @@ const StudentForm: React.FC<StudentFormProps> = ({
                 options={[
                   { value: 'M', label: 'Masculino' },
                   { value: 'F', label: 'Feminino' },
-                  { value: 'Outro', label: 'Outro' }
                 ]}
               />
               <Input

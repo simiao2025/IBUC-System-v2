@@ -1,0 +1,36 @@
+﻿
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90mC:/Projetos/IBUC-System-v2[39m
+
+ [32mÔ£ô[39m src/services/userService.v2.test.ts[2m > [22mUserServiceV2[2m > [22mmapToAdminUser[2m > [22mshould correctly map backend user to frontend user[32m 6[2mms[22m[39m
+ [32mÔ£ô[39m src/services/userService.v2.test.ts[2m > [22mUserServiceV2[2m > [22mmapToAdminUser[2m > [22mshould handle missing name by using email prefix[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/services/userService.v2.test.ts[2m > [22mUserServiceV2[2m > [22mmapToAdminUser[2m > [22mshould set accessLevel to geral if polo_id is missing[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/services/userService.v2.test.ts[2m > [22mUserServiceV2[2m > [22mlistUsers[2m > [22mshould call api.get and map results[32m 8[2mms[22m[39m
+ [32mÔ£ô[39m src/services/userService.v2.test.ts[2m > [22mUserServiceV2[2m > [22mgetUserByEmail[2m > [22mshould return null on 404 error[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/services/userService.v2.test.ts[2m > [22mUserServiceV2[2m > [22mcreateUser[2m > [22mshould send correct payload to backend[32m 5[2mms[22m[39m
+ [32mÔ£ô[39m src/features/enrollments/matricula.service.test.ts[2m > [22mMatriculaService[2m > [22mlistarMatriculas[2m > [22mdeve listar matriculas com sucesso[32m 8[2mms[22m[39m
+ [32mÔ£ô[39m src/features/enrollments/matricula.service.test.ts[2m > [22mMatriculaService[2m > [22mlistarMatriculas[2m > [22mdeve aplicar filtros de polo e status[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/features/enrollments/matricula.service.test.ts[2m > [22mMatriculaService[2m > [22mbuscarMatriculaPorProtocolo[2m > [22mdeve retornar uma matricula ao buscar por protocolo[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/features/enrollments/matricula.service.test.ts[2m > [22mMatriculaService[2m > [22mbuscarMatriculaPorProtocolo[2m > [22mdeve retornar null se a matricula nao for encontrada[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/features/enrollments/matricula.service.test.ts[2m > [22mMatriculaService[2m > [22matualizarStatusMatricula[2m > [22mdeve chamar o endpoint de aprovar ao definir status como ativa[32m 2[2mms[22m[39m
+ [32mÔ£ô[39m src/features/enrollments/matricula.service.test.ts[2m > [22mMatriculaService[2m > [22matualizarStatusMatricula[2m > [22mdeve chamar o endpoint de recusar ao definir status como recusada[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatCPF[2m > [22mshould format clean CPF string correctly[32m 3[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatCPF[2m > [22mshould handle input with existing non-digit characters[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatCPF[2m > [22mshould handle input with existing non-digit characters[32m 0[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatCEP[2m > [22mshould format clean CEP string correctly[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatCEP[2m > [22mshould truncate extra characters[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatPhone[2m > [22mshould format 10-digit phone[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatPhone[2m > [22mshould format 11-digit phone[32m 0[2mms[22m[39m
+ [32mÔ£ô[39m src/lib/utils.test.ts[2m > [22mUtils: format[2m > [22mformatCurrency[2m > [22mshould format number to BRL[32m 142[2mms[22m[39m
+ [32mÔ£ô[39m src/features/finance/dracmas.service.test.ts[2m > [22mDracmasService[2m > [22mlancarLote[2m > [22mdeve chamar o endpoint de lancamento em lote[32m 9[2mms[22m[39m
+ [32mÔ£ô[39m src/features/finance/dracmas.service.test.ts[2m > [22mDracmasService[2m > [22mgetSaldo[2m > [22mdeve buscar o saldo do aluno[32m 2[2mms[22m[39m
+ [32mÔ£ô[39m src/features/finance/dracmas.service.test.ts[2m > [22mDracmasService[2m > [22mlistarCriterios[2m > [22mdeve listar os criterios de dracmas[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/features/finance/financeiro.service.test.ts[2m > [22mFinanceiroService[2m > [22mgerarCobrancasLote[2m > [22mdeve chamar o endpoint correto com os dados fornecidos[32m 5[2mms[22m[39m
+ [32mÔ£ô[39m src/features/finance/financeiro.service.test.ts[2m > [22mFinanceiroService[2m > [22mlistarCobrancas[2m > [22mdeve listar cobrancas sem filtros[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/features/finance/financeiro.service.test.ts[2m > [22mFinanceiroService[2m > [22mlistarCobrancas[2m > [22mdeve listar cobrancas com filtros[32m 1[2mms[22m[39m
+ [32mÔ£ô[39m src/features/finance/financeiro.service.test.ts[2m > [22mFinanceiroService[2m > [22mconfirmarPagamento[2m > [22mdeve chamar o endpoint de confirmacao[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
+[2m   Start at [22m 10:13:40
+[2m   Duration [22m 10.85s[2m (transform 1.47s, setup 3.26s, import 1.36s, tests 228ms, environment 17.99s)[22m
+

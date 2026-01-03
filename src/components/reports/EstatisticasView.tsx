@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import { RelatorioService } from '../../services/relatorio.service';
-import { Loader2, TrendingUp, Users, GraduationCap } from 'lucide-react';
-import Button from '../../components/ui/Button';
+import { Loader2, TrendingUp, Users, GraduationCap, BarChart } from 'lucide-react';
+import { 
+  BarChart as ReBarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts';
 
 // Nota: Vamos assumir uma interface simples para estatísticas
 // Se quiser usar gráficos (Recharts) podemos adicionar depois. 
@@ -14,20 +26,19 @@ const EstatisticasView: React.FC = () => {
   const [periodo, setPeriodo] = useState('2024-01-01|2024-12-31');
 
   useEffect(() => {
-    loadStats();
+    const loadStatsInternal = async () => {
+      setLoading(true);
+      try {
+        const data = await RelatorioService.estatisticasPorPolo(periodo);
+        setStats(data);
+      } catch (error) {
+        console.error('Erro ao carregar stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadStatsInternal();
   }, [periodo]);
-
-  const loadStats = async () => {
-    setLoading(true);
-    try {
-      const data = await RelatorioService.estatisticasPorPolo(periodo);
-      setStats(data);
-    } catch (error) {
-      console.error('Erro ao carregar stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading && !stats) {
     return <div className="p-8 text-center text-gray-500"><Loader2 className="animate-spin h-8 w-8 mx-auto mb-2" />Carregando dados...</div>;
@@ -43,9 +54,19 @@ const EstatisticasView: React.FC = () => {
     polos: []
   };
 
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+  // Dados para o gráfico de barras (Alunos por Polo)
+  const chartData = data.polos?.map((p: any) => ({
+    name: p.nome,
+    alunos: p.total_alunos,
+    media: parseFloat(p.media) || 0
+  })) || [];
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-between items-center mb-4">
+         <h2 className="text-xl font-bold text-gray-800">Painel de Indicadores</h2>
          <select 
            value={periodo} 
            onChange={e => setPeriodo(e.target.value)}
@@ -57,7 +78,7 @@ const EstatisticasView: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-6 flex items-center space-x-4">
+        <Card className="p-6 flex items-center space-x-4 border-l-4 border-blue-500">
           <div className="p-3 bg-blue-100 rounded-full">
             <Users className="h-6 w-6 text-blue-600" />
           </div>
@@ -67,7 +88,7 @@ const EstatisticasView: React.FC = () => {
           </div>
         </Card>
         
-        <Card className="p-6 flex items-center space-x-4">
+        <Card className="p-6 flex items-center space-x-4 border-l-4 border-green-500">
           <div className="p-3 bg-green-100 rounded-full">
             <GraduationCap className="h-6 w-6 text-green-600" />
           </div>
@@ -77,7 +98,7 @@ const EstatisticasView: React.FC = () => {
           </div>
         </Card>
 
-        <Card className="p-6 flex items-center space-x-4">
+        <Card className="p-6 flex items-center space-x-4 border-l-4 border-red-500">
           <div className="p-3 bg-red-100 rounded-full">
             <TrendingUp className="h-6 w-6 text-red-600 transform rotate-180" />
           </div>
@@ -87,13 +108,64 @@ const EstatisticasView: React.FC = () => {
           </div>
         </Card>
 
-        <Card className="p-6 flex items-center space-x-4">
+        <Card className="p-6 flex items-center space-x-4 border-l-4 border-purple-500">
           <div className="p-3 bg-purple-100 rounded-full">
             <TrendingUp className="h-6 w-6 text-purple-600" />
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Média Geral</p>
             <p className="text-2xl font-bold text-gray-900">{data.media_notas_geral}</p>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+            <BarChart className="h-5 w-5 mr-2 text-blue-500" />
+            Distribuição de Alunos por Polo
+          </h3>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ReBarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip 
+                  cursor={{fill: '#f3f4f6'}}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="alunos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </ReBarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+            <TrendingUp className="h-5 w-5 mr-2 text-purple-500" />
+            Média de Desempenho por Polo
+          </h3>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="media"
+                >
+                  {chartData.map((_entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </Card>
       </div>

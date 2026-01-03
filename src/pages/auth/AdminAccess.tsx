@@ -7,7 +7,7 @@ import Card from '../../components/ui/Card';
 import { Shield, Mail, Lock } from 'lucide-react';
 
 const AdminAccess: React.FC = () => {
-  const { login } = useApp();
+  const { login, showFeedback } = useApp();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -54,9 +54,11 @@ const AdminAccess: React.FC = () => {
       if (success) {
         navigate('/admin/dashboard');
       } else {
+        showFeedback('error', 'Falha na Autenticação', 'E-mail ou senha incorretos. Verifique se digitou o e-mail cadastrado corretamente.');
         setErrors({ password: 'E-mail ou senha inválidos' });
       }
-    } catch (error) {
+    } catch {
+      showFeedback('error', 'Erro do Sistema', 'Erro ao realizar login. Tente novamente mais tarde.');
       setErrors({ password: 'Erro ao realizar login. Tente novamente.' });
     } finally {
       setLoading(false);
@@ -79,7 +81,7 @@ const AdminAccess: React.FC = () => {
             </h2>
           </div>
           <p className="text-gray-600">
-            Acesso restrito para coordenadores
+            Acesso restrito para Diretoria Geral e Equipes dos Polos
           </p>
         </div>
 

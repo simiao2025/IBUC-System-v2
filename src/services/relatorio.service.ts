@@ -19,6 +19,36 @@ export const RelatoriosAPI = {
     const query = params.toString();
     return api.get(`/relatorios/estatisticas-por-polo${query ? `?${query}` : ''}`);
   },
+  relatorioDracmas: (filtros: any) => {
+    const params = new URLSearchParams();
+    Object.entries(filtros).forEach(([key, value]) => {
+      if (value) params.append(key, value as string);
+    });
+    return api.get(`/relatorios/dracmas?${params.toString()}`);
+  },
+  relatorioListaAlunos: (filtros: any) => {
+    const params = new URLSearchParams();
+    Object.entries(filtros).forEach(([key, value]) => {
+      if (value) params.append(key, value as string);
+    });
+    return api.get(`/relatorios/lista-alunos?${params.toString()}`);
+  },
+  relatorioAtestadoMatricula: (alunoId: string) => api.get(`/relatorios/atestado-matricula?aluno_id=${alunoId}`),
+  relatorioListaChamada: (turmaId: string) => api.get(`/relatorios/lista-chamada?turma_id=${turmaId}`),
+  relatorioConsolidadoFrequencia: (filtros: any) => {
+    const params = new URLSearchParams();
+    Object.entries(filtros).forEach(([key, value]) => {
+      if (value) params.append(key, value as string);
+    });
+    return api.get(`/relatorios/consolidado-frequencia?${params.toString()}`);
+  },
+  relatorioInadimplencia: (filtros: any) => {
+    const params = new URLSearchParams();
+    Object.entries(filtros).forEach(([key, value]) => {
+      if (value) params.append(key, value as string);
+    });
+    return api.get(`/relatorios/inadimplencia?${params.toString()}`);
+  },
 };
 
 export const LgpdAPI = {
@@ -37,6 +67,30 @@ export class RelatorioService {
 
   static async estatisticasPorPolo(periodo?: string) {
     return RelatoriosAPI.estatisticasPorPolo(periodo);
+  }
+
+  static async relatorioDracmas(filtros: any) {
+    return RelatoriosAPI.relatorioDracmas(filtros);
+  }
+
+  static async relatorioListaAlunos(filtros: any) {
+    return RelatoriosAPI.relatorioListaAlunos(filtros);
+  }
+
+  static async relatorioAtestadoMatricula(alunoId: string) {
+    return RelatoriosAPI.relatorioAtestadoMatricula(alunoId);
+  }
+
+  static async relatorioListaChamada(turmaId: string) {
+    return RelatoriosAPI.relatorioListaChamada(turmaId);
+  }
+
+  static async relatorioConsolidadoFrequencia(filtros: any) {
+    return RelatoriosAPI.relatorioConsolidadoFrequencia(filtros);
+  }
+
+  static async relatorioInadimplencia(filtros: any) {
+    return RelatoriosAPI.relatorioInadimplencia(filtros);
   }
 }
 

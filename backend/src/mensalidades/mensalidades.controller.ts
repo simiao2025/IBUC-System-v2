@@ -19,11 +19,13 @@ export class MensalidadesController {
   listarCobrancas(
     @Query('turma_id') turmaId?: string,
     @Query('aluno_id') alunoId?: string,
+    @Query('polo_id') poloId?: string,
     @Query('status') status?: string,
   ) {
     return this.service.listarCobrancas({ 
       turma_id: turmaId, 
       aluno_id: alunoId, 
+      polo_id: poloId,
       status 
     });
   }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { Polo } from '../../types';
 import { PoloService } from '../../services/polo.service';
@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 
 const PoloManagement: React.FC = () => {
-  const { polos, addPolo, updatePolo, deletePolo } = useApp();
+  const { polos, addPolo, updatePolo, deletePolo, showFeedback, showConfirm } = useApp();
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editingPolo, setEditingPolo] = useState<Polo | null>(null);
   const [saving, setSaving] = useState(false);
@@ -102,7 +103,7 @@ const PoloManagement: React.FC = () => {
 
   const handleSubmitAsync = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     const buildCodigo = () => {
@@ -171,30 +172,48 @@ const PoloManagement: React.FC = () => {
           status: statusAtual,
         } as any);
         updatePolo(editingPolo.id, mapDbPoloToUi(atualizado as unknown as DbPolo));
+        showFeedback('success', 'Sucesso', 'Polo atualizado com sucesso!');
+        setEditingPolo(null);
       } else {
         const criado = await PoloService.criarPolo(dtoBase as any);
-        addPolo(mapDbPoloToUi(criado as unknown as DbPolo));
+        const newPolo = mapDbPoloToUi(criado as unknown as DbPolo);
+        addPolo(newPolo);
+        showFeedback('success', 'Sucesso', 'Polo cadastrado com sucesso!');
+
+        // Pergunta se deseja cadastrar a Diretoria
+        showConfirm(
+          'Diretoria do Polo',
+          'Polo cadastrado com sucesso! Deseja cadastrar a Diretoria (Diretor, Coordenador, etc.) deste novo polo agora?',
+          () => {
+            navigate(`/admin/diretoria?poloId=${newPolo.id}&mode=polo`);
+          }
+        );
       }
 
       resetForm();
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Erro ao salvar polo:', error);
-      alert((error as Error)?.message || 'Erro ao salvar polo. Verifique o console.');
+      showFeedback('error', 'Erro', error.message || 'Erro ao salvar polo. Verifique o console.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este polo?')) return;
-
-    try {
-      await PoloService.deletarPolo(id);
-      deletePolo(id);
-    } catch (error: unknown) {
-      console.error('Erro ao deletar polo:', error);
-      alert((error as Error)?.message || 'Erro ao deletar polo. Verifique o console.');
-    }
+  const handleDeletePolo = (poloId: string) => {
+    showConfirm(
+      'Confirmar Exclusão',
+      'Tem certeza que deseja excluir este polo? Esta ação não pode ser desfeita.',
+      async () => {
+        try {
+          await PoloService.deletarPolo(poloId);
+          deletePolo(poloId);
+          showFeedback('success', 'Sucesso', 'Polo deletado com sucesso!');
+        } catch (error: any) {
+          console.error('Erro ao deletar polo:', error);
+          showFeedback('error', 'Erro', error.message || 'Erro ao deletar polo. Verifique o console.');
+        }
+      }
+    );
   };
 
   const stateOptions = [
@@ -237,9 +256,10 @@ const PoloManagement: React.FC = () => {
       });
 
       updatePolo(polo.id, mapDbPoloToUi(atualizado as unknown as DbPolo));
-    } catch (error: unknown) {
+      showFeedback('success', 'Sucesso', `Polo ${novoStatus === 'ativo' ? 'ativado' : 'desativado'} com sucesso!`);
+    } catch (error: any) {
       console.error('Erro ao alterar status do polo:', error);
-      alert((error as Error)?.message || 'Erro ao alterar status do polo. Verifique o console.');
+      showFeedback('error', 'Erro', error.message || 'Erro ao alterar status do polo. Verifique o console.');
     } finally {
       setSaving(false);
     }
@@ -340,7 +360,7 @@ const PoloManagement: React.FC = () => {
                   label="Estado"
                   name="state"
                   value={formData.state}
-                  onChange={handleInputChange}
+                  onChange={(val) => setFormData(prev => ({ ...prev, state: val }))}
                   options={stateOptions}
                   error={errors.state}
                   required
@@ -491,7 +511,7 @@ const PoloManagement: React.FC = () => {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => handleDelete(polo.id)}
+                      onClick={() => handleDeletePolo(polo.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

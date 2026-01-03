@@ -4,7 +4,7 @@ import Select from '../../components/ui/Select';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { RelatorioService } from '../../services/relatorio.service';
-import { AlunosAPI } from '../../services/aluno.service';
+import { AlunosAPI } from '../../features/students/aluno.service';
 import { TurmasAPI } from '../../services/turma.service';
 import { Loader2, FileText, Download } from 'lucide-react';
 

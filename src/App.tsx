@@ -1,4 +1,5 @@
 import React from 'react';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import { RouterProvider } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { FeedbackProvider } from './context/FeedbackContext';
@@ -6,11 +7,13 @@ import { router } from './router';
 
 function App() {
   return (
-    <AppProvider>
-      <FeedbackProvider>
-        <RouterProvider router={router} />
-      </FeedbackProvider>
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <FeedbackProvider>
+          <RouterProvider router={router} />
+        </FeedbackProvider>
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 

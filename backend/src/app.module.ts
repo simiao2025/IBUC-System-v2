@@ -22,6 +22,8 @@ import { DiretoriaModule } from './diretoria/diretoria.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { PreMatriculasModule } from './pre-matriculas/pre-matriculas.module';
 import { NiveisModule } from './niveis/niveis.module';
+import { CertificadosModule } from './certificados/certificados.module';
+import { EventosModule } from './eventos/eventos.module';
 
 @Module({
   imports: [
@@ -54,9 +56,10 @@ import { NiveisModule } from './niveis/niveis.module';
     UsuariosModule,
     PreMatriculasModule,
     NiveisModule,
+    CertificadosModule,
+    EventosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
-

@@ -17,24 +17,62 @@ import {
   Settings,
   DollarSign,
   ClipboardList,
-  Building2
+  Building2,
+  FileCheck,
+  Clock
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
-  const { students, enrollments, polos, logout, currentUser } = useApp();
+  const { students, enrollments, polos, logout, currentUser, preMatriculas } = useApp();
   const {
-    canManageUsers,
     canManageStaff,
     canManagePolos,
     canViewReports,
-    canManageEnrollments,
+    canAccessModule,
     getFilteredPolos
   } = useAccessControl();
+
 
   const { isDialogOpen, confirmNavigation, handleConfirm, handleCancel } = useNavigationConfirm({
     title: 'Confirmar saída',
     message: 'Você tem certeza que deseja sair do sistema?'
   });
+
+  const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
+  
+  const [certCount, setCertCount] = React.useState<number>(0);
+  const [upcomingEvents, setUpcomingEvents] = React.useState<any[]>([]);
+  const [loadingEvents, setLoadingEvents] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadCertCount = async () => {
+      const { CertificadoService } = await import('../../services/certificado.service');
+      const total = await CertificadoService.contarTotal();
+      setCertCount(total);
+    };
+    loadCertCount();
+  }, []);
+
+  React.useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const { EventosService } = await import('../../services/eventos.service');
+        const today = new Date().toISOString().split('T')[0];
+        const data = await EventosService.listar({
+           date_from: today,
+           limit: 3,
+           polo_id: isPoloScoped ? currentUser?.adminUser?.poloId : undefined,
+           include_geral: true
+        });
+        setUpcomingEvents(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error('Erro ao carregar eventos no dashboard', e);
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+    loadEvents();
+  }, [isPoloScoped, currentUser?.adminUser?.poloId]);
 
   // Filtra polos baseado no nível de acesso do usuário
   const accessiblePolos = getFilteredPolos(polos);
@@ -63,21 +101,29 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Certificados Emitidos',
-      value: '12', // Mock data
+      value: certCount, 
       icon: Award,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50'
+    },
+    {
+
+      title: 'Matrículas Pendentes',
+      value: preMatriculas.filter(p => p.status === 'em_analise').length,
+      icon: Clock,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50'
     }
   ];
 
   const allQuickActions = [
     {
-      title: 'Diretoria Geral',
-      description: 'Cadastro da diretoria executiva do IBUC',
+      title: isPoloScoped ? 'Diretoria do Polo' : 'Diretoria Geral',
+      description: isPoloScoped ? 'Cadastro e gestão da liderança do polo' : 'Cadastro da diretoria executiva do IBUC',
       href: '/admin/diretoria',
       icon: Building2,
       color: 'bg-red-600 hover:bg-red-700',
-      permission: true
+      permission: canAccessModule('directorate')
     },
     {
       title: 'Gerenciar Polos',
@@ -85,7 +131,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/polos',
       icon: MapPin,
       color: 'bg-blue-600 hover:bg-blue-700',
-      permission: canManagePolos
+      permission: canManagePolos()
     },
     {
       title: 'Gerenciar Alunos',
@@ -93,15 +139,15 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/alunos',
       icon: Users,
       color: 'bg-green-600 hover:bg-green-700',
-      permission: true
+      permission: canAccessModule('students')
     },
     {
-      title: 'Equipe de Polos',
-      description: 'Coordenadores, professores e auxiliares',
+      title: isPoloScoped ? 'Equipe do Polo' : 'Equipe de Polos',
+      description: isPoloScoped ? 'Coordenadores, professores e auxiliares do polo' : 'Coordenadores, professores e auxiliares',
       href: '/admin/equipe',
       icon: UserCheck,
       color: 'bg-teal-600 hover:bg-teal-700',
-      permission: canManageStaff
+      permission: canManageStaff()
     },
     {
       title: 'Gerenciar Turmas',
@@ -109,7 +155,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/turmas',
       icon: BookOpen,
       color: 'bg-purple-600 hover:bg-purple-700',
-      permission: true
+      permission: canAccessModule('enrollments')
     },
     {
       title: 'Frequência',
@@ -117,7 +163,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/frequencia',
       icon: ClipboardList,
       color: 'bg-orange-600 hover:bg-orange-700',
-      permission: true
+      permission: canAccessModule('attendance')
     },
     {
       title: 'Financeiro',
@@ -125,7 +171,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/financeiro',
       icon: DollarSign,
       color: 'bg-yellow-600 hover:bg-yellow-700',
-      permission: true
+      permission: canAccessModule('dracmas') // Using dracmas for financial as per AdminModuleKey
     },
     {
       title: 'Relatórios',
@@ -133,7 +179,15 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/relatorios',
       icon: BarChart3,
       color: 'bg-gray-600 hover:bg-gray-700',
-      permission: canViewReports
+      permission: canViewReports()
+    },
+    {
+      title: 'Gerenciamento de Pré-matrículas',
+      description: 'Análise de documentos e conclusão de novas matrículas.',
+      icon: FileCheck,
+      href: '/admin/pre-matriculas',
+      color: 'bg-orange-500',
+      permission: canAccessModule('pre-enrollments')
     },
     {
       title: 'Configurações',
@@ -141,7 +195,7 @@ const AdminDashboard: React.FC = () => {
       href: '/admin/configuracoes',
       icon: Settings,
       color: 'bg-indigo-600 hover:bg-indigo-700',
-      permission: true
+      permission: canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('security') || canAccessModule('backup')
     }
   ];
 
@@ -161,22 +215,42 @@ const AdminDashboard: React.FC = () => {
                 className="h-10 w-auto"
               />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
-                <p className="text-sm text-gray-600">
-                  IBUC - Palmas, TO
-                  {currentUser?.adminUser && (
-                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                      {currentUser.adminUser.role === 'super_admin' && 'Super Admin'}
-                      {currentUser.adminUser.role === 'admin_geral' && 'Admin Geral'}
-                      {currentUser.adminUser.role === 'admin_polo' && 'Admin de Polo'}
-                      {currentUser.adminUser.role === 'coordenador' && 'Coordenador'}
-                      {currentUser.adminUser.role === 'professor' && 'Professor'}
-                      {currentUser.adminUser.role === 'monitor' && 'Monitor'}
-                      {currentUser.adminUser.role === 'secretario' && 'Secretário(a)'}
-                      {currentUser.adminUser.role === 'tesoureiro' && 'Tesoureiro(a)'}
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Painel Administrativo
+                  {currentUser?.adminUser?.poloId && (
+                    <span className="text-blue-600 ml-2">
+                       - <strong>{polos.find(p => p.id === currentUser.adminUser?.poloId)?.name || 'Polo não encontrado'}</strong>
                     </span>
                   )}
-                </p>
+                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+                  <p className="text-sm text-gray-600">
+                    IBUC - Palmas, TO
+                  </p>
+                  {currentUser?.adminUser && (
+                    <div className="flex items-center space-x-2 mt-1 sm:mt-0">
+                      <span className="text-sm font-medium text-gray-700">
+                        Olá, <span className="font-bold">
+                          {currentUser.adminUser.nome_completo || currentUser.adminUser.name || currentUser.adminUser.email || currentUser.email || 'Usuário'}
+                        </span>
+                      </span>
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
+                        {currentUser.adminUser.role === 'super_admin' && 'Super Admin'}
+                        {currentUser.adminUser.role === 'admin_geral' && 'Admin Geral'}
+                        {currentUser.adminUser.role === 'coordenador_geral' && 'Coordenador Geral'}
+                        {currentUser.adminUser.role === 'diretor_geral' && 'Diretor Geral'}
+                        {currentUser.adminUser.role === 'secretario_geral' && 'Secretário(a) Geral'}
+                        {currentUser.adminUser.role === 'tesoureiro_geral' && 'Tesoureiro(a) Geral'}
+                        {currentUser.adminUser.role === 'coordenador_polo' && 'Coordenador do Polo'}
+                        {currentUser.adminUser.role === 'diretor_polo' && 'Diretor do Polo'}
+                        {currentUser.adminUser.role === 'secretario_polo' && 'Secretário(a) do Polo'}
+                        {currentUser.adminUser.role === 'tesoureiro_polo' && 'Tesoureiro(a) do Polo'}
+                        {currentUser.adminUser.role === 'professor' && 'Professor'}
+                        {currentUser.adminUser.role === 'auxiliar' && 'Auxiliar'}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -193,6 +267,27 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Orientation for Polo Director */}
+        {currentUser?.adminUser?.role === 'diretor_polo' && (
+          <Card className="mb-8 border-l-4 border-l-purple-600 bg-purple-50">
+            <div className="flex items-start">
+              <div className="p-2 bg-purple-100 rounded-lg mr-4 underline-offset-4">
+                <UserCheck className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-purple-900">Bem-vindo, Diretor!</h2>
+                <p className="text-sm text-purple-800 mb-4">
+                  Como Diretor do Polo, uma de suas primeiras tarefas é garantir que sua equipe esteja completa. 
+                  Por favor, acesse a gestão de equipe para cadastrar os <strong>Professores</strong> e <strong>Auxiliares</strong> do seu polo.
+                </p>
+                <Button asChild size="sm" variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
+                  <Link to="/admin/equipe">Ir para Equipe do Polo</Link>
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
@@ -266,35 +361,37 @@ const AdminDashboard: React.FC = () => {
               <Calendar className="inline h-5 w-5 mr-2 text-blue-600" />
               Próximos Eventos
             </h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Início das Aulas - Nível I</p>
-                  <p className="text-sm text-gray-600">Igreja Central</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-blue-600 font-medium">15 Fev</p>
-                </div>
+            {loadingEvents ? (
+              <div className="text-gray-500 text-sm p-4 text-center">Carregando eventos...</div>
+            ) : upcomingEvents.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">Nenhum evento próximo</p>
+            ) : (
+              <div className="space-y-3">
+                {upcomingEvents.map((evt: any, idx: number) => {
+                  const date = new Date(evt.data_inicio);
+                  const day = date.getDate();
+                  const month = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+                  const colors = [
+                    { bg: 'bg-blue-50', text: 'text-blue-600' },
+                    { bg: 'bg-yellow-50', text: 'text-yellow-600' },
+                    { bg: 'bg-green-50', text: 'text-green-600' }
+                  ];
+                  const color = colors[idx % colors.length];
+
+                  return (
+                    <div key={evt.id} className={`flex items-center justify-between p-3 ${color.bg} rounded-lg`}>
+                      <div>
+                        <p className="font-medium text-gray-900">{evt.titulo}</p>
+                        <p className="text-sm text-gray-600">{evt.local || 'Local não informado'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm ${color.text} font-medium uppercase`}>{day} {month}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Reunião de Coordenadores</p>
-                  <p className="text-sm text-gray-600">Planejamento semestral</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-yellow-600 font-medium">20 Fev</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Formatura Nível IV</p>
-                  <p className="text-sm text-gray-600">Cerimônia de certificação</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-green-600 font-medium">25 Jun</p>
-                </div>
-              </div>
-            </div>
+            )}
           </Card>
         </div>
       </div>

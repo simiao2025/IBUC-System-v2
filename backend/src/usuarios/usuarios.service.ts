@@ -30,13 +30,49 @@ export interface UpdateUsuarioDto {
   password_hash?: string;
 }
 
+export interface LoginDto {
+  email: string;
+  password: string;
+}
+
+export interface LoginPorCpfDto {
+  cpf: string;
+  password: string;
+}
+
+export interface AlterarSenhaDto {
+  email: string;
+  senhaAtual: string;
+  senhaNova: string;
+}
+
+export interface SolicitarCodigoDto {
+  email: string;
+}
+
+export interface ConfirmarCodigoDto {
+  email: string;
+  codigo: string;
+  senhaNova: string;
+}
+
 @Injectable()
 export class UsuariosService {
   constructor(
     private supabase: SupabaseService,
     private jwtService: JwtService,
     private notificacoesService: NotificacoesService,
-  ) {}
+  ) {
+    const secret = process.env.JWT_SECRET || '';
+    if (secret) {
+      console.log('DEBUG JWT_SECRET Check:');
+      console.log(' - Length:', secret.length);
+      console.log(' - Starts with:', secret.substring(0, 4));
+      console.log(' - Is JWT-like (starts with ey):', secret.startsWith('ey'));
+    } else {
+      console.error('CRITICAL: JWT_SECRET invalid or missing!');
+    }
+  }
 
   private stripSensitiveFields(usuario: any) {
     if (!usuario) return usuario;
@@ -47,7 +83,15 @@ export class UsuariosService {
   private async signToken(usuario: any): Promise<string> {
     const payload = {
       sub: usuario.id,
-      role: usuario.role,
+      aud: 'authenticated', // Required for Supabase RLS
+      role: 'authenticated', // Required for Supabase RLS (auth.role() check)
+      // Custom claims moved to user_metadata as expected by RLS policies
+      user_metadata: {
+        role: usuario.role,
+        polo_id: usuario.polo_id || null,
+      },
+      // Keep root claims for potential backward compatibility (though 'role' is now 'authenticated')
+      app_role: usuario.role, 
       polo_id: usuario.polo_id || null,
     };
     return this.jwtService.signAsync(payload);
@@ -75,7 +119,15 @@ export class UsuariosService {
       throw new BadRequestException('Token inválido');
     }
 
+    // Support both standard JWT and Supabase-compatible JWT
     const userId = decoded?.sub;
+    // If role is 'authenticated', look for business role in user_metadata or app_role
+    // This maintains compatibility with the rest of the application that expects a business role
+    if (decoded?.role === 'authenticated' && decoded?.user_metadata?.role) {
+       // Logic for Supabase-compatible tokens
+       // We don't need to change anything here as we fetch the user from DB below based on userId
+       // The 'me' endpoint returns the DB user object, not the token payload directly.
+    }
     if (!userId) {
       throw new BadRequestException('Token inválido');
     }
@@ -164,18 +216,23 @@ export class UsuariosService {
   }
 
   private async buscarUsuarioPorCpf(cpf: string) {
-    const { data, error } = await this.supabase
+    const { data: usuario, error } = await this.supabase
       .getAdminClient()
       .from('usuarios')
-      .select('*')
+      .select('*, aluno:alunos!usuario_id(id)')
       .eq('cpf', cpf)
       .single();
 
-    if (error || !data) {
+    if (error || !usuario) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    return data;
+    // Flatten aluno_id for the frontend
+    if (usuario.aluno && (usuario.aluno as any[]).length > 0) {
+      usuario.aluno_id = (usuario.aluno as any[])[0].id;
+    }
+
+    return usuario;
   }
 
   /**
@@ -230,9 +287,14 @@ export class UsuariosService {
     }
 
     // Comparação principal usando bcrypt
+    console.log(`[LOGIN DEBUG] Attempting login for: ${email}`);
     const senhaCorretaBcrypt = await bcrypt.compare(password, usuario.password_hash);
+    
+    console.log(`[LOGIN DEBUG] User found. ID: ${usuario.id}, Role: ${usuario.role}`);
+    console.log(`[LOGIN DEBUG] Password match: ${senhaCorretaBcrypt}`);
 
     if (!senhaCorretaBcrypt) {
+      console.warn(`[LOGIN DEBUG] FAILED: Password mismatch for ${email}`);
       throw new BadRequestException('Credenciais inválidas');
     }
 
@@ -323,16 +385,21 @@ export class UsuariosService {
 
   async buscarUsuarioPorId(id: string) {
     try {
-      // Primeiro, busque o usuário
+      // Primeiro, busque o usuário com o aluno_id opcional
       const { data: usuario, error: usuarioError } = await this.supabase
         .getAdminClient()
         .from('usuarios')
-        .select('*')
+        .select('*, aluno:alunos!usuario_id(id)')
         .eq('id', id)
         .single();
 
       if (usuarioError || !usuario) {
         throw new NotFoundException('Usuário não encontrado');
+      }
+
+      // Flatten aluno_id for the frontend
+      if (usuario.aluno && (usuario.aluno as any[]).length > 0) {
+        usuario.aluno_id = (usuario.aluno as any[])[0].id;
       }
 
       // Se o usuário tiver um polo_id, busque as informações do polo
@@ -366,7 +433,8 @@ export class UsuariosService {
   }
 
   async buscarUsuarioPorEmail(email: string) {
-    const { data, error } = await this.supabase
+    // 1. Buscar usuário básico (sem join)
+    const { data: usuario, error } = await this.supabase
       .getAdminClient()
       .from('usuarios')
       .select('*')
@@ -374,18 +442,32 @@ export class UsuariosService {
       .single();
 
     if (error) {
-      // Log de diagnóstico para entender por que a busca por email está falhando
       console.error('Erro ao buscar usuário por email no Supabase', {
         email,
         supabaseError: error,
       });
     }
 
-    if (error || !data) {
+    if (error || !usuario) {
       throw new NotFoundException('Usuário não encontrado');
     }
 
-    return data;
+    // 2. Se for aluno, buscar o ID do aluno separadamente
+    // Isso evita problemas de JOIN/FK para usuários não-alunos (admins, etc)
+    if (usuario.role === 'aluno') {
+      const { data: alunoData } = await this.supabase
+        .getAdminClient()
+        .from('alunos')
+        .select('id')
+        .eq('usuario_id', usuario.id)
+        .single();
+      
+      if (alunoData) {
+        usuario.aluno_id = alunoData.id;
+      }
+    }
+
+    return usuario;
   }
 
   async atualizarUsuario(id: string, dto: UpdateUsuarioDto) {
@@ -641,10 +723,10 @@ export class UsuariosService {
       { value: 'tesoureiro_geral', label: 'Tesoureiro(a) Geral' },
       { value: 'diretor_polo', label: 'Diretor de Polo' },
       { value: 'coordenador_polo', label: 'Coordenador de Polo' },
+      { value: 'secretario_polo', label: 'Secretário(a) do Polo' },
+      { value: 'tesoureiro_polo', label: 'Tesoureiro(a) do Polo' },
       { value: 'professor', label: 'Professor' },
       { value: 'auxiliar', label: 'Auxiliar' },
-      { value: 'secretario', label: 'Secretário(a)' },
-      { value: 'tesoureiro', label: 'Tesoureiro(a)' },
       { value: 'aluno', label: 'Aluno' },
       { value: 'responsavel', label: 'Responsável' },
     ];

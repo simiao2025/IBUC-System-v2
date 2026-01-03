@@ -25,9 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
 
   // Se requer admin, verifica se o usuário tem permissão de admin
   if (requireAdmin) {
-    const isAdmin = currentUser?.adminUser?.role === 'super_admin' || 
-                    currentUser?.adminUser?.role === 'admin_geral' ||
-                    currentUser?.adminUser?.role === 'admin_polo';
+    const isAdmin = currentUser?.role === 'admin';
     
     if (!isAdmin) {
       // Redireciona para login admin com o caminho de retorno

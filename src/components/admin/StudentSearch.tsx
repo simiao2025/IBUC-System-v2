@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, User } from 'lucide-react';
-import { AlunoService } from '../../services/aluno.service';
+import { AlunosAPI } from '../../features/students/aluno.service';
 import type { Aluno } from '../../types/database';
 
 interface StudentSearchProps {
@@ -8,13 +8,15 @@ interface StudentSearchProps {
   onChange: (studentId: string) => void;
   placeholder?: string;
   className?: string;
+  poloId?: string;
 }
 
 const StudentSearch: React.FC<StudentSearchProps> = ({
   value,
   onChange,
   placeholder = "Buscar aluno...",
-  className = ""
+  className = "",
+  poloId
 }) => {
   const [students, setStudents] = useState<Aluno[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
     const carregarAlunos = async () => {
       try {
         setLoading(true);
-        const data = await AlunoService.listarAlunos({});
+        const data = await AlunosAPI.listar({ polo_id: poloId });
         setStudents(data || []);
       } catch (error) {
         console.error('Erro ao carregar alunos:', error);
@@ -37,7 +39,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
     };
 
     carregarAlunos();
-  }, []);
+  }, [poloId]);
 
   // Filtrar alunos em ordem alfabética
   const filteredStudents = useMemo(() => {

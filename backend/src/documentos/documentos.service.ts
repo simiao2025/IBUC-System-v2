@@ -10,7 +10,7 @@ export class DocumentosService {
       throw new BadRequestException('Nenhum arquivo enviado');
     }
 
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'matriculas';
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
 
     const uploads: {
@@ -55,7 +55,7 @@ export class DocumentosService {
   }
 
   async listarDocumentosMatricula(matriculaId: string) {
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'matriculas';
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
 
     const prefix = `matriculas/${matriculaId}`;
@@ -105,7 +105,7 @@ export class DocumentosService {
       throw new BadRequestException('Nenhum arquivo enviado');
     }
 
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'matriculas';
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
 
     const uploads: {
@@ -152,39 +152,71 @@ export class DocumentosService {
   }
 
   async listarDocumentosPreMatricula(preMatriculaId: string) {
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'matriculas';
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
 
-    const prefix = `pre-matriculas/${preMatriculaId}`;
+    const rootPrefix = `pre-matriculas/${preMatriculaId}`;
 
-    const { data, error } = await client.storage.from(bucket).list(prefix, {
+    // Listar itens na raiz para encontrar as "pastas" (document types)
+    const { data: rootItems, error: rootError } = await client.storage.from(bucket).list(rootPrefix, {
       limit: 100,
       offset: 0,
     });
 
-    if (error) {
-      throw new BadRequestException(`Erro ao listar documentos: ${error.message}`);
+    if (rootError) {
+      throw new BadRequestException(`Erro ao listar documentos: ${rootError.message}`);
     }
 
-    const arquivos = (data || []).map((item) => {
-      const path = `${prefix}/${item.name}`;
-      const {
-        data: { publicUrl },
-      } = client.storage.from(bucket).getPublicUrl(path);
+    const allArquivos = [];
 
-      return {
-        name: item.name,
-        path,
-        url: publicUrl,
-        size: item.metadata?.size ?? undefined,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      };
-    });
+    // Para cada item encontrado na raiz
+    for (const item of (rootItems || [])) {
+      // Se não tiver id, geralmente significa que é uma pasta na API do Supabase Storage
+      if (!item.id) {
+        const subPrefix = `${rootPrefix}/${item.name}`;
+        const { data: subItems, error: subError } = await client.storage.from(bucket).list(subPrefix, {
+          limit: 100,
+          offset: 0,
+        });
+
+        if (!subError && subItems) {
+          for (const subItem of subItems) {
+            const path = `${subPrefix}/${subItem.name}`;
+            const {
+              data: { publicUrl },
+            } = client.storage.from(bucket).getPublicUrl(path);
+
+            allArquivos.push({
+              name: subItem.name,
+              path,
+              url: publicUrl,
+              size: subItem.metadata?.size ?? undefined,
+              created_at: subItem.created_at,
+              updated_at: subItem.updated_at,
+            });
+          }
+        }
+      } else {
+        // Arquivo na raiz
+        const path = `${rootPrefix}/${item.name}`;
+        const {
+          data: { publicUrl },
+        } = client.storage.from(bucket).getPublicUrl(path);
+
+        allArquivos.push({
+          name: item.name,
+          path,
+          url: publicUrl,
+          size: item.metadata?.size ?? undefined,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+        });
+      }
+    }
 
     return {
       pre_matricula_id: preMatriculaId,
-      arquivos,
+      arquivos: allArquivos,
     };
   }
 }

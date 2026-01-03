@@ -3,9 +3,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 class ApiClient {
   private baseUrl: string;
+  private onError: ((error: Error) => void) | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+  }
+
+  public setErrorHandler(handler: (error: Error) => void) {
+    this.onError = handler;
   }
 
   private async request<T>(
@@ -35,8 +40,14 @@ class ApiClient {
     const response = await fetch(url, config);
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+      const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      
+      if (this.onError) {
+        this.onError(error);
+      }
+      
+      throw error;
     }
 
     if (response.status === 204) {

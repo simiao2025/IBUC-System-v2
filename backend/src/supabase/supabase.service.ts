@@ -12,6 +12,11 @@ export class SupabaseService {
     const anonKey = this.configService.get<string>('SUPABASE_ANON_KEY');
     const serviceRoleKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
 
+    console.log('Supabase Config Check:');
+    console.log('URL:', url);
+    console.log('Anon Key Present:', !!anonKey, 'Length:', anonKey?.length);
+    console.log('Service Key Present:', !!serviceRoleKey, 'Length:', serviceRoleKey?.length);
+
     this.client = createClient(url, anonKey);
     this.adminClient = createClient(url, serviceRoleKey, {
       auth: {
@@ -27,6 +32,23 @@ export class SupabaseService {
 
   getAdminClient(): SupabaseClient {
     return this.adminClient;
+  }
+
+  getClientWithToken(token: string): SupabaseClient {
+    const url = this.configService.get<string>('SUPABASE_URL');
+    const anonKey = this.configService.get<string>('SUPABASE_ANON_KEY');
+
+    return createClient(url, anonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
   }
 }
 

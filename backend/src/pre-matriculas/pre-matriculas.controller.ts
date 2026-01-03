@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, Patch, Delete } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PreMatriculasService } from './pre-matriculas.service';
-import { CreatePreMatriculaDto, UpdatePreMatriculaStatusDto } from './dto';
+import { CreatePreMatriculaDto, UpdatePreMatriculaStatusDto, UpdatePreMatriculaDto } from './dto';
 
 @ApiTags('Pré-matrículas')
 @Controller('pre-matriculas')
@@ -18,6 +18,18 @@ export class PreMatriculasController {
   @ApiOperation({ summary: 'Listar pré-matrículas' })
   async listar(@Query('polo_id') poloId?: string, @Query('status') status?: string) {
     return this.service.listar(poloId, status);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar dados da pré-matrícula' })
+  async atualizar(@Param('id') id: string, @Body() dto: UpdatePreMatriculaDto) {
+    return this.service.atualizar(id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Remover pré-matrícula permanentemente' })
+  async remover(@Param('id') id: string) {
+    return this.service.remover(id);
   }
 
   @Put(':id/status')
