@@ -1,0 +1,16 @@
+// Worker standalone para rodar em processo separado
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from '../app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.createApplicationContext(AppModule);
+  console.log('✅ Worker iniciado');
+}
+
+bootstrap();
+
+
+
+
+
+

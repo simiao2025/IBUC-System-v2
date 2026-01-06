@@ -1,0 +1,13 @@
+-- ============================================
+-- IBUC System - Seed Data para Diretorias
+-- ============================================
+-- 
+-- NOTA: Dados de demonstração removidos
+-- 
+-- Para testes com dados reais:
+-- 1. Crie os usuários através da interface administrativa
+-- 2. Crie as diretorias através da interface administrativa
+-- 
+-- Este arquivo está vazio para permitir que você crie
+-- os dados reais através da interface do sistema.
+-- ============================================
