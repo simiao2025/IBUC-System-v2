@@ -76,6 +76,40 @@ export class DocumentosController {
   async listarDocumentosPreMatricula(@Param('id') id: string) {
     return this.service.listarDocumentosPreMatricula(id);
   }
+
+  @Post('alunos/:id')
+  @ApiOperation({ summary: 'Upload de documentos do aluno' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('files', 20, {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+      },
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['application/pdf'];
+        const isImage = typeof file.mimetype === 'string' && file.mimetype.startsWith('image/');
+        if (isImage || allowed.includes(file.mimetype)) {
+          cb(null, true);
+          return;
+        }
+        cb(new Error('Tipo de arquivo não suportado. Envie PDF ou imagem.'), false);
+      },
+    }),
+  )
+  async uploadDocumentosAluno(
+    @Param('id') id: string,
+    @Query('tipo') tipo: string | undefined,
+    @UploadedFiles() files: any[],
+  ) {
+    return this.service.uploadDocumentosAluno(id, tipo, files);
+  }
+
+  @Get('alunos/:id')
+  @ApiOperation({ summary: 'Listar documentos do aluno' })
+  async listarDocumentosAluno(@Param('id') id: string) {
+    return this.service.listarDocumentosAluno(id);
+  }
 }
 
 

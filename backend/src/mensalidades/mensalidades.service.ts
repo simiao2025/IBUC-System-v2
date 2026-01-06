@@ -51,6 +51,52 @@ export class MensalidadesService {
   }
 
   /**
+   * Gera cobranças de material apenas para os alunos aprovados no encerramento do módulo
+   */
+  async gerarCobrancasMaterialAprovados(
+    alunoIds: string[], 
+    titulo: string, 
+    valorCents: number, 
+    vencimento: string
+  ) {
+    if (alunoIds.length === 0) return { total_gerado: 0 };
+
+    const client = this.supabase.getAdminClient();
+
+    // 1. Buscar polos dos alunos para vincular corretamente
+    const { data: alunos, error: alunosError } = await client
+      .from('alunos')
+      .select('id, polo_id')
+      .in('id', alunoIds);
+
+    if (alunosError) throw new BadRequestException(alunosError.message);
+
+    // 2. Criar registros de cobrança
+    const cobrancas = alunos.map(a => ({
+      aluno_id: a.id,
+      polo_id: a.polo_id,
+      titulo: titulo,
+      valor_cents: valorCents,
+      vencimento: vencimento,
+      status: 'pendente',
+      desconto_cents: 0,
+      juros_cents: 0,
+    }));
+
+    const { data, error } = await client
+      .from('mensalidades')
+      .insert(cobrancas)
+      .select();
+
+    if (error) throw new BadRequestException(error.message);
+
+    return {
+      total_gerado: data.length,
+      cobrancas: data,
+    };
+  }
+
+  /**
    * Listar cobranças com filtros
    */
   async listarCobrancas(filtros?: {

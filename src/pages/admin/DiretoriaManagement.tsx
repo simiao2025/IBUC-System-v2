@@ -249,8 +249,8 @@ const DiretoriaManagement: React.FC = () => {
 
       let finalUsuarioId = formData.usuario_id || undefined;
 
-      // Se for novo usuário, criar primeiro
-      if (isNewUser && !editingPosition) {
+      // Se for novo usuário (ou diretoria geral sem usuário selecionado), criar primeiro
+      if ((isNewUser || directorateMode === 'geral') && !editingPosition && !finalUsuarioId) {
         if (!formData.cpf) {
           alert('CPF é obrigatório para criar um novo usuário (usado para gerar a senha inicial).');
           return;
@@ -300,6 +300,7 @@ const DiretoriaManagement: React.FC = () => {
             nome_completo: formData.nome_completo,
             telefone: formData.telefone,
             email: formData.email,
+            cpf: formData.cpf,
             cargo: cargoBackend,
             data_inicio: formData.data_inicio,
             usuario_id: finalUsuarioId,
@@ -309,6 +310,7 @@ const DiretoriaManagement: React.FC = () => {
             nome_completo: formData.nome_completo,
             telefone: formData.telefone,
             email: formData.email,
+            cpf: formData.cpf,
             cargo: cargoBackend,
             data_inicio: formData.data_inicio,
             usuario_id: finalUsuarioId,
@@ -323,6 +325,7 @@ const DiretoriaManagement: React.FC = () => {
             usuario_id: finalUsuarioId,
             cargo: cargoBackend,
             nome_completo: formData.nome_completo,
+            cpf: formData.cpf,
             telefone: formData.telefone,
             email: formData.email,
             data_inicio: formData.data_inicio,
@@ -332,6 +335,7 @@ const DiretoriaManagement: React.FC = () => {
             usuario_id: finalUsuarioId,
             cargo: cargoBackend,
             nome_completo: formData.nome_completo,
+            cpf: formData.cpf,
             telefone: formData.telefone,
             email: formData.email,
             data_inicio: formData.data_inicio,
@@ -441,6 +445,7 @@ const DiretoriaManagement: React.FC = () => {
             alert('Apenas Diretor Geral / Admin Geral pode adicionar cargos na diretoria do polo.');
             return;
           }
+          setIsNewUser(directorateMode === 'geral');
           setShowForm(true);
         }}
       />
@@ -553,6 +558,7 @@ const DiretoriaManagement: React.FC = () => {
                     size="sm"
                     onClick={() => {
                       setFormData({ ...formData, cargo: 'diretor_geral' });
+                      setIsNewUser(true);
                       setShowForm(true);
                     }}
                   >
@@ -606,6 +612,7 @@ const DiretoriaManagement: React.FC = () => {
                     size="sm"
                     onClick={() => {
                       setFormData({ ...formData, cargo: 'coordenador_geral' });
+                      setIsNewUser(true);
                       setShowForm(true);
                     }}
                   >
@@ -659,6 +666,7 @@ const DiretoriaManagement: React.FC = () => {
                     size="sm"
                     onClick={() => {
                       setFormData({ ...formData, cargo: 'secretario_geral' });
+                      setIsNewUser(true);
                       setShowForm(true);
                     }}
                   >
@@ -936,6 +944,7 @@ const DiretoriaManagement: React.FC = () => {
                       nome_completo: '',
                       telefone: '',
                       email: '',
+                      cpf: '',
                       cargo: directorateMode === 'polo' ? 'diretor' : 'secretario_geral',
                       data_inicio: new Date().toISOString().split('T')[0],
                       usuario_id: '',

@@ -6,6 +6,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { UserServiceV2 } from '../../services/userService.v2';
 import { PoloService } from '../../services/polo.service';
+import { DiretoriaAPI } from '../../services/diretoria.service';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
@@ -32,6 +33,15 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
   const [accessLevels, setAccessLevels] = useState<{ value: string; label: string }[]>([]);
   const [polosOptions, setPolosOptions] = useState<{ id: string; name: string }[]>([]);
+  const [directoratePeople, setDirectoratePeople] = useState<Array<{
+    key: string;
+    nome_completo: string;
+    telefone?: string;
+    email?: string;
+    cpf?: string;
+    origem: 'geral' | 'polo';
+  }>>([]);
+  const [directoratePeopleLoading, setDirectoratePeopleLoading] = useState(false);
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,6 +62,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     isActive: true
   };
   const [newUser, setNewUser] = useState(initialNewUser);
+  const [selectedAdminTemplateId, setSelectedAdminTemplateId] = useState<string>('');
 
   const moduleOptions = [
     { key: 'directorate', label: 'Diretoria Geral' },
@@ -144,6 +155,75 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       setLoading(false);
     }
   }, [filterRole, filterAccessLevel, searchTerm, creatorIsPoloScoped, currentAdmin?.poloId, showFeedback]);
+
+  const loadDirectoratePeople = useCallback(async () => {
+    try {
+      setDirectoratePeopleLoading(true);
+
+      const [geralResp, poloResp] = await Promise.all([
+        DiretoriaAPI.listarGeral(true),
+        creatorIsPoloScoped && currentAdmin?.poloId
+          ? DiretoriaAPI.listarPolo(currentAdmin.poloId, true)
+          : DiretoriaAPI.listarPolo(undefined, true),
+      ]);
+
+      const geralList = (Array.isArray(geralResp) ? geralResp : []) as any[];
+      const poloList = (Array.isArray(poloResp) ? poloResp : []) as any[];
+
+      const mapped = [
+        ...geralList.map((r) => ({
+          key: `geral:${String(r.id)}`,
+          nome_completo: String(r.nome_completo ?? ''),
+          telefone: r.telefone ? String(r.telefone) : undefined,
+          email: r.email ? String(r.email) : undefined,
+          cpf: r.cpf ? String(r.cpf) : undefined,
+          origem: 'geral' as const,
+        })),
+        ...poloList.map((r) => ({
+          key: `polo:${String(r.id)}`,
+          nome_completo: String(r.nome_completo ?? ''),
+          telefone: r.telefone ? String(r.telefone) : undefined,
+          email: r.email ? String(r.email) : undefined,
+          cpf: r.cpf ? String(r.cpf) : undefined,
+          origem: 'polo' as const,
+        })),
+      ].filter(p => p.nome_completo);
+
+      // dedupe por email/cpf/nome
+      const unique = new Map<string, typeof mapped[number]>();
+      for (const p of mapped) {
+        const dedupeKey = (p.email || p.cpf || p.nome_completo).toLowerCase();
+        if (!unique.has(dedupeKey)) unique.set(dedupeKey, p);
+      }
+
+      setDirectoratePeople(Array.from(unique.values()));
+    } catch (error) {
+      console.error('Error loading directorate people:', error);
+      setDirectoratePeople([]);
+    } finally {
+      setDirectoratePeopleLoading(false);
+    }
+  }, [creatorIsPoloScoped, currentAdmin?.poloId]);
+
+  const handleSelectAdminTemplate = (templateId: string) => {
+    setSelectedAdminTemplateId(templateId);
+    if (!templateId) return;
+    const found = directoratePeople.find(p => p.key === templateId);
+    if (!found) return;
+
+    setNewUser(prev => ({
+      ...prev,
+      name: found.nome_completo || prev.name,
+      email: found.email || prev.email,
+      cpf: found.cpf || prev.cpf,
+      phone: found.telefone || prev.phone,
+    }));
+  };
+
+  const resetNewUserForm = () => {
+    setSelectedAdminTemplateId('');
+    setNewUser(initialNewUser);
+  };
 
   useEffect(() => {
     loadOptions();
@@ -265,7 +345,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
           <h2 className="text-lg font-semibold text-gray-900">Usuários do Sistema</h2>
           <p className="text-sm text-gray-500">Total de {adminUsers.length} usuários encontrados</p>
         </div>
-        <Button onClick={() => setShowUserForm(true)}>
+        <Button onClick={() => { resetNewUserForm(); setShowUserForm(true); void loadDirectoratePeople(); }}>
           <Plus className="h-4 w-4 mr-2" /> Novo Usuário
         </Button>
       </div>
@@ -363,11 +443,32 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <Input 
-                label="Nome Completo" 
-                value={editingUser?.name ?? newUser.name} 
-                onChange={(e) => editingUser ? setEditingUser({...editingUser, name: e.target.value}) : setNewUser({...newUser, name: e.target.value})}
-              />
+              {editingUser ? (
+                <Input 
+                  label="Nome Completo" 
+                  value={editingUser.name} 
+                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                />
+              ) : (
+                <Select
+                  label="Nome Completo"
+                  value={selectedAdminTemplateId}
+                  onChange={(val) => handleSelectAdminTemplate(val)}
+                >
+                  <option value="">Selecione um nome (Diretoria Geral/Polo)</option>
+                  {directoratePeopleLoading && (
+                    <option value="">Carregando...</option>
+                  )}
+                  {!directoratePeopleLoading && directoratePeople
+                    .slice()
+                    .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''))
+                    .map(p => (
+                      <option key={p.key} value={p.key}>
+                        {p.nome_completo || 'Sem nome'}
+                      </option>
+                    ))}
+                </Select>
+              )}
               <Input 
                 label="Email" 
                 value={editingUser?.email ?? newUser.email} 
@@ -464,7 +565,11 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                               ? [...currentPerms.modules, mod.key]
                               : currentPerms.modules.filter(m => m !== mod.key);
                             const perm = { ...currentPerms, modules: newModules };
-                            editingUser ? setEditingUser({...editingUser, permissions: perm}) : setNewUser({...newUser, permissions: perm});
+                            if (editingUser) {
+                              setEditingUser({ ...editingUser, permissions: perm });
+                            } else {
+                              setNewUser({ ...newUser, permissions: perm });
+                            }
                           }}
                         />
                         <span>{mod.label}</span>
@@ -480,7 +585,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
               </Button>
-              <Button variant="outline" className="flex-1" onClick={() => { setShowUserForm(false); setEditingUser(null); }}>
+              <Button variant="outline" className="flex-1" onClick={() => { setShowUserForm(false); setEditingUser(null); resetNewUserForm(); }}>
                 Cancelar
               </Button>
             </div>

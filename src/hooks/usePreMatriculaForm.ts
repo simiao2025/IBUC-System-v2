@@ -25,6 +25,7 @@ export const usePreMatriculaForm = (forcedIsAdmin?: boolean) => {
   const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string; tipo: TipoDocumento }[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Partial<Record<TipoDocumento, File>>>({});
   const [selectedDocType, setSelectedDocType] = useState<TipoDocumento>('rg');
+  const [turmaOccupancy, setTurmaOccupancy] = useState<{ count: number; capacity: number } | null>(null);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -74,6 +75,44 @@ export const usePreMatriculaForm = (forcedIsAdmin?: boolean) => {
   });
 
   useEffect(() => {
+    const handleOccupancy = async () => {
+      if (formData.turma_id) {
+        try {
+          const selectedTurma = turmas.find(t => t.id === formData.turma_id);
+          const { count } = await TurmaService.getOccupancy(formData.turma_id);
+          setTurmaOccupancy({
+            count,
+            capacity: selectedTurma?.capacidade || 0
+          });
+        } catch (error) {
+          console.error('Erro ao buscar ocupação:', error);
+          setTurmaOccupancy(null);
+        }
+      } else {
+        setTurmaOccupancy(null);
+      }
+    };
+    handleOccupancy();
+  }, [formData.turma_id, turmas]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const accessLevel = (currentUser as any)?.adminUser?.accessLevel as string | undefined;
+    const poloId =
+      ((currentUser as any)?.adminUser?.poloId as string | undefined) ||
+      ((currentUser as any)?.adminUser?.polo_id as string | undefined) ||
+      ((currentUser as any)?.poloId as string | undefined) ||
+      ((currentUser as any)?.polo_id as string | undefined);
+
+    if ((accessLevel === 'polo_especifico' || Boolean(poloId)) && poloId) {
+      setFormData(prev => ({
+        ...prev,
+        polo_id: prev.polo_id || poloId,
+      }));
+    }
+  }, [isAdmin, currentUser]);
+
+  useEffect(() => {
     const carregarDadosIniciais = async () => {
       try {
         const [dadosPolos, dadosNiveis] = await Promise.all([
@@ -91,16 +130,43 @@ export const usePreMatriculaForm = (forcedIsAdmin?: boolean) => {
 
   useEffect(() => {
     const carregarTurmas = async () => {
-      if (formData.polo_id && formData.nivel_id) {
+      if (formData.polo_id) {
         try {
-          const dadosTurmas = await TurmaService.listarTurmas({
-            polo_id: formData.polo_id,
-            nivel_id: formData.nivel_id,
-            status: 'ativa'
-          });
-          setTurmas(dadosTurmas as Turma[]);
+          const normalize = (resp: any): Turma[] => {
+            const lista = Array.isArray(resp) ? resp : resp?.data;
+            return (Array.isArray(lista) ? lista : []) as Turma[];
+          };
+
+          const tryFetch = async (params: any): Promise<Turma[]> => {
+            const resp = await TurmaService.listarTurmas(params);
+            return normalize(resp);
+          };
+
+          const attempts: any[] = formData.nivel_id
+            ? [
+                { polo_id: formData.polo_id, nivel_id: formData.nivel_id, status: 'ativa' },
+                { polo_id: formData.polo_id, nivel_id: formData.nivel_id },
+                { polo_id: formData.polo_id, status: 'ativa' },
+                { polo_id: formData.polo_id },
+              ]
+            : [
+                { polo_id: formData.polo_id, status: 'ativa' },
+                { polo_id: formData.polo_id },
+              ];
+
+          for (const params of attempts) {
+            const list = await tryFetch(params);
+            if (list.length > 0) {
+              setTurmas(list);
+              return;
+            }
+          }
+
+          setTurmas([]);
         } catch (error) {
           console.error('Erro ao carregar turmas:', error);
+          setTurmas([]);
+          showError('Erro ao carregar turmas', 'Não foi possível buscar a lista de turmas para o polo/nível selecionados.');
         }
       } else {
         setTurmas([]);
@@ -208,8 +274,6 @@ export const usePreMatriculaForm = (forcedIsAdmin?: boolean) => {
     setLoading(true);
 
     const commonData = {
-      nome: formData.nome, // Usado no criarAluno
-      nome_completo: formData.nome, // Usado no criarPreMatricula
       cpf: formData.cpf.replace(/\D/g, ''),
       rg: formData.rg,
       rg_orgao: formData.rg_orgao,
@@ -251,28 +315,45 @@ export const usePreMatriculaForm = (forcedIsAdmin?: boolean) => {
       tipo_parentesco_2: formData.tipo_parentesco_2,
       
       polo_id: formData.polo_id,
-      nivel_atual_id: formData.nivel_id, // Para Aluno
-      nivel_id: formData.nivel_id, // Para PreMatricula
-      turma_id: formData.turma_id || null,
       escola_origem: formData.escola_origem,
       ano_escolar: formData.ano_escolar,
       observacoes: formData.observacoes,
     };
 
+    // Payload específico para Pré-matrícula (conforme CreatePreMatriculaDto)
+    const preMatriculaPayload = {
+      ...commonData,
+      nome_completo: formData.nome, // Backend espera nome_completo
+      nivel_id: formData.nivel_id, // Para PreMatricula
+      // Flatten health fields for backend if they are nested in commonData during copy or just spread them
+      ...formData.saude,
+    };
+
+    // Payload específico para Aluno Direto (conforme CreateAlunoDirectDto)
+    const alunoDirectPayload = {
+      ...commonData,
+      nome: formData.nome, // Backend espera nome
+      turma_id: formData.turma_id, // Obrigatório para aluno direto
+      nivel_id: formData.nivel_id, // Para Aluno Direto (se suportado)
+      ...formData.saude,
+    };
+
     try {
       let createdId = '';
 
+      // Função auxiliar para limpar campos undefined antes de enviar
+      const cleanPayload = (obj: any) => {
+        return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
+      };
+
       if (isAdmin && formData.turma_id) {
         // Cadastro Direto
-        const resp = await AlunosAPI.criar({
-          ...commonData,
-          status: 'ativo'
-        } as any);
+        const resp = await AlunosAPI.criar(cleanPayload(alunoDirectPayload) as any);
         createdId = resp.id;
         showSuccess('Cadastro Direto', 'Aluno cadastrado e ativado com sucesso!');
       } else {
         // Pré-matrícula Normal
-        const resp = (await PreMatriculasAPI.criar(commonData)) as { id: string };
+        const resp = (await PreMatriculasAPI.criar(cleanPayload(preMatriculaPayload))) as { id: string };
         createdId = resp.id;
       }
 
@@ -288,12 +369,10 @@ export const usePreMatriculaForm = (forcedIsAdmin?: boolean) => {
           const fd = new FormData();
           fd.append('files', file);
           if (isAdmin && formData.turma_id) {
-             // Precisaríamos de um endpoint para upload por aluno se o ID for de aluno
-             // await DocumentosAPI.uploadPorAluno(createdId, fd, tipo);
-             // Como o foco é a pré-matrícula, vou manter como pré-matrícula se não houver por aluno.
-             // No entanto, o usuário quer direto. 
-             // Vou assumir que o sistema permite vincular documentos ao aluno também.
+            // Fluxo de Cadastro Direto: Upload vinculado ao Aluno
+            await DocumentosAPI.uploadPorAluno(createdId, fd, tipo);
           } else {
+            // Fluxo de Pré-matrícula: Upload vinculado à Pré-matrícula
             await DocumentosAPI.uploadPorPreMatricula(createdId, fd, tipo);
           }
         }
@@ -326,5 +405,6 @@ export const usePreMatriculaForm = (forcedIsAdmin?: boolean) => {
     handleSubmit,
     uploadedFiles,
     setFormData,
+    turmaOccupancy,
   };
 };

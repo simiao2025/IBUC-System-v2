@@ -875,13 +875,26 @@ export const PreMatriculaManagement: React.FC = () => {
                           ? turmas.filter((t) => t.polo_id === poloId)
                           : turmas;
 
-                        return turmasFiltradas.map((turma) => (
-                          <option key={turma.id} value={turma.id}>
-                            {turma.nome}
-                          </option>
-                        ));
+                        return turmasFiltradas.map((turma) => {
+                          const nivel = niveis.find(n => n.id === (turma as any).nivel_id)?.nome;
+                          const modulo = (turma as any).modulo_titulo || 'Módulo ?';
+                          return (
+                            <option key={turma.id} value={turma.id}>
+                              {turma.nome} [{nivel} - {modulo}]
+                            </option>
+                          );
+                        });
                       })()}
                     </select>
+                    {selectedTurmaId && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded text-[10px] text-green-700">
+                        <p className="font-bold">O aluno será vinculado a:</p>
+                        <p>
+                          Nível: {niveis.find(n => n.id === (turmas.find(t => t.id === selectedTurmaId) as any)?.nivel_id)?.nome || '—'} | 
+                          Módulo: {(turmas.find(t => t.id === selectedTurmaId) as any)?.modulo_titulo || '—'}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <select

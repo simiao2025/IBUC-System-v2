@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { UsuariosService } from '../usuarios/usuarios.service';
 
 export interface CreateDiretoriaGeralDto {
   usuario_id?: string; // Opcional - será criado se não fornecido
@@ -29,7 +30,10 @@ export interface UpdateDiretoriaGeralDto {
 
 @Injectable()
 export class DiretoriaService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(
+    private supabase: SupabaseService,
+    private usuariosService: UsuariosService,
+  ) {}
 
   // ========== DIRETORIA GERAL ==========
 
@@ -49,20 +53,7 @@ export class DiretoriaService {
       );
     }
 
-    const usuarioId = dto.usuario_id ?? null;
-
-    if (dto.usuario_id) {
-      const { data: usuario } = await this.supabase
-        .getAdminClient()
-        .from('usuarios')
-        .select('id')
-        .eq('id', dto.usuario_id)
-        .single();
-
-      if (!usuario) {
-        throw new NotFoundException('Usuário não encontrado');
-      }
-    }
+    const usuarioId = await this.resolveUsuarioId(dto, 'geral');
 
     // Criar registro na diretoria_geral
     const { data, error } = await this.supabase
@@ -276,17 +267,7 @@ export class DiretoriaService {
       );
     }
 
-    // Verificar se o usuário existe
-    const { data: usuario } = await this.supabase
-      .getAdminClient()
-      .from('usuarios')
-      .select('id, nome_completo, email')
-      .eq('id', dto.usuario_id)
-      .single();
-
-    if (!usuario) {
-      throw new NotFoundException('Usuário não encontrado');
-    }
+    const usuarioId = await this.resolveUsuarioId(dto, 'polo');
 
     // Criar registro na diretoria_polo
     const { data, error } = await this.supabase
@@ -294,13 +275,13 @@ export class DiretoriaService {
       .from('diretoria_polo')
       .insert({
         polo_id: poloId,
-        usuario_id: dto.usuario_id,
+        usuario_id: usuarioId,
         cargo: dto.cargo,
-        nome_completo: dto.nome_completo || usuario.nome_completo,
+        nome_completo: dto.nome_completo,
         cpf: dto.cpf,
         rg: dto.rg,
         telefone: dto.telefone,
-        email: dto.email || usuario.email,
+        email: dto.email,
         data_inicio: dto.data_inicio,
         data_fim: dto.data_fim || null,
         observacoes: dto.observacoes || null,
@@ -417,6 +398,68 @@ export class DiretoriaService {
   }
 
   // ========== HELPERS ==========
+
+  private async resolveUsuarioId(
+    dto: CreateDiretoriaGeralDto,
+    scope: 'geral' | 'polo',
+  ): Promise<string> {
+    if (dto.usuario_id) {
+      const { data: usuario } = await this.supabase
+        .getAdminClient()
+        .from('usuarios')
+        .select('id')
+        .eq('id', dto.usuario_id)
+        .single();
+
+      if (!usuario) {
+        throw new NotFoundException('Usuário não encontrado');
+      }
+
+      return dto.usuario_id;
+    }
+
+    if (!dto.cpf) {
+      throw new BadRequestException('CPF é obrigatório para criar usuário automaticamente');
+    }
+
+    const cpfDigits = dto.cpf.replace(/\D/g, '');
+    const password = cpfDigits.substring(0, 6);
+    if (password.length < 6) {
+      throw new BadRequestException('CPF inválido para gerar senha inicial');
+    }
+
+    const roleMapGeral: Record<string, string> = {
+      diretor: 'diretor_geral',
+      vice_diretor: 'auxiliar',
+      coordenador: 'coordenador_geral',
+      vice_coordenador: 'auxiliar',
+      secretario: 'secretario_geral',
+      tesoureiro: 'tesoureiro_geral',
+    };
+
+    const roleMapPolo: Record<string, string> = {
+      diretor: 'diretor_polo',
+      vice_diretor: 'auxiliar',
+      coordenador: 'coordenador_polo',
+      vice_coordenador: 'auxiliar',
+      secretario: 'secretario_polo',
+      tesoureiro: 'tesoureiro_polo',
+    };
+
+    const role = (scope === 'geral' ? roleMapGeral : roleMapPolo)[dto.cargo] || 'auxiliar';
+
+    const created = await this.usuariosService.criarUsuario({
+      email: dto.email,
+      nome_completo: dto.nome_completo,
+      cpf: dto.cpf,
+      telefone: dto.telefone,
+      role,
+      password,
+      ativo: true,
+    });
+
+    return created.id;
+  }
 
   private getCargoLabel(cargo: string): string {
     const labels: Record<string, string> = {

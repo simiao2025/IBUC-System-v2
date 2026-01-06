@@ -7,6 +7,11 @@ const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isStudentAppRoute = location.pathname.startsWith('/app');
+
+  if (isStudentAppRoute) {
+    return null;
+  }
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -15,7 +20,7 @@ const Header: React.FC = () => {
     { path: '/sobre', label: 'Sobre o IBUC', needsConfirm: false },
     { path: '/modulos', label: 'Módulos', needsConfirm: false },
     { path: '/pre-matricula', label: 'Pré-Matrícula', needsConfirm: false },
-    { path: '/acesso-aluno', label: 'Área do Aluno', needsConfirm: false, isSpecial: true },
+    { path: '/login', label: 'Área do Aluno', needsConfirm: false, isSpecial: true },
     { path: '/admin', label: 'Área Administrativa', needsConfirm: false, isSpecial: true },
   ];
 

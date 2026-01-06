@@ -142,7 +142,7 @@ export class UsuariosService {
       .getAdminClient()
       .from('usuarios')
       .select('id')
-      .eq('email', dto.email)
+      .ilike('email', dto.email)
       .single();
 
     if (existing) {
@@ -438,7 +438,7 @@ export class UsuariosService {
       .getAdminClient()
       .from('usuarios')
       .select('*')
-      .eq('email', email)
+      .ilike('email', email)
       .single();
 
     if (error) {
@@ -480,7 +480,7 @@ export class UsuariosService {
         .getAdminClient()
         .from('usuarios')
         .select('id')
-        .eq('email', dto.email)
+        .ilike('email', dto.email)
         .neq('id', id)
         .single();
 

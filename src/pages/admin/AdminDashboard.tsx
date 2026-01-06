@@ -6,6 +6,7 @@ import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { Icon3D } from '../../components/ui/Icon3D';
 import {
   Users,
   MapPin,
@@ -81,28 +82,32 @@ const AdminDashboard: React.FC = () => {
     {
       title: 'Total de Alunos',
       value: students.length,
-      icon: Users,
+      iconName: 'student',
+      fallbackIcon: Users,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
     },
     {
       title: 'Matrículas Ativas',
       value: enrollments.length,
-      icon: BookOpen,
+      iconName: 'turmas',
+      fallbackIcon: BookOpen,
       color: 'text-green-600',
       bgColor: 'bg-green-50'
     },
     {
       title: 'Polos Acessíveis',
       value: accessiblePolos.length,
-      icon: MapPin,
+      iconName: 'polos',
+      fallbackIcon: MapPin,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50'
     },
     {
       title: 'Certificados Emitidos',
       value: certCount, 
-      icon: Award,
+      iconName: 'certificado',
+      fallbackIcon: Award,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50'
     },
@@ -110,7 +115,8 @@ const AdminDashboard: React.FC = () => {
 
       title: 'Matrículas Pendentes',
       value: preMatriculas.filter(p => p.status === 'em_analise').length,
-      icon: Clock,
+      iconName: 'pre_matricula',
+      fallbackIcon: Clock,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50'
     }
@@ -118,10 +124,20 @@ const AdminDashboard: React.FC = () => {
 
   const allQuickActions = [
     {
+      title: 'Módulos',
+      description: 'Cadastro e edição de módulos e lições',
+      href: '/admin/modulos',
+      iconName: 'turmas',
+      fallbackIcon: BookOpen,
+      color: 'bg-purple-600 hover:bg-purple-700',
+      permission: ['coordenador_geral', 'secretario_geral'].includes(currentUser?.adminUser?.role || '')
+    },
+    {
       title: isPoloScoped ? 'Diretoria do Polo' : 'Diretoria Geral',
       description: isPoloScoped ? 'Cadastro e gestão da liderança do polo' : 'Cadastro da diretoria executiva do IBUC',
       href: '/admin/diretoria',
-      icon: Building2,
+      iconName: 'diretoria',
+      fallbackIcon: Building2,
       color: 'bg-red-600 hover:bg-red-700',
       permission: canAccessModule('directorate')
     },
@@ -129,23 +145,26 @@ const AdminDashboard: React.FC = () => {
       title: 'Gerenciar Polos',
       description: 'Cadastro completo de polos e congregações',
       href: '/admin/polos',
-      icon: MapPin,
+      iconName: 'polos',
+      fallbackIcon: MapPin,
       color: 'bg-blue-600 hover:bg-blue-700',
       permission: canManagePolos()
     },
     {
       title: 'Gerenciar Alunos',
-      description: 'Visualizar, editar e gerenciar dados dos alunos',
+      description: 'Matrículas, editar e gerenciar dados dos alunos',
       href: '/admin/alunos',
-      icon: Users,
+      iconName: 'student',
+      fallbackIcon: Users,
       color: 'bg-green-600 hover:bg-green-700',
       permission: canAccessModule('students')
     },
     {
-      title: isPoloScoped ? 'Equipe do Polo' : 'Equipe de Polos',
+      title: 'Equipes',
       description: isPoloScoped ? 'Coordenadores, professores e auxiliares do polo' : 'Coordenadores, professores e auxiliares',
       href: '/admin/equipe',
-      icon: UserCheck,
+      iconName: 'equipes_polos', // Using existing asset
+      fallbackIcon: UserCheck,
       color: 'bg-teal-600 hover:bg-teal-700',
       permission: canManageStaff()
     },
@@ -153,23 +172,26 @@ const AdminDashboard: React.FC = () => {
       title: 'Gerenciar Turmas',
       description: 'Cadastro e gestão de turmas e níveis',
       href: '/admin/turmas',
-      icon: BookOpen,
+      iconName: 'turmas',
+      fallbackIcon: BookOpen,
       color: 'bg-purple-600 hover:bg-purple-700',
       permission: canAccessModule('enrollments')
     },
     {
-      title: 'Frequência',
-      description: 'Controle de presença e chamadas',
+      title: 'Frequência/Drácmas',
+      description: 'Controle de presença e Drácmas',
       href: '/admin/frequencia',
-      icon: ClipboardList,
+      iconName: 'frequencia',
+      fallbackIcon: ClipboardList,
       color: 'bg-orange-600 hover:bg-orange-700',
       permission: canAccessModule('attendance')
     },
     {
       title: 'Financeiro',
-      description: 'Gestão de mensalidades e pagamentos',
+      description: 'Gestão financeira',
       href: '/admin/financeiro',
-      icon: DollarSign,
+      iconName: 'financeiro',
+      fallbackIcon: DollarSign,
       color: 'bg-yellow-600 hover:bg-yellow-700',
       permission: canAccessModule('dracmas') // Using dracmas for financial as per AdminModuleKey
     },
@@ -177,14 +199,16 @@ const AdminDashboard: React.FC = () => {
       title: 'Relatórios',
       description: 'Gerar relatórios e estatísticas',
       href: '/admin/relatorios',
-      icon: BarChart3,
+      iconName: 'relatorios',
+      fallbackIcon: BarChart3,
       color: 'bg-gray-600 hover:bg-gray-700',
       permission: canViewReports()
     },
     {
-      title: 'Gerenciamento de Pré-matrículas',
+      title: 'Gerenciar Pré-matrículas',
       description: 'Análise de documentos e conclusão de novas matrículas.',
-      icon: FileCheck,
+      iconName: 'pre_matricula',
+      fallbackIcon: FileCheck,
       href: '/admin/pre-matriculas',
       color: 'bg-orange-500',
       permission: canAccessModule('pre-enrollments')
@@ -193,7 +217,8 @@ const AdminDashboard: React.FC = () => {
       title: 'Configurações',
       description: 'Usuários, acessos e configurações do sistema',
       href: '/admin/configuracoes',
-      icon: Settings,
+      iconName: 'configuracoes',
+      fallbackIcon: Settings,
       color: 'bg-indigo-600 hover:bg-indigo-700',
       permission: canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('security') || canAccessModule('backup')
     }
@@ -231,7 +256,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex items-center space-x-2 mt-1 sm:mt-0">
                       <span className="text-sm font-medium text-gray-700">
                         Olá, <span className="font-bold">
-                          {currentUser.adminUser.nome_completo || currentUser.adminUser.name || currentUser.adminUser.email || currentUser.email || 'Usuário'}
+                          {currentUser.adminUser.name || currentUser.adminUser.email || currentUser.email || 'Usuário'}
                         </span>
                       </span>
                       <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
@@ -290,15 +315,20 @@ const AdminDashboard: React.FC = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
+          {stats.filter(stat => !(isPoloScoped && stat.title === 'Polos Acessíveis')).map((stat, index) => (
+            <Card key={index} className="hover:shadow-lg transition-transform hover:-translate-y-1 duration-200">
               <div className="flex items-center">
-                <div className={`p-3 rounded-full ${stat.bgColor} mr-4`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                <div className="mr-4">
+                  <Icon3D 
+                    name={stat.iconName} 
+                    fallbackIcon={stat.fallbackIcon}
+                    size="lg"
+                    className="h-16 w-16"
+                  />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
                 </div>
               </div>
             </Card>
@@ -310,17 +340,20 @@ const AdminDashboard: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Ações Rápidas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {quickActions.map((action, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <div className="text-center">
-                  <div className={`inline-flex p-3 rounded-full text-white mb-4 ${action.color}`}>
-                    <action.icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{action.title}</h3>
-                  <p className="text-sm text-gray-600 mb-4">{action.description}</p>
-                  <Button asChild size="sm" className="w-full">
-                    <Link to={action.href}>Acessar</Link>
-                  </Button>
+              <Card key={index} className="hover:shadow-lg transition-transform hover:-translate-y-1 duration-200 flex flex-col items-center text-center p-6">
+                <div className="mb-4">
+                  <Icon3D
+                    name={action.iconName}
+                    fallbackIcon={action.fallbackIcon}
+                    size="xl"
+                    className="h-24 w-24"
+                  />
                 </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">{action.title}</h3>
+                <p className="text-sm text-gray-500 mb-6 flex-grow">{action.description}</p>
+                <Button asChild size="sm" className="w-full bg-teal-600 hover:bg-teal-700 text-white shadow-sm">
+                  <Link to={action.href}>Acessar</Link>
+                </Button>
               </Card>
             ))}
           </div>

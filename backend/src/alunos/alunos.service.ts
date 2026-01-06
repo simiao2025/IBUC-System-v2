@@ -61,6 +61,7 @@ export interface UpdateAlunoDto {
   certidao_numero?: string;
   endereco?: any;
   foto_url?: string;
+  polo_id?: string;
   turma_id?: string;
   nivel_atual_id?: string;
   status?: 'pendente' | 'ativo' | 'inativo' | 'concluido';
@@ -79,6 +80,11 @@ export interface UpdateAlunoDto {
   serie?: string;
   dificuldades_aprendizagem?: boolean;
   descricao_dificuldades?: string;
+  nome_responsavel?: string;
+  cpf_responsavel?: string;
+  telefone_responsavel?: string;
+  email_responsavel?: string;
+  tipo_parentesco?: string;
   nome_responsavel_2?: string;
   cpf_responsavel_2?: string;
   telefone_responsavel_2?: string;
@@ -302,6 +308,7 @@ export class AlunosService {
     if (dto.certidao_numero !== undefined) updateData.certidao_numero = dto.certidao_numero;
     if (dto.endereco !== undefined) updateData.endereco = dto.endereco;
     if (dto.foto_url !== undefined) updateData.foto_url = dto.foto_url;
+    if (dto.polo_id !== undefined) updateData.polo_id = dto.polo_id;
     if (dto.turma_id !== undefined) updateData.turma_id = dto.turma_id;
     if (dto.nivel_atual_id !== undefined) updateData.nivel_atual_id = dto.nivel_atual_id;
     if (dto.status !== undefined) updateData.status = dto.status;
@@ -320,6 +327,11 @@ export class AlunosService {
     if (dto.serie !== undefined) updateData.serie = dto.serie;
     if (dto.dificuldades_aprendizagem !== undefined) updateData.dificuldades_aprendizagem = dto.dificuldades_aprendizagem;
     if (dto.descricao_dificuldades !== undefined) updateData.descricao_dificuldades = dto.descricao_dificuldades;
+    if (dto.nome_responsavel !== undefined) updateData.nome_responsavel = dto.nome_responsavel;
+    if (dto.cpf_responsavel !== undefined) updateData.cpf_responsavel = dto.cpf_responsavel;
+    if (dto.telefone_responsavel !== undefined) updateData.telefone_responsavel = dto.telefone_responsavel;
+    if (dto.email_responsavel !== undefined) updateData.email_responsavel = dto.email_responsavel;
+    if (dto.tipo_parentesco !== undefined) updateData.tipo_parentesco = dto.tipo_parentesco;
     if (dto.nome_responsavel_2 !== undefined) updateData.nome_responsavel_2 = dto.nome_responsavel_2;
     if (dto.cpf_responsavel_2 !== undefined) updateData.cpf_responsavel_2 = dto.cpf_responsavel_2;
     if (dto.telefone_responsavel_2 !== undefined) updateData.telefone_responsavel_2 = dto.telefone_responsavel_2;

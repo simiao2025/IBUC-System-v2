@@ -62,4 +62,29 @@ export class TurmasController {
 
     return this.service.listarTurmas(filtros);
   }
+
+
+  @Get(':id/preview-transition')
+  @ApiOperation({ summary: 'Visualizar prévia da transição de módulo (frequência)' })
+  async previewTransicao(@Param('id') id: string) {
+    return this.service.previewTransicao(id);
+  }
+
+  @Post(':id/close-module')
+  @ApiOperation({ summary: 'Encerrar módulo e avançar aprovados' })
+  async encerrarModulo(
+    @Param('id') id: string,
+    @Body('alunos_confirmados') alunos_confirmados: string[],
+    @Body('valor_cents') valor_cents?: number,
+  ) {
+    return this.service.encerrarModulo(id, alunos_confirmados, valor_cents);
+  }
+
+  @Get(':id/occupancy')
+  @ApiOperation({ summary: 'Obter ocupação atual da turma' })
+  async getOccupancy(@Param('id') id: string) {
+    return this.service.getOccupancy(id);
+  }
+
+
 }

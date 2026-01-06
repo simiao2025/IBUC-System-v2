@@ -8,9 +8,14 @@ import type { Documento, OwnerType, TipoDocumento } from '../types/database';
 
 export const DocumentosAPI = {
   listarPorMatricula: (matriculaId: string) => api.get(`/documentos/matriculas/${matriculaId}`),
+  listarPorAluno: (alunoId: string) => api.get(`/documentos/alunos/${alunoId}`),
   uploadPorPreMatricula: (preMatriculaId: string, formData: FormData, tipo?: string) => {
     const query = tipo ? `?tipo=${encodeURIComponent(tipo)}` : '';
     return api.upload(`/documentos/pre-matriculas/${preMatriculaId}${query}`, formData);
+  },
+  uploadPorAluno: (alunoId: string, formData: FormData, tipo?: string) => {
+    const query = tipo ? `?tipo=${encodeURIComponent(tipo)}` : '';
+    return api.upload(`/documentos/alunos/${alunoId}${query}`, formData);
   },
   listarPorPreMatricula: (preMatriculaId: string) => api.get(`/documentos/pre-matriculas/${preMatriculaId}`),
 };

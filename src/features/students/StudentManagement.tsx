@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { AlunoService, AlunosAPI } from './aluno.service';
+import StudentForm from '../../components/admin/StudentForm';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -20,9 +21,11 @@ import {
 
 const StudentManagement: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser } = useApp();
+  const { currentUser, showFeedback, polos } = useApp();
   const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [editingLoading, setEditingLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('todos');
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,17 +44,51 @@ const StudentManagement: React.FC = () => {
         setAlunos(data);
       } catch (error) {
         console.error('Erro ao buscar alunos:', error);
+        showFeedback('error', 'Erro ao carregar', 'Não foi possível carregar a lista de alunos. Tente novamente mais tarde.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchAlunos();
-  }, [isPoloScoped, userPoloId]);
+  }, [isPoloScoped, userPoloId, showFeedback]);
+
+  const handleEdit = async (alunoId: string) => {
+    try {
+      setEditingLoading(true);
+      const aluno = await AlunosAPI.buscarPorId(alunoId);
+      setEditingStudent(aluno);
+    } catch (error) {
+      console.error('Erro ao carregar aluno para edição:', error);
+      showFeedback('error', 'Erro ao editar', 'Não foi possível carregar os dados do aluno para edição.');
+    } finally {
+      setEditingLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async (studentData: any) => {
+    if (!editingStudent?.id) return;
+    try {
+      setEditingLoading(true);
+      await AlunoService.atualizarAluno(editingStudent.id, studentData);
+      showFeedback('success', 'Sucesso', 'Aluno atualizado com sucesso.');
+      setEditingStudent(null);
+
+      const data = isPoloScoped && userPoloId
+        ? await AlunoService.listarAlunos({ poloId: userPoloId })
+        : await AlunosAPI.listar();
+      setAlunos(data);
+    } catch (error) {
+      console.error('Erro ao salvar edição do aluno:', error);
+      showFeedback('error', 'Erro ao salvar', 'Não foi possível salvar as alterações do aluno.');
+    } finally {
+      setEditingLoading(false);
+    }
+  };
 
   const filteredAlunos = alunos.filter(aluno => {
     const matchesSearch = 
-      aluno.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      aluno.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       aluno.cpf.includes(searchTerm);
     
     const matchesStatus = filterStatus === 'todos' || aluno.status === filterStatus;
@@ -76,6 +113,13 @@ const StudentManagement: React.FC = () => {
       default:
         return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">{status}</span>;
     }
+  };
+
+  const getPoloLabel = (aluno: any) => {
+    const poloId = aluno?.polo_id;
+    if (!poloId) return '—';
+    const found = polos?.find((p: any) => p.id === poloId);
+    return found?.name || found?.nome || '—';
   };
 
   return (
@@ -148,23 +192,28 @@ const StudentManagement: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold">
-                          {aluno.nome_completo.charAt(0)}
+                          {aluno.nome.charAt(0)}
                         </div>
-                        <div className="font-medium text-gray-900">{aluno.nome_completo}</div>
+                        <div className="font-medium text-gray-900">{aluno.nome}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4">{aluno.cpf}</td>
-                    {!isPoloScoped && <td className="px-6 py-4">{aluno.polo_id || 'Norte'}</td>}
+                    {!isPoloScoped && <td className="px-6 py-4">{getPoloLabel(aluno)}</td>}
                     <td className="px-6 py-4">
                       {getStatusBadge(aluno.status || 'ativo')}
                     </td>
-                    <td className="px-6 py-4">{new Date(aluno.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">{new Date(aluno.data_criacao || aluno.created_at || new Date()).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end space-x-2">
                         <button className="p-1 hover:bg-gray-100 rounded text-gray-600" title="Ver">
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button className="p-1 hover:bg-gray-100 rounded text-blue-600" title="Editar">
+                        <button
+                          className="p-1 hover:bg-gray-100 rounded text-blue-600"
+                          title="Editar"
+                          onClick={() => handleEdit(aluno.id)}
+                          disabled={editingLoading}
+                        >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button className="p-1 hover:bg-gray-100 rounded text-red-600" title="Excluir">
@@ -207,6 +256,16 @@ const StudentManagement: React.FC = () => {
         )}
       </Card>
       </div>
+
+      {editingStudent && (
+        <StudentForm
+          student={editingStudent}
+          polos={polos as any}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditingStudent(null)}
+          loading={editingLoading}
+        />
+      )}
     </div>
   );
 };

@@ -156,6 +156,9 @@ export const usePreMatriculaManagement = () => {
             id: String(t.id),
             nome: String(t.nome ?? t.id),
             polo_id: String(t.polo_id),
+            nivel_id: String(t.nivel_id),
+            modulo_atual_id: t.modulo_atual_id,
+            modulo_titulo: t.modulo?.titulo,
           })));
         }
       } catch (error) {

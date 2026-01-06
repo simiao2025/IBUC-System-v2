@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
@@ -35,7 +35,7 @@ export class DracmasService {
       .insert(rows)
       .select();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(`Erro DB Drácmas Lote: ${error.message}`);
     return inserted;
   }
 
@@ -46,7 +46,7 @@ export class DracmasService {
       .select('quantidade')
       .eq('aluno_id', alunoId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(`Erro DB Saldo: ${error.message}`);
 
     const saldo = (data || []).reduce((acc, row: any) => acc + (row.quantidade || 0), 0);
     return { aluno_id: alunoId, saldo };
@@ -64,7 +64,7 @@ export class DracmasService {
     if (fim) query = query.lte('data', fim);
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(`Erro DB Por Aluno: ${error.message}`);
 
     const saldo = (data || []).reduce((acc, row: any) => acc + (row.quantidade || 0), 0);
 

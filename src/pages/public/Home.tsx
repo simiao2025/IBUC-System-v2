@@ -1,11 +1,42 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { Users, BookOpen, MapPin, Award, Calendar, ChevronDown, ChevronUp, MessageCircle, Search, Phone, Mail } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
+import { PoloService } from '../../services/polo.service';
+import { Levels } from '../../types/database';
 
 const Home: React.FC = () => {
+  const [polosAtivos, setPolosAtivos] = useState<any[]>([]);
+  const [loadingPolos, setLoadingPolos] = useState(true);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash) {
+      const element = document.getElementById(location.hash.replace('#', ''));
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    }
+  }, [location]);
+  useEffect(() => {
+    const fetchPolos = async () => {
+      try {
+        const data = await PoloService.listarPolos();
+        // Filtrar apenas os ativos (embora o service já possa lidar com isso se passado o param)
+        setPolosAtivos(data.filter((p: any) => p.ativo !== false));
+      } catch (error) {
+        console.error('Erro ao buscar polos na home:', error);
+      } finally {
+        setLoadingPolos(false);
+      }
+    };
+    fetchPolos();
+  }, []);
+
   return (
     <div className="space-y-16">
       {/* Hero Section */}
@@ -145,6 +176,99 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* Níveis de Ensino Section */}
+      <section id="niveis" className="bg-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              Níveis de Ensino
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Nosso programa educativo é dividido em 4 níveis fundamentais, respeitando o desenvolvimento cognitivo e espiritual de cada idade.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Card className="border-l-4 border-l-red-600">
+              <h3 className="text-xl font-bold text-red-700 mb-2">NÍVEL I - 2 a 5 anos</h3>
+              <p className="text-gray-600">
+                Introdução aos primeiros fundamentos bíblicos de forma lúdica, focando no amor de Deus e nos personagens principais da Bíblia.
+              </p>
+            </Card>
+            <Card className="border-l-4 border-l-blue-600">
+              <h3 className="text-xl font-bold text-blue-700 mb-2">NÍVEL II - 6 a 8 anos</h3>
+              <p className="text-gray-600">
+                Aprofundamento nas histórias bíblicas com o início da compreensão doutrinária e aplicação dos valores cristãos no dia a dia.
+              </p>
+            </Card>
+            <Card className="border-l-4 border-l-green-600">
+              <h3 className="text-xl font-bold text-green-700 mb-2">NÍVEL III - 9 a 11 anos</h3>
+              <p className="text-gray-600">
+                Preparação para a pré-adolescência, com foco em identidade cristã, ética bíblica e o papel do jovem no corpo de Cristo.
+              </p>
+            </Card>
+            <Card className="border-l-4 border-l-yellow-600">
+              <h3 className="text-xl font-bold text-yellow-700 mb-2">NÍVEL IV - 12 a 16 anos</h3>
+              <p className="text-gray-600">
+                Formação teológica mais robusta, abordando temas de apologética, serviço cristão e maturidade espiritual para a vida adulta.
+              </p>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Nossos Polos Section */}
+      <section id="polos" className="bg-gray-50 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              Nossos Polos
+            </h2>
+            <p className="text-xl text-gray-600">
+              Encontre o IBUC mais próximo de você. Atualizado em tempo real.
+            </p>
+          </div>
+
+          {loadingPolos ? (
+            <div className="text-center text-gray-500 py-12">Carregando polos...</div>
+          ) : polosAtivos.length === 0 ? (
+            <div className="text-center text-gray-500 py-12">Nenhum polo cadastrado no momento.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {polosAtivos.map((polo) => (
+                <Card key={polo.id} className="hover:shadow-md transition-shadow">
+                  <h3 className="text-lg font-bold text-red-700 mb-2">{polo.nome}</h3>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <p className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-gray-400" />
+                      {polo.endereco?.cidade || 'Palmas'} - TO
+                    </p>
+                    {polo.pastor_responsavel && (
+                      <p className="flex items-center">
+                        <Users className="h-4 w-4 mr-2 text-gray-400" />
+                        Pr. {polo.pastor_responsavel}
+                      </p>
+                    )}
+                    {polo.telefone && (
+                      <p className="flex items-center">
+                        <Phone className="h-4 w-4 mr-2 text-gray-400" />
+                        {polo.telefone}
+                      </p>
+                    )}
+                    {polo.email && (
+                      <p className="flex items-center">
+                        <Mail className="h-4 w-4 mr-2 text-gray-400" />
+                        {polo.email}
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="bg-red-700 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -154,7 +278,7 @@ const Home: React.FC = () => {
           <p className="text-xl mb-8 max-w-3xl mx-auto">
             Garanta já a vaga do seu filho e proporcione a ele uma educação cristã de qualidade.
           </p>
-          <Button asChild size="lg" className="bg-white text-black hover:bg-gray-100">
+          <Button asChild size="lg" className="bg-white !text-black hover:bg-gray-100">
             <Link to="/pre-matricula" className="flex items-center justify-center">
               <Users className="h-5 w-5 mr-2" />
               FAZER PRÉ-MATRÍCULA AGORA
@@ -189,7 +313,7 @@ const FAQComponent = () => {
   const faqs = [
     {
       question: "Qual a idade mínima para matrícula?",
-      answer: "Aceitamos crianças a partir dos 6 anos de idade no curso básico."
+      answer: "Aceitamos crianças a partir dos 2 anos de idade em nosso Nível I."
     },
     {
       question: "Quais documentos são necessários para a matrícula?",
@@ -197,7 +321,7 @@ const FAQComponent = () => {
     },
     {
       question: "Qual o valor da mensalidade?",
-      answer: "Entre em contato com a secretaria do polo mais próximo para informações sobre valores e formas de pagamento."
+      answer: "O IBUC não cobra mensalidade. O investimento necessário é apenas para o material didático de cada módulo."
     },
     {
       question: "Qual o horário das aulas?",
@@ -205,7 +329,7 @@ const FAQComponent = () => {
     },
     {
       question: "Há material didático incluso?",
-      answer: "Sim, todo o material didático é fornecido pelo IBUC e está incluso no valor da mensalidade."
+      answer: "Sim, todo o material didático é especializado para cada faixa etária e o pagamento é realizado por módulo."
     }
   ];
 

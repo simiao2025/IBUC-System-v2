@@ -31,6 +31,7 @@ export const AlunosAPI = {
   criar: (data: AlunoCreateDto) => api.post<Aluno>('/alunos', data),
   atualizar: (id: string, data: AlunoUpdateDto) => api.put<Aluno>(`/alunos/${id}`, data),
   deletar: (id: string) => api.delete<void>(`/alunos/${id}`),
+  buscarHistorico: (id: string) => api.get<any[]>(`/alunos/${id}/historico-modulos`),
 };
 
 export class AlunoService {
@@ -60,6 +61,10 @@ export class AlunoService {
 
   static async atualizarAluno(id: string, updates: AlunoUpdateDto): Promise<Aluno> {
     return AlunosAPI.atualizar(id, updates);
+  }
+
+  static async buscarHistoricoModulos(id: string): Promise<any[]> {
+    return AlunosAPI.buscarHistorico(id);
   }
 
   static async criarPreMatricula(

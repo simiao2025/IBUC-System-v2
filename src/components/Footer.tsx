@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 
 const Footer: React.FC = () => {
@@ -8,15 +9,27 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Logo and Description */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <img
-                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
-                alt="IBUC Logo"
-                className="h-8 w-auto"
-              />
+            <div className="flex flex-col space-y-4">
               <div>
-                <h3 className="text-lg font-bold text-white">IBUC</h3>
-                <p className="text-sm text-gray-300">Instituto Bíblico Único Caminho</p>
+                <img
+                  src="/icons/3d/Logo-PRV-Texto-Branco.png"
+                  alt="Logo Projeto Restaurando Vidas"
+                  className="h-14 w-auto mb-2"
+                />
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  ASR-SE 75, Alameda 2, Lote 53, Plano Diretor Sul. Palmas-Tocantins – Brasil.
+                </p>
+              </div>
+              <div className="flex items-center space-x-3 pt-4">
+                <img
+                  src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
+                  alt="IBUC Logo"
+                  className="h-8 w-auto"
+                />
+                <div>
+                  <h3 className="text-lg font-bold text-white">IBUC</h3>
+                  <p className="text-sm text-gray-300">Instituto Bíblico Único Caminho</p>
+                </div>
               </div>
             </div>
             <p className="text-gray-300 text-sm">
@@ -51,18 +64,18 @@ const Footer: React.FC = () => {
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Links Rápidos</h4>
             <div className="grid grid-cols-1 gap-2 text-sm">
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              <Link to="/sobre" className="text-gray-300 hover:text-white transition-colors">
                 Sobre o IBUC
-              </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              </Link>
+              <Link to="/#niveis" className="text-gray-300 hover:text-white transition-colors">
                 Níveis de Ensino
-              </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              </Link>
+              <Link to="/#polos" className="text-gray-300 hover:text-white transition-colors">
                 Nossos Polos
-              </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              </Link>
+              <Link to="/privacidade" className="text-gray-300 hover:text-white transition-colors">
                 Política de Privacidade
-              </a>
+              </Link>
             </div>
           </div>
         </div>

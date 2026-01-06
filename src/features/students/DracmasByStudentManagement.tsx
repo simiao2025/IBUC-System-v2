@@ -3,6 +3,7 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { DracmasAPI } from '../../features/finance/dracmas.service';
+import { AlunoService } from '../students/aluno.service';
 import AccessControl from '../../components/AccessControl';
 
 type DracmaTransacao = {
@@ -27,6 +28,7 @@ const DracmasByStudentManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DracmasPorAlunoResponse | null>(null);
+  const [historico, setHistorico] = useState<any[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +43,9 @@ const DracmasByStudentManagement: React.FC = () => {
     try {
       const response = await DracmasAPI.porAluno(alunoId, inicio || undefined, fim || undefined);
       setData(response as DracmasPorAlunoResponse);
+      
+      const hist = await AlunoService.buscarHistoricoModulos(alunoId);
+      setHistorico(hist);
     } catch (err) {
       console.error('Erro ao buscar Drácmas do aluno:', err);
       setError('Não foi possível carregar as informações de Drácmas do aluno.');
@@ -115,6 +120,42 @@ const DracmasByStudentManagement: React.FC = () => {
                         <td className="px-4 py-2 capitalize">{t.tipo}</td>
                         <td className="px-4 py-2 font-semibold">{t.quantidade}</td>
                         <td className="px-4 py-2 text-gray-600">{t.descricao || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-4">
+            <h2 className="text-lg font-semibold mb-2 text-indigo-900 border-b pb-1">Histórico de Módulos Concluídos</h2>
+            {historico.length === 0 ? (
+              <p className="text-sm text-gray-600">Nenhum registro de conclusão de módulo encontrado.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Módulo</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Ano</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Situação</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Data Registro</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {historico.map((h, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2 font-semibold">Módulo {h.modulo_numero.toString().padStart(2, '0')}</td>
+                        <td className="px-4 py-2">{h.ano_conclusao}</td>
+                        <td className="px-4 py-2">
+                          <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs uppercase font-medium">
+                            {h.situacao}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-gray-500">
+                          {new Date(h.created_at).toLocaleDateString('pt-BR')}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

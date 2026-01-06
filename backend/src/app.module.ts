@@ -24,6 +24,7 @@ import { PreMatriculasModule } from './pre-matriculas/pre-matriculas.module';
 import { NiveisModule } from './niveis/niveis.module';
 import { CertificadosModule } from './certificados/certificados.module';
 import { EventosModule } from './eventos/eventos.module';
+import { ModulosModule } from './modulos/modulos.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { EventosModule } from './eventos/eventos.module';
     NiveisModule,
     CertificadosModule,
     EventosModule,
+    ModulosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

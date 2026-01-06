@@ -23,7 +23,7 @@ interface AppContextType {
   
   // Pre-enrollments
   preMatriculas: PreMatricula[];
-  refreshPreMatriculas: () => Promise<void>;
+  refreshDashboardData: () => Promise<void>;
   
   // Polos
   polos: UiPolo[];
@@ -394,27 +394,82 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
-  const refreshPreMatriculas = useCallback(async () => {
+  const refreshDashboardData = useCallback(async () => {
     if (!currentUser || currentUser.role !== 'admin') return;
-    
+
     try {
       const isAdminRestricted = currentUser.adminUser?.accessLevel === 'polo_especifico';
       const poloId = isAdminRestricted ? currentUser.adminUser?.poloId : undefined;
       
-      const data = await PreMatriculasAPI.listar({ polo_id: poloId });
-      setPreMatriculas(data as PreMatricula[]);
+      // Carregar dados em paralelo
+      const [alunosData, matriculasData, preMatriculasData] = await Promise.all([
+        import('../features/students/aluno.service').then(m => m.AlunosAPI.listar({ polo_id: poloId })),
+        import('../features/enrollments/matricula.service').then(m => m.MatriculaAPI.listar({ polo_id: poloId })),
+        PreMatriculasAPI.listar({ polo_id: poloId })
+      ]);
+
+      // Mapear Alunos (DB) -> StudentData (UI)
+      const mappedStudents: StudentData[] = (alunosData as any[]).map(aluno => ({
+        id: aluno.id,
+        name: aluno.nome,
+        birthDate: aluno.data_nascimento,
+        cpf: aluno.cpf || '',
+        gender: aluno.sexo === 'M' ? 'male' : 'female',
+        address: {
+          street: aluno.endereco?.rua || '',
+          number: aluno.endereco?.numero || '',
+          neighborhood: aluno.endereco?.bairro || '',
+          city: aluno.endereco?.cidade || '',
+          state: aluno.endereco?.estado || '',
+          cep: aluno.endereco?.cep || ''
+        },
+        phone: aluno.telefone_responsavel || '',
+        email: aluno.email_responsavel || '',
+        status: aluno.status === 'ativo' ? 'active' : 'inactive',
+        registrationDate: aluno.data_criacao || new Date().toISOString(),
+        parents: {
+          fatherName: '', // Não mapeado diretamente no StudentData simples
+          motherName: aluno.nome_responsavel || '',
+          phone: aluno.telefone_responsavel || '',
+          email: aluno.email_responsavel || '',
+          fatherCpf: '',
+          motherCpf: aluno.cpf_responsavel || ''
+        }
+      }));
+
+      // Mapear Matrículas (DB) -> Enrollment (UI)
+      // Precisamos do nome do aluno, então usamos o array de alunos carregado
+      const mappedEnrollments: Enrollment[] = (matriculasData as any[]).map(mat => {
+        const aluno = (alunosData as any[]).find(a => a.id === mat.aluno_id);
+        return {
+          id: mat.id,
+          studentId: mat.aluno_id,
+          studentName: aluno?.nome || 'Aluno Desconhecido',
+          level: 'NIVEL_I', // Placeholder, ideal seria buscar da turma/aluno
+          polo: mat.polo_id,
+          enrollmentDate: mat.created_at || new Date().toISOString(),
+          observations: mat.status
+        };
+      });
+
+      setStudents(mappedStudents);
+      setEnrollments(mappedEnrollments);
+      setPreMatriculas(preMatriculasData as PreMatricula[]);
+
     } catch (error) {
-      console.error('AppContext - Erro ao carregar pré-matrículas:', error);
+      console.error('AppContext - Erro ao carregar dados do dashboard:', error);
     }
   }, [currentUser]);
 
   useEffect(() => {
     if (currentUser?.role === 'admin') {
-      refreshPreMatriculas();
+      refreshDashboardData();
     } else {
       setPreMatriculas([]);
+      setStudents([]);
+      setEnrollments([]);
     }
-  }, [currentUser, refreshPreMatriculas]);
+  }, [currentUser, refreshDashboardData]);
 
   return (
     <AppContext.Provider value={{
@@ -425,7 +480,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       enrollments,
       addEnrollment,
       preMatriculas,
-      refreshPreMatriculas,
+      refreshDashboardData,
       polos,
       addPolo,
       updatePolo,

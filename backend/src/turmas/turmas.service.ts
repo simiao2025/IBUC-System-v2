@@ -1,9 +1,17 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ModulosService } from '../modulos/modulos.service';
+import { PresencasService } from '../presencas/presencas.service';
+import { MensalidadesService } from '../mensalidades/mensalidades.service';
 
 @Injectable()
 export class TurmasService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(
+    private supabase: SupabaseService,
+    private modulosService: ModulosService,
+    private presencasService: PresencasService,
+    private mensalidadesService: MensalidadesService,
+  ) {}
 
   private async validarPoloAtivo(poloId: string) {
     const { data, error } = await this.supabase
@@ -81,6 +89,7 @@ export class TurmasService {
     turno: 'manha' | 'tarde' | 'noite';
     dias_semana?: number[];
     status?: 'ativa' | 'inativa' | 'concluida';
+    modulo_atual_id?: string;
   }) {
     if (!dto.nome || dto.nome.trim().length === 0) {
       throw new BadRequestException('Nome é obrigatório');
@@ -108,6 +117,15 @@ export class TurmasService {
       await this.validarProfessor(dto.professor_id);
     }
 
+    // Se o modulo_atual_id não for informado, busca o do ciclo ativo
+    let moduloId = dto.modulo_atual_id;
+    if (!moduloId) {
+      const cicloAtivo = await this.modulosService.buscarCicloAtivo();
+      if (cicloAtivo) {
+        moduloId = cicloAtivo.id;
+      }
+    }
+
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('turmas')
@@ -121,6 +139,7 @@ export class TurmasService {
         turno: dto.turno,
         dias_semana: Array.isArray(dto.dias_semana) ? dto.dias_semana : [],
         status: dto.status || 'ativa',
+        modulo_atual_id: moduloId || null,
       })
       .select()
       .single();
@@ -144,6 +163,7 @@ export class TurmasService {
       turno?: 'manha' | 'tarde' | 'noite';
       dias_semana?: number[];
       status?: 'ativa' | 'inativa' | 'concluida';
+      modulo_atual_id?: string | null;
     },
   ) {
     await this.buscarTurmaPorId(id);
@@ -176,6 +196,7 @@ export class TurmasService {
     if (dto.turno !== undefined) updateData.turno = dto.turno;
     if (dto.dias_semana !== undefined) updateData.dias_semana = dto.dias_semana;
     if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.modulo_atual_id !== undefined) updateData.modulo_atual_id = dto.modulo_atual_id;
 
     const { data, error } = await this.supabase
       .getAdminClient()
@@ -216,7 +237,7 @@ export class TurmasService {
     let query = this.supabase
       .getAdminClient()
       .from('turmas')
-      .select('*')
+      .select('*, modulo:modulos(titulo)')
       .order('nome');
 
     if (filtros?.polo_id) {
@@ -245,5 +266,99 @@ export class TurmasService {
     }
 
     return data || [];
+  }
+
+  async getOccupancy(id: string) {
+    const { count, error } = await this.supabase
+      .getAdminClient()
+      .from('alunos')
+      .select('*', { count: 'exact', head: true })
+      .eq('turma_id', id)
+      .eq('status', 'ativo');
+
+    if (error) throw new BadRequestException(error.message);
+    return { count: count || 0 };
+  }
+
+  async previewTransicao(turmaId: string) {
+    const turma = await this.buscarTurmaPorId(turmaId);
+    const resumoFrequencia = await this.presencasService.calcularResumoFrequenciaTurma(turmaId);
+
+    // Busca detalhes dos alunos da turma para retornar nomes etc
+    const { data: alunos, error } = await this.supabase
+      .getAdminClient()
+      .from('alunos')
+      .select('id, nome')
+      .eq('turma_id', turmaId);
+
+    if (error) throw new Error(error.message);
+
+    return resumoFrequencia.map(rf => {
+      const aluno = alunos.find(a => a.id === rf.aluno_id);
+      return {
+        ...rf,
+        nome: aluno?.nome || 'Desconhecido',
+        aprovado: rf.percentual >= 75
+      };
+    });
+  }
+
+  async encerrarModulo(turmaId: string, alunosConfirmados: string[], valorCents: number = 5000) {
+    const turma = await this.buscarTurmaPorId(turmaId);
+    
+    // Busca o número do módulo atual para o título do histórico e cobrança
+    const { data: moduloAtual } = await this.supabase
+      .getAdminClient()
+      .from('modulos')
+      .select('id, numero, titulo')
+      .eq('id', turma.modulo_atual_id)
+      .maybeSingle();
+
+    // 1. Grava histórico para alunos aprovados
+    const registrosHistorico = alunosConfirmados.map(alunoId => ({
+      aluno_id: alunoId,
+      modulo_numero: moduloAtual?.numero || 0,
+      ano_conclusao: turma.ano_letivo,
+      situacao: 'aprovado'
+    }));
+
+    if (registrosHistorico.length > 0) {
+      const { error: histError } = await this.supabase
+        .getAdminClient()
+        .from('aluno_historico_modulos')
+        .insert(registrosHistorico);
+      
+      if (histError) throw new Error(`Erro ao salvar histórico: ${histError.message}`);
+    }
+
+    // 2. Gatilho Financeiro (Fase 3) - Valor definido pela Board
+    const proximoNumero = (moduloAtual?.numero || 0) + 1;
+    const { data: proximoModulo } = await this.supabase
+      .getAdminClient()
+      .from('modulos')
+      .select('id, titulo')
+      .eq('numero', proximoNumero)
+      .maybeSingle();
+
+    if (proximoModulo && alunosConfirmados.length > 0) {
+      await this.mensalidadesService.gerarCobrancasMaterialAprovados(
+        alunosConfirmados,
+        `Material Didático (PIX) - ${proximoModulo.titulo}`,
+        valorCents, 
+        new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0] // Vencimento mês que vem
+      );
+    }
+
+
+    // 3. Avança a turma para o próximo módulo
+    if (proximoModulo) {
+      await this.atualizarTurma(turmaId, { modulo_atual_id: proximoModulo.id });
+    }
+
+    return { 
+      message: 'Módulo encerrado com sucesso e cobranças geradas',
+      proximo_modulo_id: proximoModulo?.id,
+      alunos_processados: alunosConfirmados.length
+    };
   }
 }

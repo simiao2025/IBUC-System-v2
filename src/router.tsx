@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 // Layouts
 import PublicLayout from './components/PublicLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import AppLayout from './components/AppLayout';
 
 // Auth Pages
 import StudentAccess from './pages/auth/StudentAccess';
@@ -13,6 +14,7 @@ import AdminAccess from './pages/auth/AdminAccess';
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const StudentManagement = lazy(() => import('./features/students/StudentManagement'));
 const TurmaManagement = lazy(() => import('./pages/admin/TurmaManagement'));
+const ModulosManagement = lazy(() => import('./pages/admin/ModulosManagement'));
 const FrequenciaManagement = lazy(() => import('./features/attendance/FrequenciaManagement'));
 const FinanceiroManagement = lazy(() => import('./features/finance/FinanceiroManagement'));
 const PoloManagement = lazy(() => import('./pages/admin/PoloManagement'));
@@ -28,6 +30,7 @@ const DracmasLaunchManagement = lazy(() => import('./features/finance/DracmasLau
 const DracmasByClassManagement = lazy(() => import('./features/finance/DracmasByClassManagement'));
 const DracmasByStudentManagement = lazy(() => import('./features/students/DracmasByStudentManagement'));
 const MatriculaDocumentManagement = lazy(() => import('./features/enrollments/MatriculaDocumentManagement'));
+const EventManagement = lazy(() => import('./features/events/EventManagement'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -58,6 +61,7 @@ import AppModulos from './pages/app/AppModulos';
 import Home from './pages/public/Home';
 import AboutIBUC from './pages/public/AboutIBUC';
 import Materials from './pages/public/Materials';
+import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import ModulesPage from './pages/modules/ModulesPage';
 import Module01 from './pages/modules/Module01';
 import Module02 from './pages/modules/Module02';
@@ -86,6 +90,7 @@ export const router = createBrowserRouter([
   { path: '/modulo-09', element: <PublicLayout><Module09 /></PublicLayout> },
   { path: '/modulo-10', element: <PublicLayout><Module10 /></PublicLayout> },
   { path: '/materiais', element: <PublicLayout><Materials /></PublicLayout> },
+  { path: '/privacidade', element: <PublicLayout><PrivacyPolicy /></PublicLayout> },
   
   // Auth Routes (with layout)
   { path: '/login', element: <PublicLayout><StudentAccess /></PublicLayout> },
@@ -142,6 +147,10 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute requireAdmin>{withSuspense(<TurmaManagement />)}</ProtectedRoute> 
   },
   { 
+    path: '/admin/modulos', 
+    element: <ProtectedRoute requireAdmin>{withSuspense(<ModulosManagement />)}</ProtectedRoute> 
+  },
+  { 
     path: '/admin/frequencia', 
     element: <ProtectedRoute requireAdmin>{withSuspense(<FrequenciaManagement />)}</ProtectedRoute> 
   },
@@ -173,16 +182,20 @@ export const router = createBrowserRouter([
     path: '/admin/pre-matriculas', 
     element: <ProtectedRoute requireAdmin>{withSuspense(<PreMatriculaManagement />)}</ProtectedRoute> 
   },
+  { 
+    path: '/admin/eventos', 
+    element: <ProtectedRoute requireAdmin>{withSuspense(<EventManagement />)}</ProtectedRoute> 
+  },
 
 
   // Student App Routes
-  { path: '/app', element: <Navigate to="/app/dashboard" replace /> },
-  { path: '/app/dashboard', element: <AppDashboard /> },
-  { path: '/app/boletim', element: <AppBoletim /> },
-  { path: '/app/frequencia', element: <AppFrequencia /> },
-  { path: '/app/financeiro', element: <AppFinanceiro /> },
-  { path: '/app/documentos', element: <AppDocumentos /> },
-  { path: '/app/modulos', element: <AppModulos /> },
+  { path: '/app', element: <ProtectedRoute><AppLayout><Navigate to="/app/dashboard" replace /></AppLayout></ProtectedRoute> },
+  { path: '/app/dashboard', element: <ProtectedRoute><AppLayout><AppDashboard /></AppLayout></ProtectedRoute> },
+  { path: '/app/boletim', element: <ProtectedRoute><AppLayout><AppBoletim /></AppLayout></ProtectedRoute> },
+  { path: '/app/frequencia', element: <ProtectedRoute><AppLayout><AppFrequencia /></AppLayout></ProtectedRoute> },
+  { path: '/app/financeiro', element: <ProtectedRoute><AppLayout><AppFinanceiro /></AppLayout></ProtectedRoute> },
+  { path: '/app/documentos', element: <ProtectedRoute><AppLayout><AppDocumentos /></AppLayout></ProtectedRoute> },
+  { path: '/app/modulos', element: <ProtectedRoute><AppLayout><AppModulos /></AppLayout></ProtectedRoute> },
 
   // Catch all
   { path: '*', element: <Navigate to="/" replace /> },

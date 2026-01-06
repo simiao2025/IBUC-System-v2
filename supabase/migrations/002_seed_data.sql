@@ -15,18 +15,17 @@ WHERE NOT EXISTS (SELECT 1 FROM niveis WHERE ordem = v.ordem);
 -- Inserir Módulos (idempotente)
 INSERT INTO modulos (numero, titulo, descricao, duracao_sugestiva, objetivos, carga_horaria) 
 SELECT * FROM (VALUES
-  (1, 'Entendendo a Bíblia', 'Introdução ao estudo da Bíblia, sua estrutura, idiomas e objetivo principal', 24, 'Familiarizar o aluno com a Bíblia, sua estrutura e propósito, com foco em Jesus como centro', 24),
-  (2, 'Descobrindo o Pentateuco', 'Estudo dos cinco primeiros livros da Bíblia: Gênesis, Êxodo, Levítico, Números e Deuteronômio', 24, 'Compreender a base da lei e da história do povo de Israel', 24),
-  (3, 'Explorando as Terras Bíblicas', 'Geografia, clima, flora e fauna das terras mencionadas na Bíblia', 24, 'Conhecer o contexto geográfico e histórico das narrativas bíblicas', 24),
-  (4, 'Vivenciando a História', 'Estudo dos livros históricos do Antigo Testamento: de Josué a Ester', 24, 'Compreender a história do povo de Israel desde a conquista de Canaã até o exílio', 24),
-  (5, 'Aprendendo com os Poetas', 'Estudo dos livros poéticos: Jó, Salmos, Provérbios, Eclesiastes e Cânticos', 24, 'Aprender sabedoria e adoração através da poesia bíblica', 24),
-  (6, 'Aprendendo com os Profetas', 'Estudo dos profetas maiores e menores do Antigo Testamento', 24, 'Compreender as mensagens proféticas e a esperança messiânica', 24),
-  (7, 'Caminhando com Jesus', 'Estudo dos quatro evangelhos e da vida, ministério, ensinamentos e obra redentora de Jesus', 24, 'Conhecer profundamente a vida, ensinamentos e obra de Jesus Cristo', 24),
-  (8, 'Conhecendo a Igreja Primitiva', 'Estudo do livro de Atos e das cartas universais do Novo Testamento', 24, 'Compreender o nascimento e crescimento da igreja primitiva', 24),
-  (9, 'Compreendendo os Princípios Cristãos', 'Estudo das cartas paulinas e seus ensinamentos sobre a vida cristã', 24, 'Aplicar os princípios cristãos ensinados pelo apóstolo Paulo', 24),
-  (10, 'Desvendando o Futuro', 'Estudo do livro de Apocalipse e das profecias sobre o futuro', 24, 'Compreender as revelações sobre o futuro e a consumação dos tempos', 24)
+  (1, 'Entendendo a Bíblia', 'Introdução ao estudo da Bíblia, sua estrutura, idiomas e objetivo principal', 18, 'Familiarizar o aluno com a Bíblia, sua estrutura e propósito, com foco em Jesus como centro', 18),
+  (2, 'Descobrindo o Pentateuco', 'Estudo dos cinco primeiros livros da Bíblia: Gênesis, Êxodo, Levítico, Números e Deuteronômio', 18, 'Compreender a base da lei e da história do povo de Israel', 18),
+  (3, 'Explorando as Terras Bíblicas', 'Geografia, clima, flora e fauna das terras mencionadas na Bíblia', 18, 'Conhecer o contexto geográfico e histórico das narrativas bíblicas', 18),
+  (4, 'Vivenciando a História', 'Estudo dos livros históricos do Antigo Testamento: de Josué a Ester', 18, 'Compreender a história do povo de Israel desde a conquista de Canaã até o exílio', 18),
+  (5, 'Aprendendo com os Poetas', 'Estudo dos livros poéticos: Jó, Salmos, Provérbios, Eclesiastes e Cânticos', 18, 'Aprender sobre sabedoria, louvor e poesia bíblica', 18),
+  (6, 'Aprendendo com os Profetas', 'Estudo dos profetas maiores e menores do Antigo Testamento', 18, 'Compreender mensagens de arrependimento, esperança e juízo', 18),
+  (7, 'Caminhando com Jesus', 'Estudo dos Evangelhos e da vida e ministério de Jesus Cristo', 18, 'Conhecer a vida, ensinamentos e obra redentora de Jesus', 18),
+  (8, 'Conhecendo a Igreja Primitiva', 'Estudo do livro de Atos e das cartas gerais', 18, 'Compreender o início e crescimento da igreja e seus ensinamentos', 18),
+  (9, 'Compreendendo os Princípios Cristãos', 'Estudo das cartas paulinas e doutrinas fundamentais da fé cristã', 18, 'Aprender princípios e doutrinas essenciais da fé cristã', 18),
+  (10, 'Desvendando o Futuro', 'Estudo do livro de Apocalipse e escatologia bíblica', 18, 'Compreender as profecias e a esperança cristã no futuro', 18)
 ) AS v(numero, titulo, descricao, duracao_sugestiva, objetivos, carga_horaria)
-WHERE NOT EXISTS (SELECT 1 FROM modulos WHERE numero = v.numero)
 ON CONFLICT (numero) DO UPDATE SET
   titulo = EXCLUDED.titulo,
   descricao = EXCLUDED.descricao,
@@ -35,6 +34,9 @@ ON CONFLICT (numero) DO UPDATE SET
   carga_horaria = EXCLUDED.carga_horaria;
 
 -- Função auxiliar para inserir lição apenas se não existir
+-- Garante idempotência e permite atualização de nomenclatura via UPSERT por (modulo_id, ordem)
+CREATE UNIQUE INDEX IF NOT EXISTS licoes_modulo_id_ordem_key ON licoes (modulo_id, ordem);
+
 CREATE OR REPLACE FUNCTION insert_licao_if_not_exists(
   p_modulo_numero INTEGER,
   p_titulo TEXT,
@@ -46,10 +48,10 @@ BEGIN
   SELECT m.id, p_titulo, p_descricao, p_ordem, CURRENT_DATE
   FROM modulos m
   WHERE m.numero = p_modulo_numero
-    AND NOT EXISTS (
-      SELECT 1 FROM licoes l 
-      WHERE l.modulo_id = m.id AND l.ordem = p_ordem
-    );
+  ON CONFLICT (modulo_id, ordem) DO UPDATE
+  SET
+    titulo = EXCLUDED.titulo,
+    descricao = EXCLUDED.descricao;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -65,7 +67,7 @@ SELECT insert_licao_if_not_exists(1, 'Porque a minha Bíblia parece ser diferent
 
 SELECT insert_licao_if_not_exists(1, 'A Bíblia está em ordem cronológica?', 'Compreendendo a organização dos livros bíblicos', 5);
 
-SELECT insert_licao_if_not_exists(1, 'O que ensina o Antigo Testamento?', 'Visão geral do conteúdo e propósito do Antigo Testamento', 6);
+SELECT insert_licao_if_not_exists(1, 'O Antigo Testamento', 'Visão geral do conteúdo e propósito do Antigo Testamento', 6);
 
 SELECT insert_licao_if_not_exists(1, 'O grande exemplo de Deus', 'A revelação de Deus através do Antigo Testamento', 7);
 
@@ -113,9 +115,7 @@ SELECT insert_licao_if_not_exists(3, 'Planaltos e montes', 'As elevações e mon
 
 SELECT insert_licao_if_not_exists(3, 'Planícies e vales', 'As planícies e vales mencionados nas Escrituras', 4);
 
-INSERT INTO licoes (modulo_id, titulo, descricao, ordem, liberacao_data)
-SELECT id, 'Desertos e hidrografia', 'Os desertos e os corpos d''água bíblicos', 5, CURRENT_DATE
-FROM modulos WHERE numero = 3;
+SELECT insert_licao_if_not_exists(3, 'Desertos e hidrografia', 'Os desertos e os corpos d''água bíblicos', 5);
 
 SELECT insert_licao_if_not_exists(3, 'O clima, flora e a fauna nos tempos Bíblicos', 'O ambiente natural do mundo bíblico', 6);
 

@@ -1,5 +1,10 @@
 import { supabase } from '../lib/supabase';
 
+/**
+ * @deprecated Use src/services/documento.service.ts instead.
+ * This service bypasses validation and creates orphan files.
+ */
+
 type UploadOptions = {
   folder: string;
   file: File;

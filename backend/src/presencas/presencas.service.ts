@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
@@ -9,26 +9,26 @@ export class PresencasService {
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('presencas')
-      .insert(dto)
+      .upsert(dto, { onConflict: 'aluno_id,turma_id,data' })
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(`Erro DB: ${error.message}`);
     return data;
   }
 
   async lancarPresencasLote(presencas: any[]) {
     if (!Array.isArray(presencas) || presencas.length === 0) {
-      throw new Error('Lista de presenças vazia');
+      throw new BadRequestException('Lista de presenças vazia');
     }
 
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('presencas')
-      .insert(presencas)
+      .upsert(presencas, { onConflict: 'aluno_id,turma_id,data' })
       .select();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new BadRequestException(`Erro DB Lote: ${error.message}`);
     return data;
   }
 
@@ -108,6 +108,54 @@ export class PresencasService {
       resumoPorAluno: Object.values(porAluno),
       registros,
     };
+  }
+
+  async calcularResumoFrequenciaTurma(turmaId: string) {
+    // Busca todas as presenças da turma
+    const { data: registros, error } = await this.supabase
+      .getAdminClient()
+      .from('presencas')
+      .select('aluno_id, status, data')
+      .eq('turma_id', turmaId);
+
+    if (error) throw new Error(error.message);
+
+    // Calcula o total de aulas dadas (datas únicas com lançamentos)
+    const datasUnicas = new Set(registros.map(r => r.data));
+    const totalAulas = datasUnicas.size;
+
+    if (totalAulas === 0) return [];
+
+    const resumo: Record<string, { aluno_id: string; total_presente: number; total_faltas: number; percentual: number }> = {};
+
+    registros.forEach(r => {
+      if (!resumo[r.aluno_id]) {
+        resumo[r.aluno_id] = {
+          aluno_id: r.aluno_id,
+          total_presente: 0,
+          total_faltas: 0,
+          percentual: 0
+        };
+      }
+
+      if (r.status === 'presente' || r.status === 'atraso') {
+        resumo[r.aluno_id].total_presente += 1;
+      } else if (r.status === 'falta') {
+        resumo[r.aluno_id].total_faltas += 1;
+      }
+      // Justificativa e Atraso são complexos. 
+      // Em muitos sistemas, Justificativa não conta como falta nem presença se diminuir o total, 
+      // mas aqui o critério é >= 75%. Vamos considerar que Justificativa abona a falta (conta como presente para efeito de aprovação).
+      if (r.status === 'justificativa') {
+        resumo[r.aluno_id].total_presente += 1;
+      }
+    });
+
+    // Calcula o percentual final para cada aluno
+    return Object.values(resumo).map(aluno => ({
+      ...aluno,
+      percentual: Math.round((aluno.total_presente / totalAulas) * 100)
+    }));
   }
 }
 

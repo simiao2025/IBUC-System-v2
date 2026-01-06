@@ -18,6 +18,8 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ isAdminView }
   const { currentUser } = useApp();
   // Se isAdminView for true, forçamos o modo admin.
   const isAdmin = isAdminView || currentUser?.role === 'admin';
+
+  const isPoloScoped = isAdmin && (currentUser as any)?.adminUser?.accessLevel === 'polo_especifico' && Boolean((currentUser as any)?.adminUser?.poloId);
   
   const {
     formData,
@@ -27,8 +29,6 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ isAdminView }
     turmas,
     errors,
     submitted,
-    selectedDocType,
-    setSelectedDocType,
     handleInputChange,
     handleHealthChange,
     handleCheckboxChange,
@@ -36,8 +36,14 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ isAdminView }
     handleSubmit,
     buscarCEP,
     uploadedFiles,
-    setFormData
+    setFormData,
+    turmaOccupancy
   } = usePreMatriculaForm(isAdminView);
+
+  const moduloOptions = Array.from({ length: 10 }).map((_, idx) => {
+    const n = String(idx + 1).padStart(2, '0');
+    return { value: `modulo_${n}`, label: `Módulo ${n}` };
+  });
 
   // Opções de Gênero
   const sexoOptions = [
@@ -185,21 +191,25 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ isAdminView }
                 onChange={handleInputChange}
               />
 
-              <Input
-                label="Órgão Emissor (RG)"
-                name="rg_orgao"
-                value={formData.rg_orgao}
-                onChange={handleInputChange}
-                placeholder="Ex: SSP/TO"
-              />
+              {isAdminView && (
+                <>
+                  <Input
+                    label="Órgão Emissor (RG)"
+                    name="rg_orgao"
+                    value={formData.rg_orgao}
+                    onChange={handleInputChange}
+                    placeholder="Ex: SSP/TO"
+                  />
 
-              <Input
-                label="Data de Expedição (RG)"
-                name="rg_data_expedicao"
-                type="date"
-                value={formData.rg_data_expedicao}
-                onChange={handleInputChange}
-              />
+                  <Input
+                    label="Data de Expedição (RG)"
+                    name="rg_data_expedicao"
+                    type="date"
+                    value={formData.rg_data_expedicao}
+                    onChange={handleInputChange}
+                  />
+                </>
+              )}
 
               <Input
                 label="Naturalidade"
@@ -511,141 +521,65 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ isAdminView }
               <FileText className="h-6 w-6 text-red-600" />
               <h2 className="text-xl font-semibold text-gray-900 uppercase">Informações da Matrícula</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Select
-                label="Polo de Estudo *"
-                name="polo_id"
-                value={formData.polo_id}
-                onChange={(val) => setFormData(prev => ({ ...prev, polo_id: val }))}
-                options={polos.map(p => ({ value: p.id, label: p.nome }))}
-                error={errors.polo_id}
-                required
-              />
+              {!isAdminView || !isPoloScoped ? (
+                <Select
+                  label="Polo de Estudo *"
+                  name="polo_id"
+                  value={formData.polo_id}
+                  onChange={(val) => setFormData(prev => ({ ...prev, polo_id: val, turma_id: '' }))}
+                  options={polos.map(p => ({ value: p.id, label: p.nome }))}
+                  error={errors.polo_id}
+                  required
+                />
+              ) : (
+                <div className="md:col-span-2" />
+              )}
 
               <Select
                 label="Nível / Módulo *"
                 name="nivel_id"
                 value={formData.nivel_id}
-                onChange={(val) => setFormData(prev => ({ ...prev, nivel_id: val }))}
+                onChange={(val) => setFormData(prev => ({ ...prev, nivel_id: val, turma_id: '' }))}
                 options={niveis.map(n => ({ value: n.id, label: n.nome }))}
                 error={errors.nivel_id}
                 required
               />
 
               {isAdminView && (
-                <div className="md:col-span-2 border-l-4 border-red-500 bg-red-50 p-4 rounded-r-lg">
-                  <h3 className="text-sm font-bold text-red-800 mb-4 uppercase flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Opções de Cadastro Direto
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Select
-                      label="Turma (Obrigatório para Matrícula Direta) *"
-                      name="turma_id"
-                      value={formData.turma_id}
-                      onChange={(val) => setFormData(prev => ({ ...prev, turma_id: val }))}
-                      options={[
-                        { value: '', label: 'Selecione uma turma' },
-                        ...turmas.map(t => ({ value: t.id, label: `${t.nome} (Vagas: ${t.vagas_disponiveis != null ? t.vagas_disponiveis : 'N/A'})` }))
-                      ]}
-                      error={errors.turma_id}
-                      required={isAdminView}
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      Ao selecionar uma turma nesta tela administrativa, o aluno será cadastrado diretamente como <strong>ATIVO</strong>.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <Input
-                label="Escola de Origem (EBM)"
-                name="escola_origem"
-                value={formData.escola_origem}
-                onChange={handleInputChange}
-                placeholder="Onde estudava anteriormente"
-              />
-
-              <Input
-                label="Ano Escolar / Módulo (Texto)"
-                name="ano_escolar"
-                value={formData.ano_escolar}
-                onChange={handleInputChange}
-                placeholder="Ex: 2025 ou Módulo 01"
-              />
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Observações Adicionais</label>
-                <textarea
-                  name="observacoes"
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 min-h-[100px]"
-                  placeholder="Informações relevantes para a secretaria ou polo"
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Sessão: Documentos */}
-          <Card>
-            <div className="flex items-center space-x-2 mb-6 border-b pb-4">
-              <Upload className="h-6 w-6 text-red-600" />
-              <h2 className="text-xl font-semibold text-gray-900 uppercase">Documentos Obrigatórios</h2>
-            </div>
-            
-            <p className="text-sm text-gray-600 mb-6 bg-blue-50 p-4 rounded-lg">
-              <AlertCircle className="inline-block h-4 w-4 mr-2 text-blue-600" />
-              Anexe os documentos solicitados abaixo para agilizar sua matrícula. Formatos aceitos: JPG, PNG, PDF.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <Select
-                  label="Tipo de Documento para Enviar"
-                  value={selectedDocType}
-                  onChange={(val) => setSelectedDocType(val as any)}
-                  options={REQUIRED_DOCUMENTS}
-                />
-                
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-red-500 transition-colors cursor-pointer relative">
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileSelected(file);
+                <>
+                  <Select
+                    label="Módulo"
+                    name="modulo"
+                    value={formData.ano_escolar ? moduloOptions.find(m => m.label === formData.ano_escolar)?.value || '' : ''}
+                    onChange={(val) => {
+                      const selected = moduloOptions.find(m => m.value === val);
+                      setFormData(prev => ({ ...prev, ano_escolar: selected?.label || prev.ano_escolar }));
                     }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    options={[{ value: '', label: 'Selecione...' }, ...moduloOptions]}
                   />
-                  <Upload className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-                  <p className="text-sm text-gray-600">
-                    Clique aqui ou arraste para enviar o <span className="font-bold">{REQUIRED_DOCUMENTS.find(d => d.value === selectedDocType)?.label}</span>
-                  </p>
-                </div>
-                {errors.documentos && <p className="text-sm text-red-600 mt-2">{errors.documentos}</p>}
-              </div>
 
-              <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                <h4 className="font-semibold text-gray-900 mb-4 uppercase text-xs tracking-wider">Documentos Enviados:</h4>
-                <div className="space-y-3">
-                  {REQUIRED_DOCUMENTS.map(doc => {
-                    const isUploaded = uploadedFiles.some(f => f.tipo === doc.value);
-                    return (
-                      <div key={doc.value} className="flex items-center justify-between p-3 bg-white rounded border border-gray-100">
-                        <span className="text-sm font-medium">{doc.label}</span>
-                        <div className="flex items-center">
-                          {isUploaded ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Check className="h-4 w-4 text-gray-200" />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                  <Input
+                    label="Ano Escolar / Módulo (Texto)"
+                    name="ano_escolar"
+                    value={formData.ano_escolar}
+                    onChange={handleInputChange}
+                    placeholder="Ex: 2025 ou Módulo 01"
+                  />
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Observações Adicionais</label>
+                    <textarea
+                      name="observacoes"
+                      value={formData.observacoes}
+                      onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 min-h-[100px]"
+                      placeholder="Informações relevantes para a secretaria ou polo"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </Card>
 
@@ -677,27 +611,139 @@ const StudentRegistration: React.FC<StudentRegistrationProps> = ({ isAdminView }
             {errors.aceite_termo && <p className="text-sm text-red-600 mt-2">{errors.aceite_termo}</p>}
           </Card>
 
+          {/* Sessão: Upload de Documentos - Ambos os fluxos */}
+          <Card>
+            <div className="flex items-center space-x-2 mb-6 border-b pb-4">
+              <Upload className="h-6 w-6 text-red-600" />
+              <h2 className="text-xl font-semibold text-gray-900 uppercase">Documentos Obrigatórios</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {REQUIRED_DOCUMENTS.map((doc) => (
+                <div key={doc.value} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{doc.label}</h4>
+                      <p className="text-sm text-gray-500">Envie o documento em formato PDF ou imagem</p>
+                    </div>
+                    <FileText className="h-5 w-5 text-gray-400" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => handleFileSelected(doc.value, e.target.files?.[0])}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    
+                    {uploadedFiles.find(f => f.tipo === doc.value) && (
+                      <div className="flex items-center justify-between p-2 bg-green-50 rounded text-sm">
+                        <span className="text-green-700">
+                          {uploadedFiles.find(f => f.tipo === doc.value)?.name}
+                        </span>
+                        <Check className="h-4 w-4 text-green-600" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {isAdminView && (
+            <Card>
+              <div className="flex items-center space-x-2 mb-6 border-b pb-4">
+                <AlertCircle className="h-6 w-6 text-red-600" />
+                <h2 className="text-xl font-semibold text-gray-900 uppercase">Opções de Cadastro Direto</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Select
+                  label="Turma (Obrigatório para Matrícula Direta) *"
+                  name="turma_id"
+                  value={formData.turma_id}
+                  onChange={(val) => setFormData(prev => ({ ...prev, turma_id: val }))}
+                  options={turmas.map((t: any) => {
+                    const nivel = niveis.find(n => n.id === t.nivel_id)?.nome;
+                    const modulo = t.modulo?.titulo || 'Módulo ' + (t.modulo_numero || '?');
+                    return {
+                      value: t.id,
+                      label: `${t.nome} [${nivel} - ${modulo}]`
+                    };
+                  })}
+                  error={errors.turma_id}
+                  required={isAdminView}
+                  helperText={formData.turma_id ? "Esta turma define o Nível e Módulo atual do aluno." : ""}
+                />
+                {turmaOccupancy && (
+                  <div className={`mt-2 p-3 rounded-lg border flex items-center gap-3 ${
+                    turmaOccupancy.count >= turmaOccupancy.capacity 
+                      ? 'bg-red-50 border-red-200 text-red-700' 
+                      : (turmaOccupancy.count / turmaOccupancy.capacity) >= 0.8
+                        ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                        : 'bg-green-50 border-green-200 text-green-700'
+                  }`}>
+                    {turmaOccupancy.count >= turmaOccupancy.capacity ? (
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <Users className="h-5 w-5 flex-shrink-0" />
+                    )}
+                    <div className="text-xs">
+                      <p className="font-bold">
+                        Ocupação: {turmaOccupancy.count} / {turmaOccupancy.capacity} alunos
+                      </p>
+                      {turmaOccupancy.count >= turmaOccupancy.capacity ? (
+                        <p>Esta turma está lotada. Selecione outra ou solicite expansão.</p>
+                      ) : (turmaOccupancy.count / turmaOccupancy.capacity) >= 0.8 ? (
+                        <p>Atenção: Turma próxima da capacidade máxima.</p>
+                      ) : (
+                        <p>Turma com vagas disponíveis.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-2">
+                  Ao selecionar uma turma nesta tela administrativa, o aluno será cadastrado diretamente como <strong>ATIVO</strong>.
+                </p>
+              </div>
+            </Card>
+          )}
+
           <div className="flex justify-center pt-8">
-            <Button
-              type="submit"
-              size="lg"
-              loading={loading}
-              className="min-w-[250px] bg-red-600 hover:bg-red-700 text-white py-4 text-xl shadow-lg"
-            >
-              {isAdmin && formData.turma_id ? (
-                <>
-                  <Save className="h-5 w-5 mr-2" />
-                  Cadastrar e Ativar Aluno
-                </>
-              ) : isAdmin ? (
-                <>
-                  <Save className="h-5 w-5 mr-2" />
-                  Cadastrar (Via Pré-matrícula)
-                </>
-              ) : (
-                'Enviar Pré-matrícula'
-              )}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                disabled={loading}
+                className="min-w-[250px] py-4 text-xl"
+                onClick={() => navigate(isAdminView ? '/admin/alunos' : '/')}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="submit"
+                size="lg"
+                loading={loading}
+                disabled={!formData.aceite_termo}
+                className="min-w-[250px] bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white py-4 text-xl shadow-lg"
+              >
+                {isAdmin && formData.turma_id ? (
+                  <>
+                    <Save className="h-5 w-5 mr-2" />
+                    Cadastrar e Ativar Aluno
+                  </>
+                ) : isAdmin ? (
+                  <>
+                    <Save className="h-5 w-5 mr-2" />
+                    Salvar Matrícula
+                  </>
+                ) : (
+                  'Enviar Pré-matrícula'
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </div>

@@ -219,6 +219,136 @@ export class DocumentosService {
       arquivos: allArquivos,
     };
   }
+
+  async uploadDocumentosAluno(alunoId: string, tipo: string | undefined, files: any[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('Nenhum arquivo enviado');
+    }
+
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
+    const client = this.supabase.getAdminClient();
+
+    const uploads: {
+      path: string;
+      url?: string;
+      name: string;
+      size: number;
+      type: string;
+      tipo?: string;
+    }[] = [];
+
+    for (const file of files) {
+      const timestamp = Date.now();
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const path = `alunos/${alunoId}/${timestamp}_${safeName}`;
+
+      const { error } = await client.storage.from(bucket).upload(path, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+      if (error) {
+        throw new BadRequestException(`Erro ao enviar arquivo: ${error.message}`);
+      }
+
+      const {
+        data: { publicUrl },
+      } = client.storage.from(bucket).getPublicUrl(path);
+
+      uploads.push({
+        path,
+        url: publicUrl,
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype,
+        tipo,
+      });
+    }
+
+    return {
+      aluno_id: alunoId,
+      arquivos: uploads,
+    };
+  }
+
+  async listarDocumentosAluno(alunoId: string) {
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
+    const client = this.supabase.getAdminClient();
+    const allArquivos: {
+      name: string;
+      path: string;
+      url: string;
+      size?: number;
+      created_at?: string;
+      updated_at?: string;
+      tipo?: string;
+    }[] = [];
+
+    // Helper para processar itens de uma pasta
+    const processItems = async (prefix: string) => {
+      // Tenta listar subpastas (para estrutura antiga/organizada)
+      const { data: rootItems } = await client.storage.from(bucket).list(prefix, { limit: 50 });
+      
+      if (!rootItems) return;
+
+      for (const item of rootItems) {
+        if (!item.id) {
+          // É uma pasta, entra nela
+          const subPrefix = `${prefix}/${item.name}`;
+          const { data: subItems } = await client.storage.from(bucket).list(subPrefix, { limit: 50 });
+          
+          if (subItems) {
+            for (const subItem of subItems) {
+              const path = `${subPrefix}/${subItem.name}`;
+              const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
+              
+              // Evita duplicatas
+              if (!allArquivos.some(a => a.name === subItem.name && a.size === subItem.metadata?.size)) {
+                allArquivos.push({
+                  name: subItem.name,
+                  path,
+                  url: publicUrl,
+                  size: subItem.metadata?.size,
+                  created_at: subItem.created_at,
+                  updated_at: subItem.updated_at,
+                  tipo: item.name // Usa o nome da pasta como tipo
+                });
+              }
+            }
+          }
+        } else {
+          // Arquivo na raiz do prefixo
+          const path = `${prefix}/${item.name}`;
+          const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
+          
+          if (!allArquivos.some(a => a.name === item.name && a.size === item.metadata?.size)) {
+            allArquivos.push({
+              name: item.name,
+              path,
+              url: publicUrl,
+              size: item.metadata?.size,
+              created_at: item.created_at,
+              updated_at: item.updated_at,
+              tipo: 'outros'
+            });
+          }
+        }
+      }
+    };
+
+    // 1. Busca no caminho padrão de alunos
+    await processItems(`alunos/${alunoId}`);
+
+    // 2. Busca no caminho legado de pré-matrículas (onde student_id foi usado)
+    if (allArquivos.length === 0) {
+       await processItems(`pre-matriculas/${alunoId}`);
+    }
+
+    return {
+      aluno_id: alunoId,
+      arquivos: allArquivos,
+    };
+  }
 }
 
 

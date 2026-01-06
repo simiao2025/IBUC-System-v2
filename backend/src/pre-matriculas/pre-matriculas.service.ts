@@ -335,8 +335,9 @@ export class PreMatriculasService {
       throw new BadRequestException(`Erro ao atualizar pré-matrícula: ${preUpdateError.message}`);
     }
 
-    // Trigger notification
-    void this.notificacoesService.enviarNotificacaoAprovacao(matriculaCriada.id);
+    // Trigger notification safely
+    this.notificacoesService.enviarNotificacaoAprovacao(matriculaCriada.id)
+      .catch(err => console.error('Erro ao enviar notificação de aprovação:', err));
 
     return {
       pre_matricula_id: preMatriculaId,

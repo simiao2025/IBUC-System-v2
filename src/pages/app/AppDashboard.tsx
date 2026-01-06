@@ -3,11 +3,26 @@ import { useApp } from '../../context/AppContext';
 import Card from '../../components/ui/Card';
 import { Calendar } from 'lucide-react';
 import { EventosService, type Evento } from '../../services/eventos.service';
+import Button from '../../components/ui/Button';
+import { Link } from 'react-router-dom';
+import { Icon3D } from '../../components/ui/Icon3D';
+import { BookOpen, ClipboardList, Wallet, FolderOpen, Award } from 'lucide-react';
+import { DracmasAPI } from '../../features/finance/dracmas.service';
+
+type DracmasSaldoResponse = {
+  data?: {
+    saldo?: number;
+  };
+  saldo?: number;
+};
 
 const AppDashboard: React.FC = () => {
   const { currentUser } = useApp();
   const [upcomingEvents, setUpcomingEvents] = useState<Evento[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
+
+  const [dracmasSaldo, setDracmasSaldo] = useState<number | null>(null);
+  const [dracmasLoading, setDracmasLoading] = useState(false);
 
   // Load Events
   useEffect(() => {
@@ -30,15 +45,100 @@ const AppDashboard: React.FC = () => {
     loadEvents();
   }, []);
 
+  useEffect(() => {
+    const loadDracmas = async () => {
+      if (!currentUser || currentUser.role !== 'student' || !currentUser.studentId) {
+        setDracmasSaldo(null);
+        return;
+      }
+
+      try {
+        setDracmasLoading(true);
+        const response = (await DracmasAPI.saldoPorAluno(currentUser.studentId)) as DracmasSaldoResponse;
+        const saldo = response?.data?.saldo ?? response?.saldo ?? 0;
+        setDracmasSaldo(typeof saldo === 'number' ? saldo : Number(saldo) || 0);
+      } catch (e) {
+        console.error('Erro ao carregar saldo de Drácmas do aluno:', e);
+        setDracmasSaldo(null);
+      } finally {
+        setDracmasLoading(false);
+      }
+    };
+
+    loadDracmas();
+  }, [currentUser]);
+
+  const studentQuickActions = [
+    {
+      title: 'Módulos',
+      description: 'Conteúdos e aulas',
+      href: '/app/modulos',
+      iconName: 'turmas',
+      fallbackIcon: BookOpen,
+    },
+    {
+      title: 'Frequência',
+      description: 'Presenças e faltas',
+      href: '/app/frequencia',
+      iconName: 'frequencia',
+      fallbackIcon: ClipboardList,
+    },
+    {
+      title: 'Financeiro',
+      description: 'Pagamentos e taxas',
+      href: '/app/financeiro',
+      iconName: 'financeiro',
+      fallbackIcon: Wallet,
+    },
+    {
+      title: 'Documentos',
+      description: 'Arquivos e envios',
+      href: '/app/documentos',
+      iconName: 'personalizado',
+      fallbackIcon: FolderOpen,
+    },
+    {
+      title: 'Drácmas',
+      description: 'Saldo total de Drácmas',
+      href: '/app/financeiro',
+      iconName: 'certificado',
+      fallbackIcon: Award,
+      metaValue: dracmasLoading ? 'Carregando...' : dracmasSaldo === null ? '—' : String(dracmasSaldo),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Olá, {currentUser?.name?.split(' ')[0] || 'Aluno'}
-        </h1>
-        <p className="text-sm text-gray-600">
-          Bem-vindo ao seu portal do aluno.
-        </p>
+      <div className="mb-2">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">Ações Rápidas</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          {studentQuickActions.map((action, index) => (
+            <Card
+              key={index}
+              className="hover:shadow-lg transition-transform hover:-translate-y-1 duration-200 flex flex-col items-center text-center p-6"
+            >
+              <div className="mb-4">
+                <Icon3D
+                  name={action.iconName}
+                  fallbackIcon={action.fallbackIcon}
+                  size="xl"
+                  className="h-24 w-24"
+                />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{action.title}</h3>
+              <p className="text-sm text-gray-500 mb-4 flex-grow">{action.description}</p>
+              {'metaValue' in action ? (
+                <div className="w-full mb-4">
+                  <p className="text-xs text-gray-500">Saldo</p>
+                  <p className="text-2xl font-bold text-gray-900">{action.metaValue}</p>
+                </div>
+              ) : null}
+              <Button asChild size="sm" className="w-full bg-teal-600 hover:bg-teal-700 text-white shadow-sm">
+                <Link to={action.href}>Acessar</Link>
+              </Button>
+            </Card>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -90,11 +190,10 @@ const AppDashboard: React.FC = () => {
           )}
         </Card>
 
-        {/* Placeholder for future widgets */}
         <Card className="flex items-center justify-center min-h-[200px] bg-gray-50 border-dashed">
           <p className="text-gray-400 text-sm text-center">
             Mais funcionalidades em breve<br/>
-            (Financeiro, Notas, Frequência)
+            (conteúdos detalhados por módulo)
           </p>
         </Card>
       </div>
