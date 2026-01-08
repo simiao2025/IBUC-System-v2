@@ -1,15 +1,20 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Patch, Delete } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Put, Query, Patch, Delete, UseGuards } from '@nestjs/common';
+import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
+import { Public } from '../auth-v2/decorators/public.decorator';
 import { PreMatriculasService } from './pre-matriculas.service';
 import { CreatePreMatriculaDto, UpdatePreMatriculaStatusDto, UpdatePreMatriculaDto } from './dto';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Pré-matrículas')
 @Controller('pre-matriculas')
 export class PreMatriculasController {
-  constructor(private readonly service: PreMatriculasService) {}
+  constructor(private readonly service: PreMatriculasService) { }
 
+  @Public()
   @Post()
-  @ApiOperation({ summary: 'Criar pré-matrícula' })
+  @ApiOperation({ summary: 'Criar pré-matrícula (público para formulário online)' })
   async criar(@Body() dto: CreatePreMatriculaDto) {
     return this.service.criar(dto);
   }

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Select from '../../components/ui/Select';
-import { useApp } from '../../context/AppContext';
-import { EventosService, type Evento } from '../../services/eventos.service';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import Select from '../../../components/ui/Select';
+import { useApp } from '../../../context/AppContext';
+import { EventosService, type Evento } from '../../../services/eventos.service';
 import { EventForm } from './EventForm';
 
 type ScopeMode = 'geral' | 'polo';
@@ -198,8 +198,8 @@ export const EventList: React.FC = () => {
       </Card>
 
       {showForm && (
-        <EventForm 
-          onClose={() => setShowForm(false)} 
+        <EventForm
+          onClose={() => setShowForm(false)}
           onSuccess={handleSuccess}
           editingEvent={editing}
           initialScopeMode={scopeMode}

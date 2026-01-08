@@ -8,11 +8,11 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import { FileUpload } from '../ui/FileUpload';
-import { 
-  User, 
-  Camera, 
-  MapPin, 
-  Phone, 
+import {
+  User,
+  Camera,
+  MapPin,
+  Phone,
   Calendar,
   FileText,
   Save,
@@ -63,66 +63,100 @@ const StudentForm: React.FC<StudentFormProps> = ({
   onCancel,
   loading = false
 }) => {
+  // 🔍 DEBUG: Log the complete student object received
+  useEffect(() => {
+    if (student) {
+      console.log('🔍 StudentForm - student object received:', JSON.stringify(student, null, 2));
+      console.log('🔍 StudentForm - endereco type:', typeof student?.endereco, student?.endereco);
+      console.log('🔍 StudentForm - telefone_responsavel:', (student as any)?.telefone_responsavel);
+    }
+  }, [student]);
+
+  // Helper para garantir que sempre retornamos uma string limpa
+  const safeString = (value: any, fieldName?: string): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    if (Array.isArray(value)) {
+      console.warn(`⚠️ safeString received array for ${fieldName}:`, value);
+      return '';
+    }
+    if (typeof value === 'object') {
+      console.warn(`⚠️ safeString received object for ${fieldName}:`, value);
+      // Se for um objeto, tentar extrair valores comuns
+      if (value.telefone) return safeString(value.telefone, fieldName);
+      if (value.numero) return safeString(value.numero, fieldName);
+      if (value.value) return safeString(value.value, fieldName);
+      if (value.nome) return safeString(value.nome, fieldName); // Para JOINs como turma/nivel
+      // Se tiver apenas uma chave, usar seu valor
+      const keys = Object.keys(value);
+      if (keys.length === 1) return safeString(value[keys[0]], fieldName);
+      return '';
+    }
+    return '';
+  };
+
+
   const [niveis, setNiveis] = useState<Nivel[]>([]);
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [formData, setFormData] = useState({
     // Dados Pessoais
-    nome: student?.nome || '',
-    data_nascimento: student?.data_nascimento || '',
+    nome: safeString(student?.nome),
+    data_nascimento: safeString(student?.data_nascimento),
     sexo: student?.sexo || 'M' as 'M' | 'F',
-    cpf: student?.cpf || '',
-    rg: student?.rg || '',
-    rg_orgao: (student as any)?.rg_orgao || '',
-    rg_data_expedicao: (student as any)?.rg_data_expedicao || '',
-    naturalidade: student?.naturalidade || '',
-    nacionalidade: student?.nacionalidade || 'Brasileira',
-    nome_responsavel: (student as any)?.nome_responsavel || '',
-    cpf_responsavel: (student as any)?.cpf_responsavel || '',
-    telefone_responsavel: (student as any)?.telefone_responsavel || '',
-    email_responsavel: (student as any)?.email_responsavel || '',
+    cpf: safeString(student?.cpf),
+    rg: safeString(student?.rg),
+    rg_orgao: safeString((student as any)?.rg_orgao),
+    rg_data_expedicao: safeString((student as any)?.rg_data_expedicao),
+    naturalidade: safeString(student?.naturalidade),
+    nacionalidade: safeString(student?.nacionalidade) || 'Brasileira',
+    nome_responsavel: safeString((student as any)?.nome_responsavel),
+    cpf_responsavel: safeString((student as any)?.cpf_responsavel),
+    telefone_responsavel: safeString((student as any)?.telefone_responsavel),
+    email_responsavel: safeString((student as any)?.email_responsavel),
     tipo_parentesco: ((student as any)?.tipo_parentesco || 'pai') as 'pai' | 'mae' | 'tutor' | 'outro',
-    nome_responsavel_2: (student as any)?.nome_responsavel_2 || '',
-    cpf_responsavel_2: (student as any)?.cpf_responsavel_2 || '',
-    telefone_responsavel_2: (student as any)?.telefone_responsavel_2 || '',
-    email_responsavel_2: (student as any)?.email_responsavel_2 || '',
-    tipo_parentesco_2: (student as any)?.tipo_parentesco_2 || '',
-    
+    nome_responsavel_2: safeString((student as any)?.nome_responsavel_2),
+    cpf_responsavel_2: safeString((student as any)?.cpf_responsavel_2),
+    telefone_responsavel_2: safeString((student as any)?.telefone_responsavel_2),
+    email_responsavel_2: safeString((student as any)?.email_responsavel_2),
+    tipo_parentesco_2: safeString((student as any)?.tipo_parentesco_2),
+
     // Endereço
-    cep: student?.endereco?.cep || '',
-    rua: student?.endereco?.rua || '',
-    numero: student?.endereco?.numero || '',
-    complemento: student?.endereco?.complemento || '',
-    bairro: student?.endereco?.bairro || '',
-    cidade: student?.endereco?.cidade || '',
-    estado: student?.endereco?.estado || 'TO',
-    
+    cep: safeString(student?.endereco?.cep),
+    rua: safeString(student?.endereco?.rua),
+    numero: safeString(student?.endereco?.numero),
+    complemento: safeString(student?.endereco?.complemento),
+    bairro: safeString(student?.endereco?.bairro),
+    cidade: safeString(student?.endereco?.cidade),
+    estado: safeString(student?.endereco?.estado) || 'TO',
+
     // Contato
-    telefone: (student as any)?.telefone_responsavel || '',
-    celular: '',
-    email: (student as any)?.email_responsavel || '',
-    
+    telefone: safeString((student as any)?.telefone_responsavel),
+    celular: safeString((student as any)?.celular),
+    email: safeString((student as any)?.email_responsavel),
+
     // Dados Acadêmicos
-    polo_id: student?.polo_id || '',
-    nivel_id: (student as any)?.nivel_atual_id || (student as any)?.nivel_id || '',
-    turma_id: student?.turma_id || '',
+    polo_id: safeString(student?.polo_id),
+    nivel_id: safeString((student as any)?.nivel_atual_id || (student as any)?.nivel_id),
+    turma_id: safeString(student?.turma_id),
     status: student?.status || 'ativo',
 
-    escola_origem: (student as any)?.escola_origem || (student as any)?.escola_atual || '',
-    ano_escolar: (student as any)?.ano_escolar || (student as any)?.serie || '',
-    
+    escola_origem: safeString((student as any)?.escola_origem || (student as any)?.escola_atual),
+    ano_escolar: safeString((student as any)?.ano_escolar || (student as any)?.serie),
+
     // Saúde (Try both flat and nested as backend varies)
-    alergias: (student as any)?.alergias || student?.saude?.alergias || '',
-    restricao_alimentar: (student as any)?.restricao_alimentar || student?.saude?.restricao_alimentar || '',
-    medicacao_continua: (student as any)?.medicacao_continua || student?.saude?.medicacao_continua || '',
-    doencas_cronicas: (student as any)?.doencas_cronicas || student?.saude?.doencas_cronicas || '',
-    contato_emergencia_nome: (student as any)?.contato_emergencia_nome || student?.saude?.contato_emergencia_nome || '',
-    contato_emergencia_telefone: (student as any)?.contato_emergencia_telefone || student?.saude?.contato_emergencia_telefone || '',
-    convenio_medico: (student as any)?.convenio_medico || student?.saude?.convenio_medico || '',
-    hospital_preferencia: (student as any)?.hospital_preferencia || student?.saude?.hospital_preferencia || '',
+    alergias: safeString((student as any)?.alergias || student?.saude?.alergias),
+    restricao_alimentar: safeString((student as any)?.restricao_alimentar || student?.saude?.restricao_alimentar),
+    medicacao_continua: safeString((student as any)?.medicacao_continua || student?.saude?.medicacao_continua),
+    doencas_cronicas: safeString((student as any)?.doencas_cronicas || student?.saude?.doencas_cronicas),
+    contato_emergencia_nome: safeString((student as any)?.contato_emergencia_nome || student?.saude?.contato_emergencia_nome),
+    contato_emergencia_telefone: safeString((student as any)?.contato_emergencia_telefone || student?.saude?.contato_emergencia_telefone),
+    convenio_medico: safeString((student as any)?.convenio_medico || student?.saude?.convenio_medico),
+    hospital_preferencia: safeString((student as any)?.hospital_preferencia || student?.saude?.hospital_preferencia),
     autorizacao_medica: (student as any)?.autorizacao_medica || student?.saude?.autorizacao_medica || false,
-    
+
     // Observações
-    observacoes: student?.observacoes || ''
+    observacoes: safeString(student?.observacoes)
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -164,15 +198,15 @@ const StudentForm: React.FC<StudentFormProps> = ({
 
         const attempts: any[] = formData.nivel_id
           ? [
-              { polo_id: formData.polo_id, nivel_id: formData.nivel_id, status: 'ativa' },
-              { polo_id: formData.polo_id, nivel_id: formData.nivel_id },
-              { polo_id: formData.polo_id, status: 'ativa' },
-              { polo_id: formData.polo_id },
-            ]
+            { polo_id: formData.polo_id, nivel_id: formData.nivel_id, status: 'ativa' },
+            { polo_id: formData.polo_id, nivel_id: formData.nivel_id },
+            { polo_id: formData.polo_id, status: 'ativa' },
+            { polo_id: formData.polo_id },
+          ]
           : [
-              { polo_id: formData.polo_id, status: 'ativa' },
-              { polo_id: formData.polo_id },
-            ];
+            { polo_id: formData.polo_id, status: 'ativa' },
+            { polo_id: formData.polo_id },
+          ];
 
         for (const params of attempts) {
           const list = await tryFetch(params);
@@ -192,45 +226,81 @@ const StudentForm: React.FC<StudentFormProps> = ({
     carregarTurmas();
   }, [formData.polo_id, formData.nivel_id]);
 
+  // Inicializar foto do aluno a partir do campo foto_url do student
+  useEffect(() => {
+    if (student?.foto_url) {
+      console.log('📷 Foto do aluno carregada de foto_url:', student.foto_url);
+      setStudentPhoto(student.foto_url);
+    }
+  }, [student?.foto_url]);
+
   // Carregar documentos existentes do aluno (apenas ao editar)
   useEffect(() => {
     if (student?.id) {
       const carregarDocumentos = async () => {
         try {
           const response = await DocumentosAPI.listarPorAluno(student.id) as any;
-          if (response && response.arquivos && Array.isArray(response.arquivos)) {
-            setUploadedFiles(response.arquivos);
-            
-            // Tentar encontrar a foto do aluno nos documentos
-            if (!studentPhoto) {
-              const fotoDoc = response.arquivos.find((doc: any) => 
-                doc.tipo === 'foto' || 
-                doc.name.toLowerCase().includes('foto') ||
-                doc.path.toLowerCase().includes('/foto/')
-              );
-              if (fotoDoc) {
-                setStudentPhoto(fotoDoc.url);
+          console.log('📄 Resposta da API de documentos:', response);
+
+          // Backend retorna { aluno_id, arquivos: [] }
+          const documentos = response?.arquivos || [];
+
+          // Mapear documentos para o formato esperado pelo componente
+          const docsFormatados = documentos.map((doc: any) => {
+            // Extrair tipo do path se não estiver definido
+            let tipo = doc.tipo || 'outro';
+            if (tipo === 'outros' && doc.path) {
+              // Tentar extrair tipo do path (ex: pre-matriculas/id/foto/arquivo.jpg)
+              const pathParts = doc.path.split('/');
+              if (pathParts.length >= 3) {
+                const possibleTipo = pathParts[pathParts.length - 2];
+                if (['foto', 'certidao', 'rg', 'cpf', 'comprovante_residencia', 'laudo'].includes(possibleTipo)) {
+                  tipo = possibleTipo;
+                }
               }
             }
-          } else if (Array.isArray(response)) {
-            setUploadedFiles(response);
+
+            return {
+              url: doc.url,
+              name: doc.name,
+              tipo: tipo as TipoDocumento,
+              path: doc.path,
+              size: doc.size,
+              created_at: doc.created_at
+            };
+          });
+
+          setUploadedFiles(docsFormatados);
+          console.log('📁 Total de documentos carregados:', docsFormatados.length);
+
+          // Se não temos foto_url definida, tentar encontrar nos documentos
+          if (!student.foto_url) {
+            const fotoDoc = docsFormatados.find((doc: any) =>
+              doc.tipo === 'foto' ||
+              (doc.name && doc.name.toLowerCase().includes('foto')) ||
+              (doc.path && doc.path.toLowerCase().includes('/foto/'))
+            );
+
+            if (fotoDoc && fotoDoc.url) {
+              console.log('📷 Foto encontrada nos documentos:', fotoDoc.url);
+              setStudentPhoto(fotoDoc.url);
+            }
           }
         } catch (error) {
-          console.error('Erro ao carregar documentos do aluno:', error);
+          console.error('❌ Erro ao carregar documentos do aluno:', error);
         }
       };
-      
-      carregarDocumentos();
 
+      carregarDocumentos();
     }
-  }, [student?.id]);
+  }, [student?.id, student?.foto_url]);
 
   const handleInputChange = (field: string, value: string | boolean | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-    
+
     // Limpar erro do campo
     if (errors[field]) {
       setErrors(prev => {
@@ -304,7 +374,7 @@ const StudentForm: React.FC<StudentFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     const sanitize = (v: string) => (v || '').replace(/\D/g, '');
@@ -394,7 +464,7 @@ const StudentForm: React.FC<StudentFormProps> = ({
               </div>
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={onCancel}
               className="text-white hover:bg-red-700"
@@ -417,9 +487,9 @@ const StudentForm: React.FC<StudentFormProps> = ({
               <div className="relative">
                 <div className="w-32 h-32 bg-gray-100 rounded-full flex items-center justify-center border-4 border-gray-300">
                   {studentPhoto ? (
-                    <img 
-                      src={studentPhoto} 
-                      alt="Foto do aluno" 
+                    <img
+                      src={studentPhoto}
+                      alt="Foto do aluno"
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
@@ -460,16 +530,18 @@ const StudentForm: React.FC<StudentFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Input
                 label="Nome Completo *"
+                name="nome"
                 value={formData.nome}
-                onChange={(value) => handleInputChange('nome', value)}
+                onChange={(e) => handleInputChange('nome', e.target.value)}
                 error={errors.nome}
                 placeholder="Nome completo do aluno"
               />
               <Input
                 label="Data de Nascimento *"
+                name="data_nascimento"
                 type="date"
                 value={formData.data_nascimento}
-                onChange={(value) => handleInputChange('data_nascimento', value)}
+                onChange={(e) => handleInputChange('data_nascimento', e.target.value)}
                 error={errors.data_nascimento}
               />
               <Select
@@ -483,39 +555,45 @@ const StudentForm: React.FC<StudentFormProps> = ({
               />
               <Input
                 label="CPF *"
+                name="cpf"
                 value={formData.cpf}
-                onChange={(value) => handleInputChange('cpf', value)}
+                onChange={(e) => handleInputChange('cpf', e.target.value)}
                 error={errors.cpf}
                 placeholder="000.000.000-00"
               />
               <Input
                 label="RG"
+                name="rg"
                 value={formData.rg}
-                onChange={(value) => handleInputChange('rg', value)}
+                onChange={(e) => handleInputChange('rg', e.target.value)}
                 placeholder="RG sem dígitos"
               />
               <Input
                 label="Órgão Emissor (RG)"
+                name="rg_orgao"
                 value={formData.rg_orgao}
-                onChange={(value) => handleInputChange('rg_orgao', value)}
+                onChange={(e) => handleInputChange('rg_orgao', e.target.value)}
                 placeholder="Ex: SSP/TO"
               />
               <Input
                 label="Data de Expedição (RG)"
+                name="rg_data_expedicao"
                 type="date"
                 value={formData.rg_data_expedicao}
-                onChange={(value) => handleInputChange('rg_data_expedicao', value)}
+                onChange={(e) => handleInputChange('rg_data_expedicao', e.target.value)}
               />
               <Input
                 label="Naturalidade"
+                name="naturalidade"
                 value={formData.naturalidade}
-                onChange={(value) => handleInputChange('naturalidade', value)}
+                onChange={(e) => handleInputChange('naturalidade', e.target.value)}
                 placeholder="Cidade de nascimento"
               />
               <Input
                 label="Nacionalidade"
+                name="nacionalidade"
                 value={formData.nacionalidade}
-                onChange={(value) => handleInputChange('nacionalidade', value)}
+                onChange={(e) => handleInputChange('nacionalidade', e.target.value)}
               />
             </div>
           </Card>
@@ -529,41 +607,47 @@ const StudentForm: React.FC<StudentFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input
                 label="CEP *"
+                name="cep"
                 value={formData.cep}
-                onChange={(value) => handleInputChange('cep', value)}
+                onChange={(e) => handleInputChange('cep', e.target.value)}
                 error={errors.cep}
                 placeholder="00000-000"
               />
               <Input
                 label="Rua *"
+                name="rua"
                 value={formData.rua}
-                onChange={(value) => handleInputChange('rua', value)}
+                onChange={(e) => handleInputChange('rua', e.target.value)}
                 error={errors.rua}
                 placeholder="Nome da rua"
               />
               <Input
                 label="Número *"
+                name="numero"
                 value={formData.numero}
-                onChange={(value) => handleInputChange('numero', value)}
+                onChange={(e) => handleInputChange('numero', e.target.value)}
                 error={errors.numero}
                 placeholder="Nº"
               />
               <Input
                 label="Complemento"
+                name="complemento"
                 value={formData.complemento}
-                onChange={(value) => handleInputChange('complemento', value)}
+                onChange={(e) => handleInputChange('complemento', e.target.value)}
                 placeholder="Apto, Casa, etc."
               />
               <Input
                 label="Bairro *"
+                name="bairro"
                 value={formData.bairro}
-                onChange={(value) => handleInputChange('bairro', value)}
+                onChange={(e) => handleInputChange('bairro', e.target.value)}
                 error={errors.bairro}
               />
               <Input
                 label="Cidade *"
+                name="cidade"
                 value={formData.cidade}
-                onChange={(value) => handleInputChange('cidade', value)}
+                onChange={(e) => handleInputChange('cidade', e.target.value)}
                 error={errors.cidade}
               />
               <Select
@@ -612,22 +696,25 @@ const StudentForm: React.FC<StudentFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input
                 label="Telefone *"
+                name="telefone"
                 value={formData.telefone}
-                onChange={(value) => handleInputChange('telefone', value)}
+                onChange={(e) => handleInputChange('telefone', e.target.value)}
                 error={errors.telefone}
                 placeholder="(63) 0000-0000"
               />
               <Input
                 label="Celular"
+                name="celular"
                 value={formData.celular}
-                onChange={(value) => handleInputChange('celular', value)}
+                onChange={(e) => handleInputChange('celular', e.target.value)}
                 placeholder="(63) 90000-0000"
               />
               <Input
                 label="E-mail"
+                name="email"
                 type="email"
                 value={formData.email}
-                onChange={(value) => handleInputChange('email', value)}
+                onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="email@exemplo.com"
               />
             </div>
@@ -684,13 +771,15 @@ const StudentForm: React.FC<StudentFormProps> = ({
               />
               <Input
                 label="Escola de Origem (EBM)"
+                name="escola_origem"
                 value={formData.escola_origem}
-                onChange={(value) => handleInputChange('escola_origem', value)}
+                onChange={(e) => handleInputChange('escola_origem', e.target.value)}
               />
               <Input
                 label="Ano Escolar / Módulo"
+                name="ano_escolar"
                 value={formData.ano_escolar}
-                onChange={(value) => handleInputChange('ano_escolar', value)}
+                onChange={(e) => handleInputChange('ano_escolar', e.target.value)}
                 placeholder="Ex: Módulo 01"
               />
             </div>
@@ -723,22 +812,25 @@ const StudentForm: React.FC<StudentFormProps> = ({
               />
               <Input
                 label="CPF do Responsável *"
+                name="cpf_responsavel"
                 value={formData.cpf_responsavel}
-                onChange={(value) => handleInputChange('cpf_responsavel', value)}
+                onChange={(e) => handleInputChange('cpf_responsavel', e.target.value)}
                 error={errors.cpf_responsavel}
                 placeholder="000.000.000-00"
               />
               <Input
                 label="Telefone/WhatsApp"
+                name="telefone_responsavel"
                 value={formData.telefone_responsavel}
-                onChange={(value) => handleInputChange('telefone_responsavel', value)}
+                onChange={(e) => handleInputChange('telefone_responsavel', e.target.value)}
                 placeholder="(00) 00000-0000"
               />
               <Input
                 label="E-mail"
+                name="email_responsavel"
                 type="email"
                 value={formData.email_responsavel}
-                onChange={(value) => handleInputChange('email_responsavel', value)}
+                onChange={(e) => handleInputChange('email_responsavel', e.target.value)}
                 placeholder="email@exemplo.com"
               />
             </div>
@@ -748,32 +840,37 @@ const StudentForm: React.FC<StudentFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Input
                   label="Nome"
+                  name="nome_responsavel_2"
                   value={formData.nome_responsavel_2}
-                  onChange={(value) => handleInputChange('nome_responsavel_2', value)}
+                  onChange={(e) => handleInputChange('nome_responsavel_2', e.target.value)}
                 />
                 <Input
                   label="Parentesco"
+                  name="tipo_parentesco_2"
                   value={formData.tipo_parentesco_2}
-                  onChange={(value) => handleInputChange('tipo_parentesco_2', value)}
+                  onChange={(e) => handleInputChange('tipo_parentesco_2', e.target.value)}
                   placeholder="Ex: Pai, Mãe, Avô"
                 />
                 <Input
                   label="CPF"
+                  name="cpf_responsavel_2"
                   value={formData.cpf_responsavel_2}
-                  onChange={(value) => handleInputChange('cpf_responsavel_2', value)}
+                  onChange={(e) => handleInputChange('cpf_responsavel_2', e.target.value)}
                   placeholder="000.000.000-00"
                 />
                 <Input
                   label="Telefone"
+                  name="telefone_responsavel_2"
                   value={formData.telefone_responsavel_2}
-                  onChange={(value) => handleInputChange('telefone_responsavel_2', value)}
+                  onChange={(e) => handleInputChange('telefone_responsavel_2', e.target.value)}
                   placeholder="(00) 00000-0000"
                 />
                 <Input
                   label="E-mail"
+                  name="email_responsavel_2"
                   type="email"
                   value={formData.email_responsavel_2}
-                  onChange={(value) => handleInputChange('email_responsavel_2', value)}
+                  onChange={(e) => handleInputChange('email_responsavel_2', e.target.value)}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -801,8 +898,9 @@ const StudentForm: React.FC<StudentFormProps> = ({
               </div>
               <Input
                 label="Restrição Alimentar"
+                name="restricao_alimentar"
                 value={formData.restricao_alimentar}
-                onChange={(value) => handleInputChange('restricao_alimentar', value)}
+                onChange={(e) => handleInputChange('restricao_alimentar', e.target.value)}
                 placeholder="Ex: Lactose, Glúten"
               />
               <div>
@@ -810,6 +908,7 @@ const StudentForm: React.FC<StudentFormProps> = ({
                   Doenças Crônicas
                 </label>
                 <textarea
+                  name="doencas_cronicas"
                   value={formData.doencas_cronicas}
                   onChange={(e) => handleInputChange('doencas_cronicas', e.target.value)}
                   placeholder="Doenças crônicas ou condições especiais"
@@ -819,24 +918,28 @@ const StudentForm: React.FC<StudentFormProps> = ({
               </div>
               <Input
                 label="Contato de Emergência (Nome)"
+                name="contato_emergencia_nome"
                 value={formData.contato_emergencia_nome}
-                onChange={(value) => handleInputChange('contato_emergencia_nome', value)}
+                onChange={(e) => handleInputChange('contato_emergencia_nome', e.target.value)}
               />
               <Input
                 label="Contato de Emergência (Telefone)"
+                name="contato_emergencia_telefone"
                 value={formData.contato_emergencia_telefone}
-                onChange={(value) => handleInputChange('contato_emergencia_telefone', value)}
+                onChange={(e) => handleInputChange('contato_emergencia_telefone', e.target.value)}
                 placeholder="(00) 00000-0000"
               />
               <Input
                 label="Convênio Médico"
+                name="convenio_medico"
                 value={formData.convenio_medico}
-                onChange={(value) => handleInputChange('convenio_medico', value)}
+                onChange={(e) => handleInputChange('convenio_medico', e.target.value)}
               />
               <Input
                 label="Hospital de preferência"
+                name="hospital_preferencia"
                 value={formData.hospital_preferencia}
-                onChange={(value) => handleInputChange('hospital_preferencia', value)}
+                onChange={(e) => handleInputChange('hospital_preferencia', e.target.value)}
                 placeholder="Hospital em caso de emergência"
               />
               <div className="md:col-span-2 flex items-start mt-2">
@@ -870,15 +973,35 @@ const StudentForm: React.FC<StudentFormProps> = ({
               description="Envie os documentos do aluno (certidão de nascimento, comprovante de residência, etc.)"
               folder={`alunos/${formData.cpf || 'sem-cpf'}`}
             />
-            
+
             {uploadedFiles.length > 0 && (
-              <div className="mt-4">
-                <h4 className="font-medium mb-2">Documentos enviados:</h4>
-                <div className="space-y-2">
+              <div className="mt-6 border-t pt-6">
+                <h4 className="font-semibold text-gray-900 mb-4">Documentos Enviados ({uploadedFiles.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {uploadedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm">{file.name}</span>
-                      <span className="text-xs text-gray-500">{file.tipo}</span>
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <FileText className="h-5 w-5 text-red-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">
+                            {file.tipo || 'documento'}
+                          </span>
+                        </div>
+                      </div>
+                      {file.url && (
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 text-sm text-red-600 hover:text-red-700 font-medium flex-shrink-0"
+                        >
+                          Visualizar
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>

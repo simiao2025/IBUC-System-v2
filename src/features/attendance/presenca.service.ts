@@ -20,6 +20,10 @@ export const PresencasAPI = {
     if (fim) params.append('fim', fim);
     return api.get(`/presencas/por-turma?${params.toString()}`);
   },
+  aulasLancadas: (turmaId: string) => api.get(`/presencas/aulas-lancadas?turma_id=${turmaId}`),
+  excluirLote: (turmaId: string, data: string, licaoId?: string) =>
+    api.post('/presencas/delete-batch', { turma_id: turmaId, data, licao_id: licaoId }),
+  excluir: (id: string) => api.delete(`/presencas/${id}`),
 };
 
 export class PresencaService {

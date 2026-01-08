@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import { useApp } from '../../context/AppContext';
-import { EventosService, type Evento } from '../../services/eventos.service';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import { useApp } from '../../../context/AppContext';
+import { EventosService, type Evento } from '../../../services/eventos.service';
 
 interface EventFormProps {
   onClose: () => void;
@@ -13,12 +13,12 @@ interface EventFormProps {
   initialPoloId: string;
 }
 
-export const EventForm: React.FC<EventFormProps> = ({ 
-  onClose, 
-  onSuccess, 
-  editingEvent, 
-  initialScopeMode, 
-  initialPoloId 
+export const EventForm: React.FC<EventFormProps> = ({
+  onClose,
+  onSuccess,
+  editingEvent,
+  initialScopeMode,
+  initialPoloId
 }) => {
   const { currentUser, showFeedback } = useApp();
   const [saving, setSaving] = useState(false);

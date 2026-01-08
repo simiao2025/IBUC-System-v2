@@ -32,6 +32,7 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<TransitionPreview[]>([]);
+  const [moduleInfo, setModuleInfo] = useState<{ total_licoes: number; aulas_dadas: number; modulo_titulo: string } | null>(null);
   const [selectedAlunos, setSelectedAlunos] = useState<string[]>([]);
   const [valorCents, setValorCents] = useState(5000); // R$ 50,00 padrão
 
@@ -42,10 +43,20 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
   const carregarPreview = async () => {
     try {
       setLoading(true);
-      const data = await TurmaService.previewTransicao(turmaId);
-      setPreview(data);
+      const data: any = await TurmaService.previewTransicao(turmaId);
+
+      const alunos = data.alunos || [];
+      const info = {
+        total_licoes: data.total_licoes || 0,
+        aulas_dadas: data.aulas_dadas || 0,
+        modulo_titulo: data.modulo_titulo || 'Módulo'
+      };
+
+      setPreview(alunos);
+      setModuleInfo(info);
+
       // Seleciona automaticamente quem está aprovado por frequência
-      setSelectedAlunos(data.filter(a => a.aprovado_frequencia).map(a => a.aluno_id));
+      setSelectedAlunos(alunos.filter((a: any) => a.aprovado_frequencia).map((a: any) => a.aluno_id));
     } catch (err) {
       console.error('Erro ao carregar preview de transição:', err);
       setError('Não foi possível carregar o resumo de frequência da turma.');
@@ -55,7 +66,7 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
   };
 
   const toggleAluno = (id: string) => {
-    setSelectedAlunos(prev => 
+    setSelectedAlunos(prev =>
       prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
     );
   };
@@ -113,11 +124,24 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
             <div>
               <p className="text-sm font-medium text-blue-900">Verificação de Frequência</p>
               <p className="text-xs text-blue-700">
-                Alunos com pelo menos 75% de presença são sugeridos para aprovação. 
+                Alunos com pelo menos 75% de presença são sugeridos para aprovação.
                 Você pode ajustar a seleção manualmente.
               </p>
             </div>
           </div>
+
+          {moduleInfo && moduleInfo.aulas_dadas < moduleInfo.total_licoes && (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-900">Módulo Incompleto</p>
+                <p className="text-xs text-amber-700">
+                  Foram ministradas <strong>{moduleInfo.aulas_dadas} aulas</strong> de um total de <strong>{moduleInfo.total_licoes} lições</strong> previstas.
+                  Deseja prosseguir com o encerramento mesmo assim?
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="max-h-[400px] overflow-y-auto border rounded-lg">
             <table className="min-w-full divide-y divide-gray-200">
@@ -148,7 +172,7 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className={`text-sm font-bold ${aluno.aprovado_frequencia ? 'text-green-600' : 'text-red-600'}`}>
-                        {aluno.frequencia.toFixed(0)}%
+                        {(aluno.frequencia || 0).toFixed(0)}%
                       </span>
                     </td>
                   </tr>
@@ -158,8 +182,8 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
           </div>
 
           <div className="flex justify-end pt-4">
-            <Button 
-              onClick={() => setStep(2)} 
+            <Button
+              onClick={() => setStep(2)}
               disabled={selectedAlunos.length === 0}
               className="bg-indigo-600 hover:bg-indigo-700"
             >
@@ -177,7 +201,7 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
             <div>
               <p className="text-sm font-medium text-yellow-900">Gatilho Financeiro (PIX)</p>
               <p className="text-xs text-yellow-700">
-                Defina o valor da taxa de material didático para o próximo módulo. 
+                Defina o valor da taxa de material didático para o próximo módulo.
                 Uma cobrança será gerada para cada aluno selecionado.
               </p>
             </div>
@@ -196,15 +220,15 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
               />
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Valor definido pela Diretoria Geral. <br/>
+              Valor definido pela Diretoria Geral. <br />
               Modo de pagamento sugerido: **PIX**.
             </p>
           </div>
 
           <div className="flex justify-between pt-8 border-t">
             <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
-            <Button 
-              onClick={() => setStep(3)} 
+            <Button
+              onClick={() => setStep(3)}
               className="bg-indigo-600 hover:bg-indigo-700"
             >
               Revisar e Finalizar <ArrowRight className="ml-2 h-4 w-4" />
@@ -219,7 +243,7 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check className="h-8 w-8 text-red-600" />
           </div>
-          
+
           <div className="space-y-2">
             <h3 className="text-lg font-bold text-gray-900">Pronto para Encerrar?</h3>
             <p className="text-gray-600">
@@ -234,7 +258,7 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
             </div>
             <div className="flex items-center text-sm text-gray-700">
               <Check className="h-4 w-4 text-green-500 mr-2" />
-              <span>Geração de cobranças PIX no valor de {(valorCents/100).toLocaleString('pt-BR', {style: 'currency', currency:'BRL'})}.</span>
+              <span>Geração de cobranças PIX no valor de {(valorCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}.</span>
             </div>
             <div className="flex items-center text-sm text-gray-700">
               <Check className="h-4 w-4 text-green-500 mr-2" />
@@ -244,8 +268,8 @@ export const ModuleTransitionWizard: React.FC<ModuleTransitionWizardProps> = ({
 
           <div className="flex justify-between pt-8 border-t">
             <Button variant="outline" onClick={() => setStep(2)} disabled={executing}>Voltar</Button>
-            <Button 
-              onClick={handleFinish} 
+            <Button
+              onClick={handleFinish}
               loading={executing}
               className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 shadow-lg"
             >

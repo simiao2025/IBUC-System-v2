@@ -1,14 +1,17 @@
-import { Controller, Get, Param, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
-import { ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Post, Query, UploadedFiles, UseInterceptors, UseGuards } from '@nestjs/common';
+import { ApiConsumes, ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Express } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { DocumentosService } from './documentos.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Documentos')
 @Controller('documentos')
 export class DocumentosController {
-  constructor(private readonly service: DocumentosService) {}
+  constructor(private readonly service: DocumentosService) { }
 
   @Post('matriculas/:id')
   @ApiOperation({ summary: 'Upload de documentos da matrícula (pré-matrícula)' })

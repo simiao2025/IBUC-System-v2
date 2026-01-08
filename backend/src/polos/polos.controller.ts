@@ -9,14 +9,19 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
+import { Public } from '../auth-v2/decorators/public.decorator';
 import { PolosService, CreatePoloDto, UpdatePoloDto } from './polos.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Polos')
 @Controller('polos')
 export class PolosController {
-  constructor(private readonly service: PolosService) {}
+  constructor(private readonly service: PolosService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -25,8 +30,9 @@ export class PolosController {
     return this.service.criarPolo(dto);
   }
 
+  @Public()
   @Get()
-  @ApiOperation({ summary: 'Listar polos' })
+  @ApiOperation({ summary: 'Listar polos (público para homepage)' })
   async listar(@Query('ativo') ativo?: string) {
     const ativoBool = ativo === 'true' ? true : ativo === 'false' ? false : undefined;
     return this.service.listarPolos(ativoBool);

@@ -3,7 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class DocumentosService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService) { }
 
   async uploadDocumentosMatricula(matriculaId: string, files: any[]) {
     if (!files || files.length === 0) {
@@ -288,7 +288,7 @@ export class DocumentosService {
     const processItems = async (prefix: string) => {
       // Tenta listar subpastas (para estrutura antiga/organizada)
       const { data: rootItems } = await client.storage.from(bucket).list(prefix, { limit: 50 });
-      
+
       if (!rootItems) return;
 
       for (const item of rootItems) {
@@ -296,12 +296,12 @@ export class DocumentosService {
           // É uma pasta, entra nela
           const subPrefix = `${prefix}/${item.name}`;
           const { data: subItems } = await client.storage.from(bucket).list(subPrefix, { limit: 50 });
-          
+
           if (subItems) {
             for (const subItem of subItems) {
               const path = `${subPrefix}/${subItem.name}`;
               const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
-              
+
               // Evita duplicatas
               if (!allArquivos.some(a => a.name === subItem.name && a.size === subItem.metadata?.size)) {
                 allArquivos.push({
@@ -320,7 +320,7 @@ export class DocumentosService {
           // Arquivo na raiz do prefixo
           const path = `${prefix}/${item.name}`;
           const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
-          
+
           if (!allArquivos.some(a => a.name === item.name && a.size === item.metadata?.size)) {
             allArquivos.push({
               name: item.name,
@@ -341,7 +341,44 @@ export class DocumentosService {
 
     // 2. Busca no caminho legado de pré-matrículas (onde student_id foi usado)
     if (allArquivos.length === 0) {
-       await processItems(`pre-matriculas/${alunoId}`);
+      await processItems(`pre-matriculas/${alunoId}`);
+    }
+
+    // 3. Se ainda não encontrou, buscar o CPF do aluno e procurar pré-matrícula correspondente
+    if (allArquivos.length === 0) {
+      // Buscar CPF do aluno
+      const { data: aluno } = await client
+        .from('alunos')
+        .select('cpf')
+        .eq('id', alunoId)
+        .single();
+
+      if (aluno?.cpf) {
+        const cpfNormalizado = String(aluno.cpf).replace(/\D/g, '');
+
+        // Buscar pré-matrículas com o mesmo CPF
+        const { data: preMatriculas } = await client
+          .from('pre_matriculas')
+          .select('id')
+          .eq('cpf', cpfNormalizado);
+
+        // Se não encontrar com CPF normalizado, tentar com o CPF original
+        let preMatriculaIds = preMatriculas?.map(pm => pm.id) || [];
+
+        if (preMatriculaIds.length === 0) {
+          const { data: preMatriculas2 } = await client
+            .from('pre_matriculas')
+            .select('id')
+            .eq('cpf', aluno.cpf);
+
+          preMatriculaIds = preMatriculas2?.map(pm => pm.id) || [];
+        }
+
+        // Buscar documentos em cada pré-matrícula encontrada
+        for (const preMatriculaId of preMatriculaIds) {
+          await processItems(`pre-matriculas/${preMatriculaId}`);
+        }
+      }
     }
 
     return {

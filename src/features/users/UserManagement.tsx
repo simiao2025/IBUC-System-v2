@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  Plus, Search, Filter, Edit2, Trash2, Mail, Phone, User, Shield, Loader2,
+import {
+  Plus, Search, Edit2, Trash2, Mail, Phone, User, Shield, Loader2,
   ArrowLeft, MapPin, Calendar
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -11,7 +11,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import type { AdminUser, AdminRole, AccessLevel } from '../../types';
+import type { AdminUser, AdminRole, AccessLevel, AdminModuleKey } from '../../types';
 
 interface UserManagementUnifiedProps {
   showBackButton?: boolean;
@@ -19,14 +19,12 @@ interface UserManagementUnifiedProps {
 
 const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackButton = false }) => {
   const { polos, currentUser, showFeedback, showConfirm } = useApp();
-  
+
   // UI States
   const [showUserForm, setShowUserForm] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [loadingOptions, setLoadingOptions] = useState(false);
-  const [emailLookupLoading, setEmailLookupLoading] = useState(false);
 
   // Data States
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -58,15 +56,16 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     role: 'professor',
     accessLevel: 'polo_especifico',
     poloId: '',
-    permissions: { mode: 'full', modules: [] },
+    permissions: { mode: 'full', modules: [] as AdminModuleKey[] },
     isActive: true
   };
   const [newUser, setNewUser] = useState(initialNewUser);
   const [selectedAdminTemplateId, setSelectedAdminTemplateId] = useState<string>('');
 
-  const moduleOptions = [
+  const moduleOptions: { key: AdminModuleKey; label: string }[] = [
     { key: 'directorate', label: 'Diretoria Geral' },
     { key: 'polos', label: 'Gerenciar Polos' },
+    { key: 'staff', label: 'Equipe do Polo' },
     { key: 'students', label: 'Gerenciar Alunos' },
     { key: 'enrollments', label: 'Gerenciar Turmas' },
     { key: 'attendance', label: 'Frequência' },
@@ -85,13 +84,25 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const creatorIsPoloScoped = currentAdmin?.accessLevel === 'polo_especifico';
 
   const isGeneralRole = (role?: AdminRole) => {
-    return ['diretor_geral', 'coordenador_geral', 'secretario_geral', 'tesoureiro_geral', 'super_admin', 'admin_geral'].includes(role || '');
+    return [
+      'super_admin', 'admin_geral',
+      'diretor_geral', 'vice_diretor_geral',
+      'coordenador_geral', 'vice_coordenador_geral',
+      'secretario_geral', 'primeiro_secretario_geral', 'segundo_secretario_geral',
+      'tesoureiro_geral', 'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral'
+    ].includes(role || '');
   };
 
   const roleRequiresPolo = (role?: AdminRole) => {
     if (!role) return false;
     if (isGeneralRole(role)) return false;
-    return ['diretor_polo', 'coordenador_polo', 'secretario_polo', 'tesoureiro_polo', 'professor', 'auxiliar'].includes(role);
+    return [
+      'diretor_polo', 'vice_diretor_polo',
+      'coordenador_polo', 'vice_coordenador_polo',
+      'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
+      'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+      'professor', 'auxiliar'
+    ].includes(role);
   };
 
   const resolveAccessLevelForRole = (role?: AdminRole): AccessLevel => {
@@ -102,9 +113,40 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   };
 
   const allowedRolesForCreator = (): AdminRole[] => {
-    if (isSuperAdmin) return ['admin_geral', 'diretor_geral', 'coordenador_geral', 'secretario_geral', 'tesoureiro_geral', 'diretor_polo', 'coordenador_polo', 'secretario_polo', 'tesoureiro_polo', 'professor', 'auxiliar'];
-    if (isGeneralManagement) return ['diretor_polo', 'coordenador_polo', 'secretario_polo', 'tesoureiro_polo', 'professor', 'auxiliar'];
-    if (isPoloDirector) return ['secretario_polo', 'tesoureiro_polo', 'professor', 'auxiliar'];
+    // Admin Geral e Super Admin podem cadastrar qualquer cargo
+    if (isSuperAdmin) {
+      return [
+        'super_admin', 'admin_geral',
+        'diretor_geral', 'vice_diretor_geral', 'coordenador_geral', 'vice_coordenador_geral',
+        'secretario_geral', 'primeiro_secretario_geral', 'segundo_secretario_geral',
+        'tesoureiro_geral', 'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral',
+        'diretor_polo', 'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
+        'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
+        'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+        'professor', 'auxiliar'
+      ];
+    }
+
+    // Gestão Geral pode cadastrar cargos de polo e staff
+    if (isGeneralManagement) {
+      return [
+        'diretor_polo', 'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
+        'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
+        'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+        'professor', 'auxiliar'
+      ];
+    }
+
+    // Diretores de Polo podem cadastrar outros cargos de polo e staff
+    if (isPoloDirector) {
+      return [
+        'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
+        'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
+        'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+        'professor', 'auxiliar'
+      ];
+    }
+
     return [];
   };
 
@@ -115,7 +157,6 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   // Data Loading
   const loadOptions = useCallback(async () => {
     try {
-      setLoadingOptions(true);
       const [rolesData, accessLevelsData, polosData] = await Promise.all([
         UserServiceV2.listRoles(),
         UserServiceV2.listAccessLevels(),
@@ -126,8 +167,6 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       setPolosOptions(polosData.map((p: any) => ({ id: p.id, name: p.nome })));
     } catch (error) {
       console.error('Error loading options:', error);
-    } finally {
-      setLoadingOptions(false);
     }
   }, []);
 
@@ -142,7 +181,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       }
 
       const data = await UserServiceV2.listUsers(filters);
-      
+
       let filtered = data;
       if (filterAccessLevel !== 'all') {
         filtered = data.filter(u => u.accessLevel === filterAccessLevel);
@@ -248,7 +287,6 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const handleEmailBlur = async (email: string) => {
     if (!email || !email.includes('@')) return;
     try {
-      setEmailLookupLoading(true);
       const existing = await UserServiceV2.getUserByEmail(email);
       if (existing) {
         setNewUser(prev => ({
@@ -260,8 +298,6 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       }
     } catch (error) {
       // Just fail silently for lookup
-    } finally {
-      setEmailLookupLoading(false);
     }
   };
 
@@ -355,15 +391,15 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input 
-              placeholder="Buscar por nome, email ou CPF..." 
+            <Input
+              placeholder="Buscar por nome, email ou CPF..."
               className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Select 
-            value={filterRole} 
+          <Select
+            value={filterRole}
             onChange={(val) => setFilterRole(val as AdminRole | 'all')}
           >
             <option value="all">Todas as funções</option>
@@ -441,12 +477,12 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
             <h2 className="text-xl font-bold text-gray-900 mb-6">
               {editingUser ? 'Editar Usuário' : 'Novo Usuário Administrativo'}
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {editingUser ? (
-                <Input 
-                  label="Nome Completo" 
-                  value={editingUser.name} 
+                <Input
+                  label="Nome Completo"
+                  value={editingUser.name}
                   onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
                 />
               ) : (
@@ -469,52 +505,52 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                     ))}
                 </Select>
               )}
-              <Input 
-                label="Email" 
-                value={editingUser?.email ?? newUser.email} 
+              <Input
+                label="Email"
+                value={editingUser?.email ?? newUser.email}
                 onBlur={(e) => !editingUser && handleEmailBlur(e.target.value)}
-                onChange={(e) => editingUser ? setEditingUser({...editingUser, email: e.target.value}) : setNewUser({...newUser, email: e.target.value})}
+                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, email: e.target.value }) : setNewUser({ ...newUser, email: e.target.value })}
               />
-              <Input 
-                label="CPF" 
-                value={editingUser?.cpf ?? newUser.cpf} 
-                onChange={(e) => editingUser ? setEditingUser({...editingUser, cpf: e.target.value}) : setNewUser({...newUser, cpf: e.target.value})}
+              <Input
+                label="CPF"
+                value={editingUser?.cpf ?? newUser.cpf}
+                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, cpf: e.target.value }) : setNewUser({ ...newUser, cpf: e.target.value })}
               />
-              <Input 
-                label="Telefone" 
-                value={editingUser?.phone ?? newUser.phone} 
-                onChange={(e) => editingUser ? setEditingUser({...editingUser, phone: e.target.value}) : setNewUser({...newUser, phone: e.target.value})}
+              <Input
+                label="Telefone"
+                value={editingUser?.phone ?? newUser.phone}
+                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, phone: e.target.value }) : setNewUser({ ...newUser, phone: e.target.value })}
               />
               {!editingUser && (
-                <Input 
-                  label="Senha (Máx 6 chars)" 
-                  type="password" 
+                <Input
+                  label="Senha (Máx 6 chars)"
+                  type="password"
                   maxLength={6}
-                  value={newUser.password} 
-                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                 />
               )}
-              <Select 
-                label="Função" 
+              <Select
+                label="Função"
                 value={editingUser?.role ?? newUser.role}
                 onChange={(val) => {
                   const role = val as AdminRole;
                   if (editingUser) {
-                    setEditingUser({...editingUser, role});
+                    setEditingUser({ ...editingUser, role });
                   } else {
-                    setNewUser({...newUser, role});
+                    setNewUser({ ...newUser, role });
                   }
                 }}
               >
                 {allowedRolesForCreator().map(role => (
-                   <option key={role} value={role}>{roleLabels[role] || role}</option>
+                  <option key={role} value={role}>{roleLabels[role] || role}</option>
                 ))}
               </Select>
               {roleRequiresPolo((editingUser?.role ?? newUser.role) as AdminRole) && (
                 <Select
                   label="Polo"
                   value={editingUser?.poloId ?? newUser.poloId}
-                  onChange={(val) => editingUser ? setEditingUser({...editingUser, poloId: val}) : setNewUser({...newUser, poloId: val})}
+                  onChange={(val) => editingUser ? setEditingUser({ ...editingUser, poloId: val }) : setNewUser({ ...newUser, poloId: val })}
                 >
                   <option value="">Selecione um polo</option>
                   {visiblePolos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -528,25 +564,25 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                 <h3 className="font-bold text-gray-900 mb-3">Permissões Específicas</h3>
                 <div className="flex space-x-6 mb-4">
                   <label className="flex items-center space-x-2 cursor-pointer">
-                    <input 
-                      type="radio" 
+                    <input
+                      type="radio"
                       className="text-blue-600"
                       checked={(editingUser?.permissions ?? newUser.permissions)?.mode === 'full'}
                       onChange={() => {
                         const perm = { mode: 'full' as const, modules: [] };
-                        editingUser ? setEditingUser({...editingUser, permissions: perm}) : setNewUser({...newUser, permissions: perm});
+                        editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
                       }}
                     />
                     <span className="text-sm">Acesso Total</span>
                   </label>
                   <label className="flex items-center space-x-2 cursor-pointer">
-                    <input 
-                      type="radio" 
+                    <input
+                      type="radio"
                       className="text-blue-600"
                       checked={(editingUser?.permissions ?? newUser.permissions)?.mode === 'limited'}
                       onChange={() => {
                         const perm = { mode: 'limited' as const, modules: [] };
-                        editingUser ? setEditingUser({...editingUser, permissions: perm}) : setNewUser({...newUser, permissions: perm});
+                        editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
                       }}
                     />
                     <span className="text-sm">Acesso Limitado</span>
@@ -556,12 +592,12 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-gray-50 p-4 rounded-lg">
                     {moduleOptions.map(mod => (
                       <label key={mod.key} className="flex items-center space-x-2 text-xs">
-                        <input 
+                        <input
                           type="checkbox"
                           checked={(editingUser?.permissions ?? newUser.permissions)?.modules.includes(mod.key)}
                           onChange={(e) => {
                             const currentPerms = (editingUser?.permissions ?? newUser.permissions) || { mode: 'limited', modules: [] };
-                            const newModules = e.target.checked 
+                            const newModules = e.target.checked
                               ? [...currentPerms.modules, mod.key]
                               : currentPerms.modules.filter(m => m !== mod.key);
                             const perm = { ...currentPerms, modules: newModules };

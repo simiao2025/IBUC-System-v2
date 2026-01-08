@@ -11,7 +11,7 @@ export class TurmasService {
     private modulosService: ModulosService,
     private presencasService: PresencasService,
     private mensalidadesService: MensalidadesService,
-  ) {}
+  ) { }
 
   private async validarPoloAtivo(poloId: string) {
     const { data, error } = await this.supabase
@@ -237,7 +237,7 @@ export class TurmasService {
     let query = this.supabase
       .getAdminClient()
       .from('turmas')
-      .select('*, modulo:modulos(titulo)')
+      .select('*, modulos!modulo_atual_id(titulo)')
       .order('nome');
 
     if (filtros?.polo_id) {
@@ -265,7 +265,22 @@ export class TurmasService {
       throw new Error(error.message);
     }
 
-    return data || [];
+    // Para cada turma, adiciona informações de ocupação
+    const turmasComOcupacao = await Promise.all(
+      (data || []).map(async (turma) => {
+        const { count } = await this.getOccupancy(turma.id);
+        const alunosMatriculados = count || 0;
+        const vagasDisponiveis = Math.max(0, turma.capacidade - alunosMatriculados);
+
+        return {
+          ...turma,
+          alunos_matriculados: alunosMatriculados,
+          vagas_disponiveis: vagasDisponiveis,
+        };
+      })
+    );
+
+    return turmasComOcupacao;
   }
 
   async getOccupancy(id: string) {
@@ -282,6 +297,10 @@ export class TurmasService {
 
   async previewTransicao(turmaId: string) {
     const turma = await this.buscarTurmaPorId(turmaId);
+    if (!turma.modulo_atual_id) {
+      throw new BadRequestException('Turma não possui um módulo atual definido.');
+    }
+
     const resumoFrequencia = await this.presencasService.calcularResumoFrequenciaTurma(turmaId);
 
     // Busca detalhes dos alunos da turma para retornar nomes etc
@@ -293,19 +312,62 @@ export class TurmasService {
 
     if (error) throw new Error(error.message);
 
-    return resumoFrequencia.map(rf => {
-      const aluno = alunos.find(a => a.id === rf.aluno_id);
-      return {
-        ...rf,
-        nome: aluno?.nome || 'Desconhecido',
-        aprovado: rf.percentual >= 75
-      };
-    });
+    // Busca total de lições do módulo atual
+    const { count: totalLicoes } = await this.supabase
+      .getAdminClient()
+      .from('licoes')
+      .select('*', { count: 'exact', head: true })
+      .eq('modulo_id', turma.modulo_atual_id);
+
+    // Calcula quantas aulas foram dadas (datas únicas com presença OU lições únicas)
+    const { data: presencas } = await this.supabase
+      .getAdminClient()
+      .from('presencas')
+      .select('data, licao_id')
+      .eq('turma_id', turmaId);
+
+    // Se temos licao_id, usamos para contar aulas distintas
+    const temLicaoId = (presencas || []).some(p => p.licao_id);
+
+    let aulasDadas = 0;
+    if (temLicaoId) {
+      // Conta lições únicas (não nulas)
+      const licoesUnicas = new Set((presencas || []).filter(p => p.licao_id).map(p => p.licao_id)).size;
+      // Se houver mistura (algumas com ID, outras sem - legado), somamos as datas das sem ID?
+      // Para simplificar e evitar dupla contagem: se começou a usar licao_id, confiamos nele.
+      // Mas como fallback, se licoesUnicas for muito baixo (ex: migração parcial), talvez devêssemos usar datas.
+      // Decisão: Usar o MAIOR valor entre (Datas Únicas) e (Lições Únicas).
+      const datasUnicas = new Set((presencas || []).map(p => p.data)).size;
+      aulasDadas = Math.max(licoesUnicas, datasUnicas);
+    } else {
+      aulasDadas = new Set((presencas || []).map(p => p.data)).size;
+    }
+
+    const baseCalculo = Math.max(totalLicoes || 0, aulasDadas);
+
+    return {
+      modulo_titulo: (await this.modulosService.buscarModuloPorId(turma.modulo_atual_id)).titulo,
+      total_licoes: totalLicoes || 0,
+      aulas_dadas: aulasDadas,
+      alunos: resumoFrequencia.map(rf => {
+        const aluno = alunos.find(a => a.id === rf.aluno_id);
+        const percentualReal = baseCalculo > 0 ? Math.round((rf.total_presente / baseCalculo) * 100) : 0;
+
+        return {
+          ...rf,
+          nome: aluno?.nome || 'Desconhecido',
+          frequencia: percentualReal,
+          presencas: rf.total_presente,
+          total_aulas: aulasDadas,
+          aprovado_frequencia: percentualReal >= 75
+        };
+      })
+    };
   }
 
   async encerrarModulo(turmaId: string, alunosConfirmados: string[], valorCents: number = 5000) {
     const turma = await this.buscarTurmaPorId(turmaId);
-    
+
     // Busca o número do módulo atual para o título do histórico e cobrança
     const { data: moduloAtual } = await this.supabase
       .getAdminClient()
@@ -327,11 +389,13 @@ export class TurmasService {
         .getAdminClient()
         .from('aluno_historico_modulos')
         .insert(registrosHistorico);
-      
+
       if (histError) throw new Error(`Erro ao salvar histórico: ${histError.message}`);
     }
 
+    /* 
     // 2. Gatilho Financeiro (Fase 3) - Valor definido pela Board
+    // ISOLADO TEMPORARIAMENTE PARA IMPLEMENTAÇÃO MANUAL POSTERIOR
     const proximoNumero = (moduloAtual?.numero || 0) + 1;
     const { data: proximoModulo } = await this.supabase
       .getAdminClient()
@@ -344,18 +408,31 @@ export class TurmasService {
       await this.mensalidadesService.gerarCobrancasMaterialAprovados(
         alunosConfirmados,
         `Material Didático (PIX) - ${proximoModulo.titulo}`,
-        valorCents, 
+        valorCents,
         new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0] // Vencimento mês que vem
       );
     }
+    */
+
+    // 2. Busca próximo módulo para transição (sem gerar cobrança automática agora)
+    const proximoNumero = (moduloAtual?.numero || 0) + 1;
+    const { data: proximoModulo } = await this.supabase
+      .getAdminClient()
+      .from('modulos')
+      .select('id, titulo')
+      .eq('numero', proximoNumero)
+      .maybeSingle();
 
 
-    // 3. Avança a turma para o próximo módulo
+    // 3. Avança a turma para o próximo módulo ou conclui a turma
     if (proximoModulo) {
       await this.atualizarTurma(turmaId, { modulo_atual_id: proximoModulo.id });
+    } else {
+      // Se não tem próximo módulo, a turma é concluída
+      await this.atualizarTurma(turmaId, { status: 'concluida', modulo_atual_id: null });
     }
 
-    return { 
+    return {
       message: 'Módulo encerrado com sucesso e cobranças geradas',
       proximo_modulo_id: proximoModulo?.id,
       alunos_processados: alunosConfirmados.length

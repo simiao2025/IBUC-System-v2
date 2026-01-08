@@ -266,7 +266,7 @@ const ModulosManagement: React.FC = () => {
   };
 
   return (
-    <AccessControl allowedRoles={['coordenador_geral', 'secretario_geral']}>
+    <AccessControl allowedRoles={['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral', 'secretario_geral']}>
       <div className="min-h-screen bg-gray-50">
         <PageHeader
           title="Módulos"
@@ -301,11 +301,10 @@ const ModulosManagement: React.FC = () => {
                     <button
                       key={m.id}
                       onClick={() => onSelectModulo(m.id)}
-                      className={`w-full text-left px-3 py-2 rounded border transition-colors ${
-                        selectedModuloId === m.id
+                      className={`w-full text-left px-3 py-2 rounded border transition-colors ${selectedModuloId === m.id
                           ? 'border-red-300 bg-red-50'
                           : 'border-gray-200 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <div className="text-sm font-semibold text-gray-900">{m.numero}. {m.titulo}</div>
                       <div className="text-xs text-gray-600">{m.carga_horaria ?? '-'}h</div>

@@ -1,11 +1,14 @@
-import { Controller, Post, Body, Get, Query, Put, Param } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Post, Body, Get, Query, Put, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { DracmasService } from './dracmas.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Drácmas')
 @Controller('dracmas')
 export class DracmasController {
-  constructor(private readonly service: DracmasService) {}
+  constructor(private readonly service: DracmasService) { }
 
   @Post('lancar-lote')
   async lancarLote(@Body() body: any) {

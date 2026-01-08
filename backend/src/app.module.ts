@@ -25,6 +25,8 @@ import { NiveisModule } from './niveis/niveis.module';
 import { CertificadosModule } from './certificados/certificados.module';
 import { EventosModule } from './eventos/eventos.module';
 import { ModulosModule } from './modulos/modulos.module';
+import { AuthV2Module } from './auth-v2/auth-v2.module';
+import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 
 @Module({
   imports: [
@@ -60,8 +62,10 @@ import { ModulosModule } from './modulos/modulos.module';
     CertificadosModule,
     EventosModule,
     ModulosModule,
+    AuthV2Module,
+    ConfiguracoesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

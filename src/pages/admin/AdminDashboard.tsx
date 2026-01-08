@@ -40,7 +40,7 @@ const AdminDashboard: React.FC = () => {
   });
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
-  
+
   const [certCount, setCertCount] = React.useState<number>(0);
   const [upcomingEvents, setUpcomingEvents] = React.useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
@@ -60,10 +60,10 @@ const AdminDashboard: React.FC = () => {
         const { EventosService } = await import('../../services/eventos.service');
         const today = new Date().toISOString().split('T')[0];
         const data = await EventosService.listar({
-           date_from: today,
-           limit: 3,
-           polo_id: isPoloScoped ? currentUser?.adminUser?.poloId : undefined,
-           include_geral: true
+          date_from: today,
+          limit: 3,
+          polo_id: isPoloScoped ? currentUser?.adminUser?.poloId : undefined,
+          include_geral: true
         });
         setUpcomingEvents(Array.isArray(data) ? data : []);
       } catch (e) {
@@ -105,7 +105,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Certificados Emitidos',
-      value: certCount, 
+      value: certCount,
       iconName: 'certificado',
       fallbackIcon: Award,
       color: 'text-yellow-600',
@@ -130,7 +130,7 @@ const AdminDashboard: React.FC = () => {
       iconName: 'turmas',
       fallbackIcon: BookOpen,
       color: 'bg-purple-600 hover:bg-purple-700',
-      permission: ['coordenador_geral', 'secretario_geral'].includes(currentUser?.adminUser?.role || '')
+      permission: ['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral', 'secretario_geral'].includes(currentUser?.adminUser?.role || '')
     },
     {
       title: isPoloScoped ? 'Diretoria do Polo' : 'Diretoria Geral',
@@ -244,7 +244,7 @@ const AdminDashboard: React.FC = () => {
                   Painel Administrativo
                   {currentUser?.adminUser?.poloId && (
                     <span className="text-blue-600 ml-2">
-                       - <strong>{polos.find(p => p.id === currentUser.adminUser?.poloId)?.name || 'Polo não encontrado'}</strong>
+                      - <strong>{polos.find(p => p.id === currentUser.adminUser?.poloId)?.name || 'Polo não encontrado'}</strong>
                     </span>
                   )}
                 </h1>
@@ -302,7 +302,7 @@ const AdminDashboard: React.FC = () => {
               <div>
                 <h2 className="text-lg font-bold text-purple-900">Bem-vindo, Diretor!</h2>
                 <p className="text-sm text-purple-800 mb-4">
-                  Como Diretor do Polo, uma de suas primeiras tarefas é garantir que sua equipe esteja completa. 
+                  Como Diretor do Polo, uma de suas primeiras tarefas é garantir que sua equipe esteja completa.
                   Por favor, acesse a gestão de equipe para cadastrar os <strong>Professores</strong> e <strong>Auxiliares</strong> do seu polo.
                 </p>
                 <Button asChild size="sm" variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
@@ -319,8 +319,8 @@ const AdminDashboard: React.FC = () => {
             <Card key={index} className="hover:shadow-lg transition-transform hover:-translate-y-1 duration-200">
               <div className="flex items-center">
                 <div className="mr-4">
-                  <Icon3D 
-                    name={stat.iconName} 
+                  <Icon3D
+                    name={stat.iconName}
                     fallbackIcon={stat.fallbackIcon}
                     size="lg"
                     className="h-16 w-16"

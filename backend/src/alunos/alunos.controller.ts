@@ -9,14 +9,18 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { AlunosService, CreateAlunoDto, UpdateAlunoDto } from './alunos.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Alunos')
 @Controller('alunos')
 export class AlunosController {
-  constructor(private readonly service: AlunosService) {}
+  constructor(private readonly service: AlunosService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

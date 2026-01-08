@@ -11,14 +11,18 @@ import {
   Put,
   Query,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { EventosService } from './eventos.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Eventos')
 @Controller('eventos')
 export class EventosController {
-  constructor(private readonly service: EventosService) {}
+  constructor(private readonly service: EventosService) { }
 
   private extractToken(authHeader: string): string {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

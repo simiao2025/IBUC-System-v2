@@ -11,14 +11,14 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MatriculasService } from './matriculas.service';
 import { CreateMatriculaDto, UpdateMatriculaDto, AprovarMatriculaDto } from './dto';
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 
 @ApiTags('Matrículas')
 @Controller('matriculas')
-// @UseGuards(JwtAuthGuard)
-// @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class MatriculasController {
-  constructor(private readonly service: MatriculasService) {}
+  constructor(private readonly service: MatriculasService) { }
 
   @Post()
   @ApiOperation({ summary: 'Criar nova matrícula' })

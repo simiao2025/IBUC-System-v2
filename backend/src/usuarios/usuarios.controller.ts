@@ -11,11 +11,13 @@ import {
   HttpStatus,
   Headers,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { 
-  UsuariosService, 
-  CreateUsuarioDto, 
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
+import {
+  UsuariosService,
+  CreateUsuarioDto,
   UpdateUsuarioDto,
   LoginDto,
   LoginPorCpfDto,
@@ -25,11 +27,13 @@ import {
 } from './usuarios.service';
 
 @ApiTags('Usuários')
+@ApiBearerAuth()
 @Controller('usuarios')
 export class UsuariosController {
-  constructor(private readonly usuariosService: UsuariosService) {}
+  constructor(private readonly usuariosService: UsuariosService) { }
 
   @Get('me')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obter usuário autenticado via JWT' })
   async me(@Headers('authorization') authorization?: string) {
     return this.usuariosService.meFromAuthHeader(authorization);
@@ -78,6 +82,7 @@ export class UsuariosController {
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Listar usuários' })
   async listarUsuarios(
     @Query('role') role?: string,
@@ -108,12 +113,14 @@ export class UsuariosController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Buscar usuário por ID' })
   async buscarUsuarioPorId(@Param('id') id: string) {
     return this.usuariosService.buscarUsuarioPorId(id);
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Atualizar usuário' })
   async atualizarUsuario(
     @Param('id') id: string,
@@ -135,6 +142,7 @@ export class UsuariosController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Deletar usuário' })
   async deletarUsuario(@Param('id') id: string) {

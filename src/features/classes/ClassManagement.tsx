@@ -10,8 +10,9 @@ import { PolosAPI } from '../../services/polo.service';
 import { UserService } from '../../services/userService';
 import { useApp } from '../../context/AppContext';
 import PageHeader from '../../components/ui/PageHeader';
-import { Plus, CheckCircle } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { ModuleTransitionWizard } from './ModuleTransitionWizard';
+import { BatchClosureModal } from './BatchClosureModal';
 
 type PoloOption = { id: string; nome: string };
 type NivelOption = { id: string; nome: string; ordem?: number };
@@ -54,13 +55,18 @@ export const ClassManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [filterPolo, setFilterPolo] = useState<string>('');
-  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('ativa');
   const [form, setForm] = useState<TurmaFormState>(DEFAULT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [transitionTurma, setTransitionTurma] = useState<{ id: string; nome: string } | null>(null);
+  const [showBatchModal, setShowBatchModal] = useState(false);
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId || '';
+
+
+  // Roles allowed to perform batch closure
+  const canBatchClose = ['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral'].includes(currentUser?.adminUser?.role || '');
 
   useEffect(() => {
     if (isPoloScoped && userPoloId) {
@@ -103,7 +109,7 @@ export const ClassManagement: React.FC = () => {
       const profList = (professoresResp as any) as any[];
       setProfessores((Array.isArray(profList) ? profList : []).map(u => ({
         id: String(u.id),
-        nome_completo: String(u.nome_completo ?? u.email ?? u.id),
+        nome_completo: String(u.name ?? u.email ?? u.id),
       })));
     } catch (e) {
       console.error('Erro ao carregar opções de turma:', e);
@@ -270,9 +276,9 @@ export const ClassManagement: React.FC = () => {
       <PageHeader
         title="Gerenciar Turmas"
         subtitle="Cadastro e gestão de turmas e níveis"
-        actionLabel="Adicionar Turma"
-        actionIcon={<Plus className="h-4 w-4 mr-2" />}
-        onAction={startCreate}
+        actionLabel={canBatchClose ? "Encerrar Ciclo" : undefined}
+        actionIcon={canBatchClose ? <Lock className="h-4 w-4 mr-2" /> : undefined}
+        onAction={canBatchClose ? () => setShowBatchModal(true) : undefined}
       />
 
       {error && (
@@ -394,14 +400,7 @@ export const ClassManagement: React.FC = () => {
               ))}
             </Select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <Select value={form.status} onChange={val => setForm(prev => ({ ...prev, status: val as any }))}>
-              <option value="ativa">Ativa</option>
-              <option value="inativa">Inativa</option>
-              <option value="concluida">Concluída</option>
-            </Select>
-          </div>
+
         </div>
 
         {form.modulo_atual_id && form.nivel_id && !editingId && (
@@ -481,16 +480,7 @@ export const ClassManagement: React.FC = () => {
                         <Button type="button" variant="outline" onClick={() => startEdit(t)}>
                           Editar
                         </Button>
-                        {t.status === 'ativa' && (
-                          <Button 
-                            type="button" 
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white" 
-                            onClick={() => setTransitionTurma({ id: t.id, nome: t.nome })}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Encerrar
-                          </Button>
-                        )}
+
                         <Button type="button" variant="outline" onClick={() => handleDelete(t.id)}>
                           Excluir
                         </Button>
@@ -519,6 +509,18 @@ export const ClassManagement: React.FC = () => {
             />
           </div>
         </div>
+      )}
+
+      {showBatchModal && (
+        <BatchClosureModal
+          turmas={turmas}
+          polos={polos}
+          onClose={() => setShowBatchModal(false)}
+          onSuccess={() => {
+            setShowBatchModal(false);
+            carregarTurmas();
+          }}
+        />
       )}
     </div>
   );

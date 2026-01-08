@@ -1,10 +1,15 @@
 
 import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { CertificadosService } from './certificados.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiTags('Certificados')
 @Controller('certificados')
 export class CertificadosController {
-  constructor(private readonly certificadosService: CertificadosService) {}
+  constructor(private readonly certificadosService: CertificadosService) { }
 
   @Get('count')
   async countTotal() {

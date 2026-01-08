@@ -3,13 +3,13 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class PresencasService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService) { }
 
   async lancarPresenca(dto: any) {
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('presencas')
-      .upsert(dto, { onConflict: 'aluno_id,turma_id,data' })
+      .upsert(dto, { onConflict: 'aluno_id,turma_id,data,licao_id' })
       .select()
       .single();
 
@@ -25,7 +25,7 @@ export class PresencasService {
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('presencas')
-      .upsert(presencas, { onConflict: 'aluno_id,turma_id,data' })
+      .upsert(presencas, { onConflict: 'aluno_id,turma_id,data,licao_id' })
       .select();
 
     if (error) throw new BadRequestException(`Erro DB Lote: ${error.message}`);
@@ -69,7 +69,7 @@ export class PresencasService {
     let query = this.supabase
       .getAdminClient()
       .from('presencas')
-      .select('*')
+      .select('*, licoes(titulo)')
       .eq('turma_id', turmaId)
       .order('data');
 
@@ -138,7 +138,7 @@ export class PresencasService {
         };
       }
 
-      if (r.status === 'presente' || r.status === 'atraso') {
+      if (r.status === 'presente' || r.status === 'atraso' || r.status === 'reposicao') {
         resumo[r.aluno_id].total_presente += 1;
       } else if (r.status === 'falta') {
         resumo[r.aluno_id].total_faltas += 1;
@@ -157,10 +157,72 @@ export class PresencasService {
       percentual: Math.round((aluno.total_presente / totalAulas) * 100)
     }));
   }
+
+  /**
+   * Lista as aulas que já possuem frequencia lançada para uma turma
+   */
+  async listarAulasLancadas(turmaId: string) {
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('presencas')
+      .select('data, licao_id, licoes(titulo)')
+      .eq('turma_id', turmaId)
+      .order('data', { ascending: false });
+
+    if (error) throw new BadRequestException(`Erro ao listar aulas: ${error.message}`);
+
+    // Agrupar por data e licao_id para identificar "sessões de aula"
+    const sessoes: Record<string, any> = {};
+    (data || []).forEach((p: any) => {
+      const key = `${p.data}_${p.licao_id || 'null'}`;
+      if (!sessoes[key]) {
+        sessoes[key] = {
+          data: p.data,
+          licao_id: p.licao_id,
+          licao_titulo: p.licoes?.titulo || 'Sem lição vinculada',
+          total_alunos: 0
+        };
+      }
+      sessoes[key].total_alunos += 1;
+    });
+
+    return Object.values(sessoes);
+  }
+
+  /**
+   * Exclui todos os registros de presença de uma aula específica
+   */
+  async excluirAulasLote(turmaId: string, data: string, licaoId?: string) {
+    let query = this.supabase
+      .getAdminClient()
+      .from('presencas')
+      .delete()
+      .eq('turma_id', turmaId)
+      .eq('data', data);
+
+    if (licaoId) {
+      query = query.eq('licao_id', licaoId);
+    } else {
+      query = query.is('licao_id', null);
+    }
+
+    const { error } = await query;
+    if (error) throw new BadRequestException(`Erro ao excluir aula: ${error.message}`);
+
+    return { success: true };
+  }
+
+  /**
+   * Exclui um registro individual de presença
+   */
+  async excluirPresenca(id: string) {
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('presencas')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new BadRequestException(`Erro ao excluir presença: ${error.message}`);
+    return { success: true };
+  }
 }
-
-
-
-
-
-

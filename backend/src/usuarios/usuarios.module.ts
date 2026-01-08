@@ -6,17 +6,20 @@ import { UsuariosService } from './usuarios.service';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 
+import { UserAuthService } from './services/user-auth.service';
+import { UserManagementService } from './services/user-management.service';
+import { UserPasswordService } from './services/user-password.service';
+import { UserMetaService } from './services/user-meta.service';
+
 @Module({
   imports: [
-    SupabaseModule,
-    NotificacoesModule,
     SupabaseModule,
     NotificacoesModule,
     JwtModule.registerAsync({
       global: true,
       imports: [],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'dev_secret_change_me',
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
           expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '7d',
         },
@@ -25,10 +28,16 @@ import { NotificacoesModule } from '../notificacoes/notificacoes.module';
     }),
   ],
   controllers: [UsuariosController],
-  providers: [UsuariosService],
-  exports: [UsuariosService],
+  providers: [
+    UsuariosService,
+    UserAuthService,
+    UserManagementService,
+    UserPasswordService,
+    UserMetaService
+  ],
+  exports: [UsuariosService, UserAuthService, UserManagementService],
 })
-export class UsuariosModule {}
+export class UsuariosModule { }
 
 
 

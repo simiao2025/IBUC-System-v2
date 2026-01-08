@@ -47,7 +47,7 @@ const withSuspense = (Component: React.ReactNode) => (
 
 
 // Enrollment Pages
-import StudentRegistration from './pages/enrollment/StudentRegistration';
+import NovaMatriculaPage from './pages/enrollment/NovaMatriculaPage';
 
 // App Pages (Student Area)
 import AppDashboard from './pages/app/AppDashboard';
@@ -91,100 +91,101 @@ export const router = createBrowserRouter([
   { path: '/modulo-10', element: <PublicLayout><Module10 /></PublicLayout> },
   { path: '/materiais', element: <PublicLayout><Materials /></PublicLayout> },
   { path: '/privacidade', element: <PublicLayout><PrivacyPolicy /></PublicLayout> },
-  
+
   // Auth Routes (with layout)
   { path: '/login', element: <PublicLayout><StudentAccess /></PublicLayout> },
   { path: '/acesso-aluno', element: <PublicLayout><StudentAccess /></PublicLayout> },
   { path: '/login-admin', element: <PublicLayout><AdminAccess /></PublicLayout> },
 
   // Enrollment Routes (with layout)
-  { path: '/pre-matricula', element: <PublicLayout><StudentRegistration /></PublicLayout> },
+  { path: '/pre-matricula', element: <PublicLayout><NovaMatriculaPage /></PublicLayout> },
 
   // Admin Routes (protected)
   { path: '/admin', element: <Navigate to="/admin/dashboard" replace /> },
-  { 
-    path: '/admin/dashboard', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<AdminDashboard />)}</ProtectedRoute> 
+  {
+    path: '/admin/dashboard',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<AdminDashboard />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/alunos', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<StudentManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/alunos',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<StudentManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/alunos/novo', 
-    element: <ProtectedRoute requireAdmin><StudentRegistration isAdminView={true} /></ProtectedRoute> 
+  {
+    path: '/admin/alunos/novo',
+    element: <ProtectedRoute requireAdmin><NovaMatriculaPage isAdminView={true} /></ProtectedRoute>
   },
-  { 
-    path: '/admin/relatorios/frequencia-turma', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<AttendanceByClassManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/relatorios/frequencia-turma',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<AttendanceByClassManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/relatorios/frequencia-aluno', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<AttendanceByStudentManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/relatorios/frequencia-aluno',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<AttendanceByStudentManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/frequencia/lancamento', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<PresencaFormManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/frequencia/lancamento',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<PresencaFormManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/financeiro/dracmas-lancamento', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<DracmasLaunchManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/financeiro/dracmas-lancamento',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<DracmasLaunchManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/relatorios/dracmas-turma', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<DracmasByClassManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/relatorios/dracmas-turma',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<DracmasByClassManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/relatorios/dracmas-aluno', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<DracmasByStudentManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/relatorios/dracmas-aluno',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<DracmasByStudentManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/matriculas/documentos', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<MatriculaDocumentManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/matriculas/documentos',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<MatriculaDocumentManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/turmas', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<TurmaManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/turmas',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<TurmaManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/modulos', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<ModulosManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/modulos',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<ModulosManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/frequencia', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<FrequenciaManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/frequencia',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<FrequenciaManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/financeiro', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<FinanceiroManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/financeiro',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<FinanceiroManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/polos', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<PoloManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/polos',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<PoloManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/diretoria', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<DiretoriaManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/diretoria',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<DiretoriaManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/relatorios', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<EducationalReportManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/relatorios',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<EducationalReportManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/configuracoes', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<SystemSettings />)}</ProtectedRoute> 
+  {
+    path: '/admin/configuracoes',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<SystemSettings />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/equipe', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<StaffManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/equipe',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<StaffManagement />)}</ProtectedRoute>
+
   },
-  { 
-    path: '/admin/pre-matriculas', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<PreMatriculaManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/pre-matriculas',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<PreMatriculaManagement />)}</ProtectedRoute>
   },
-  { 
-    path: '/admin/eventos', 
-    element: <ProtectedRoute requireAdmin>{withSuspense(<EventManagement />)}</ProtectedRoute> 
+  {
+    path: '/admin/eventos',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<EventManagement />)}</ProtectedRoute>
   },
 
 

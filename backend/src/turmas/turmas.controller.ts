@@ -9,14 +9,18 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { TurmasService } from './turmas.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Turmas')
 @Controller('turmas')
 export class TurmasController {
-  constructor(private readonly service: TurmasService) {}
+  constructor(private readonly service: TurmasService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

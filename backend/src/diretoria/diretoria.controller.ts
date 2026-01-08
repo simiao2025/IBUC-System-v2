@@ -9,12 +9,18 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { DiretoriaService, CreateDiretoriaGeralDto, UpdateDiretoriaGeralDto } from './diretoria.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiTags('Diretoria')
 @Controller('diretoria')
 export class DiretoriaController {
-  constructor(private readonly diretoriaService: DiretoriaService) {}
+  constructor(private readonly diretoriaService: DiretoriaService) { }
 
   // ========== DIRETORIA GERAL ==========
 

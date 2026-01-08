@@ -1,11 +1,14 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { RelatoriosService } from './relatorios.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Relatórios')
 @Controller('relatorios')
 export class RelatoriosController {
-  constructor(private readonly service: RelatoriosService) {}
+  constructor(private readonly service: RelatoriosService) { }
 
   @Get('boletim')
   async gerarBoletim(@Query('aluno_id') alunoId: string, @Query('periodo') periodo: string) {
@@ -15,16 +18,15 @@ export class RelatoriosController {
   @Get('historico')
   async historicoAluno(
     @Query('aluno_id') alunoId: string,
-    @Query('periodo') periodo?: string,
   ) {
-    return this.service.historicoAluno(alunoId, periodo);
+    return this.service.historicoAluno(alunoId);
   }
 
   @Get('estatisticas-por-polo')
   async estatisticasPorPolo(@Query('periodo') periodo?: string) {
     return this.service.estatisticasPorPolo(periodo);
   }
-  
+
   @Get('dracmas')
   async relatorioDracmas(
     @Query('aluno_id') aluno_id?: string,

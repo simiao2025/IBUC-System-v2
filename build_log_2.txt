@@ -1,0 +1,18 @@
+
+> ibuc-system@0.1.0 build
+> tsc && vite build
+
+[36mvite v5.4.8 [32mbuilding for production...[36m[39m
+transforming...
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[32m✓[39m 1657 modules transformed.
+[31mx[39m Build failed in 5.09s
+[31merror during build:
+[31mCould not resolve "../../components/ui/Button" from "src/features/events/components/EventList.tsx"[31m
+file: [36mC:/Projetos/IBUC-System-v2/src/features/events/components/EventList.tsx[31m
+    at getRollupError (file:///C:/Projetos/IBUC-System-v2/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///C:/Projetos/IBUC-System-v2/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.handleInvalidResolvedId (file:///C:/Projetos/IBUC-System-v2/node_modules/rollup/dist/es/shared/node-entry.js:21661:24)
+    at file:///C:/Projetos/IBUC-System-v2/node_modules/rollup/dist/es/shared/node-entry.js:21621:26[39m

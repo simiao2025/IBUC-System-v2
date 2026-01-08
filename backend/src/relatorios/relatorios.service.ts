@@ -7,29 +7,82 @@ export class RelatoriosService {
   constructor(
     private supabase: SupabaseService,
     private workers: WorkersService,
-  ) {}
+  ) { }
 
   async gerarBoletim(alunoId: string, periodo: string) {
     await this.workers.gerarBoletim(alunoId, periodo);
     return { status: 'processing' };
   }
 
-  async historicoAluno(alunoId: string, periodo?: string) {
-    // Contrato inicial para o histórico do aluno.
-    // No futuro, este método poderá agregar dados de boletins, notas e frequência
-    // a partir das tabelas correspondentes no Supabase.
+  async historicoAluno(alunoId: string) {
+    const client = this.supabase.getAdminClient();
+
+    // 1. Dados Básicos do Aluno
+    const { data: aluno, error: alunoError } = await client
+      .from('alunos')
+      .select('id, nome, cpf, data_nascimento, status, polo:polos(nome)')
+      .eq('id', alunoId)
+      .single();
+
+    if (alunoError || !aluno) {
+      throw new Error('Aluno não encontrado para gerar histórico');
+    }
+
+    // 2. Histórico de Módulos (Concluídos)
+    const { data: modulosHistorico, error: histError } = await client
+      .from('aluno_historico_modulos')
+      .select('*, modulo_info:modulos(titulo, numero)')
+      .eq('aluno_id', alunoId)
+      .order('ano_conclusao', { ascending: true })
+      .order('modulo_numero', { ascending: true });
+
+    if (histError) throw new Error(`Erro ao buscar histórico de módulos: ${histError.message}`);
+
+    // 3. Resumo de Frequência Geral (Histórica)
+    const { data: todasPresencas } = await client
+      .from('presencas')
+      .select('status')
+      .eq('aluno_id', alunoId);
+
+    const totalAulas = todasPresencas?.length || 0;
+    const presentes = todasPresencas?.filter(p => ['presente', 'atraso', 'justificativa'].includes(p.status)).length || 0;
+    const frequenciaGeral = totalAulas > 0 ? Math.round((presentes / totalAulas) * 100) : 0;
+
+    // 4. Matrícula Atual e Turmas em Curso
+    const { data: matriculasAtivas } = await client
+      .from('matriculas')
+      .select('*, turma:turmas(id, nome, modulo:modulos(titulo, numero))')
+      .eq('aluno_id', alunoId)
+      .eq('status', 'ativa');
 
     return {
-      alunoId,
-      periodo: periodo || null,
-      periodos: [],
+      aluno: {
+        nome: aluno.nome,
+        cpf: aluno.cpf,
+        data_nascimento: aluno.data_nascimento,
+        status: aluno.status,
+        polo: (aluno as any).polo?.nome,
+        frequencia_geral: frequenciaGeral,
+      },
+      percurso_concluido: modulosHistorico.map(h => ({
+        modulo: h.modulo_info?.titulo || `Módulo ${h.modulo_numero}`,
+        ano: h.ano_conclusao,
+        situacao: h.situacao,
+        data_registro: h.created_at
+      })),
+      em_curso: matriculasAtivas?.map(m => ({
+        turma: m.turma?.nome,
+        modulo: m.turma?.modulo?.titulo || 'N/A',
+        periodo: m.periodo_letivo
+      })) || [],
+      data_emissao: new Date().toISOString(),
     };
   }
 
   async estatisticasPorPolo(periodo?: string) {
     try {
       const client = this.supabase.getAdminClient();
-      
+
       // Buscar todos os polos ativos
       const { data: polos, error: polosError } = await client
         .from('polos')
@@ -59,9 +112,9 @@ export class RelatoriosService {
         if (periodo && periodo.includes('|')) {
           const [inicio, fim] = periodo.split('|');
           if (inicio && fim) {
-             matriculasQuery = matriculasQuery
-               .gte('created_at', inicio)
-               .lte('created_at', fim);
+            matriculasQuery = matriculasQuery
+              .gte('created_at', inicio)
+              .lte('created_at', fim);
           }
         }
 
@@ -84,22 +137,22 @@ export class RelatoriosService {
           .from('turmas')
           .select('id')
           .eq('polo_id', polo.id);
-          
+
         const turmaIds = turmasDoPolo?.map(t => t.id) || [];
 
         let presencas: any[] = [];
         if (turmaIds.length > 0) {
-           const { data: presencasData, error: presencasError } = await client
+          const { data: presencasData, error: presencasError } = await client
             .from('presencas')
             .select('status')
             .in('turma_id', turmaIds);
 
-           if (presencasError) throw presencasError;
-           presencas = presencasData || [];
+          if (presencasError) throw presencasError;
+          presencas = presencasData || [];
         }
 
         const totalPresencas = presencas.length;
-        const presencasPresentes = presencas.filter(p => p.status === 'presente').length;
+        const presencasPresentes = presencas.filter(p => ['presente', 'atraso', 'justificativa'].includes(p.status)).length;
         const mediaFrequencia = totalPresencas > 0 ? (presencasPresentes / totalPresencas) * 100 : 0;
 
         estatisticas.push({
@@ -123,7 +176,7 @@ export class RelatoriosService {
           totalAlunos: estatisticas.reduce((sum, e) => sum + e.totalAlunos, 0),
           totalMatriculas: estatisticas.reduce((sum, e) => sum + e.totalMatriculas, 0),
           totalProfessores: estatisticas.reduce((sum, e) => sum + e.totalProfessores, 0),
-          mediaFrequenciaGeral: estatisticas.length > 0 
+          mediaFrequenciaGeral: estatisticas.length > 0
             ? Math.round((estatisticas.reduce((sum, e) => sum + e.mediaFrequencia, 0) / estatisticas.length) * 10) / 10
             : 0,
         }
@@ -145,7 +198,7 @@ export class RelatoriosService {
   }) {
     try {
       const client = this.supabase.getAdminClient();
-      
+
       let query = client
         .from('dracmas_transacoes')
         .select(`
@@ -375,8 +428,11 @@ export class RelatoriosService {
         }
 
         porAluno[r.aluno_id].total += 1;
-        if (r.status === 'presente') porAluno[r.aluno_id].presentes += 1;
-        if (r.status === 'falta') porAluno[r.aluno_id].faltas += 1;
+        if (['presente', 'atraso', 'justificativa'].includes(r.status)) {
+          porAluno[r.aluno_id].presentes += 1;
+        } else if (r.status === 'falta') {
+          porAluno[r.aluno_id].faltas += 1;
+        }
       });
 
       const lista = Object.values(porAluno).map((item: any) => ({

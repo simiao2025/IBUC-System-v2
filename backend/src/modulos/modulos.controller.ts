@@ -11,8 +11,10 @@ import {
   Put,
   Query,
   ForbiddenException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import {
   CreateLicaoDto,
@@ -22,13 +24,15 @@ import {
   UpdateModuloDto,
 } from './modulos.service';
 
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @ApiTags('Módulos')
 @Controller()
 export class ModulosController {
   constructor(
     private readonly service: ModulosService,
     private readonly usuariosService: UsuariosService,
-  ) {}
+  ) { }
 
   private async assertAdmin(authorization?: string) {
     const usuario = await this.usuariosService.meFromAuthHeader(authorization);
