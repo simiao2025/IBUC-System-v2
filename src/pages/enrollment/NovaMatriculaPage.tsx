@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { usePreMatricula } from '../../features/enrollments/hooks/usePreMatricula';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -22,6 +22,7 @@ interface NovaMatriculaPageProps {
 
 const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const {
         formData,
         loading,
@@ -33,10 +34,21 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
         handleHealthChange,
         handleSubmit,
         buscarCEP,
-        setFormData
+        setFormData,
+        resetForm
     } = usePreMatricula(isAdminView);
 
-    if (submitted) {
+    // Efeito para resetar o formulário automaticamente se for Admin (Matrícula Sequencial)
+    React.useEffect(() => {
+        if (submitted && isAdminView) {
+            // O hook já exibe o toast de sucesso.
+            // Aqui apenas limpamos o formulário para permitir nova matrícula imediata.
+            resetForm();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [submitted, isAdminView, resetForm]);
+
+    if (submitted && !isAdminView) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-2xl mx-auto px-4">
@@ -45,16 +57,14 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                             <Check className="w-8 h-8 text-green-600" />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                            {isAdminView ? 'Matrícula Realizada!' : 'Pré-matrícula Realizada!'}
+                            Pré-matrícula Realizada!
                         </h2>
                         <p className="text-gray-600 mb-8">
-                            {isAdminView
-                                ? 'O aluno foi cadastrado e ativado diretamente no sistema.'
-                                : 'Sua pré-matrícula foi enviada e está em análise. Em breve entraremos em contato.'}
+                            Sua pré-matrícula foi enviada e está em análise. Em breve entraremos em contato.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Button onClick={() => navigate(isAdminView ? '/admin/alunos' : '/')} className="w-full sm:w-auto">
-                                {isAdminView ? 'Voltar para Listagem' : 'Voltar ao Início'}
+                            <Button onClick={() => navigate('/')} className="w-full sm:w-auto">
+                                Voltar ao Início
                             </Button>
                         </div>
                     </Card>
@@ -62,6 +72,15 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
             </div>
         );
     }
+
+    // Logic for cancel button navigation
+    const handleCancel = () => {
+        if (isAdminView) {
+            navigate(location.state?.from || '/admin/alunos');
+        } else {
+            navigate('/');
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 py-12">
@@ -115,10 +134,7 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                     <Card>
                         <h2 className="text-xl font-semibold text-gray-900 uppercase mb-4">Informações Institucionais</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Polo Selection:
-                               - Public View: Always selectable
-                               - Admin View: Selectable if > 1 polo allowed, otherwise fixed label
-                             */}
+                            {/* Polo Selection */}
                             {!isAdminView || polos.length > 1 ? (
                                 <Select
                                     label="Polo de Estudo *"
@@ -139,10 +155,7 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                                 </div>
                             )}
 
-                            {/* Turma Selection:
-                                - Public View: Hidden (Secretary handles it later)
-                                - Admin View: Mandatory for direct registration
-                             */}
+                            {/* Turma Selection */}
                             {isAdminView && (
                                 <Select
                                     label="Turma (Obrigatório para Matrícula Direta) *"
@@ -175,7 +188,7 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                             )}</div>
                     </Card>
 
-                    {/* Sessão: Documentos (Pré-matrícula e Matrícula Direta) */}
+                    {/* Sessão: Documentos */}
                     <Card>
                         <h2 className="text-xl font-semibold text-gray-900 uppercase mb-6">Documentos do Aluno</h2>
 
@@ -228,7 +241,7 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                         </div>
                     </Card>
 
-                    {/* Sessão 6: Termos (Simplificada) */}
+                    {/* Sessão 6: Termos */}
                     <Card>
                         <div className="flex items-start">
                             <input
@@ -253,7 +266,7 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                                 size="lg"
                                 disabled={loading}
                                 className="min-w-[250px] py-4 text-xl"
-                                onClick={() => navigate(isAdminView ? '/admin/alunos' : '/')}
+                                onClick={handleCancel}
                             >
                                 Cancelar
                             </Button>

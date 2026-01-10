@@ -1,0 +1,34 @@
+-- ============================================
+-- Migração 018: Criar Tabela de Lista de Espera
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS public.lista_espera (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome TEXT NOT NULL,
+  email TEXT NOT NULL,
+  telefone TEXT,
+  status TEXT DEFAULT 'pendente', -- pendente, notificado, cancelado
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  notified_at TIMESTAMPTZ,
+  
+  -- Para evitar duplicados de quem já está esperando
+  CONSTRAINT unique_email_espera UNIQUE (email)
+);
+
+-- Enable RLS
+ALTER TABLE public.lista_espera ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+-- 1. Qualquer um pode se cadastrar na lista de espera (Público)
+DROP POLICY IF EXISTS "Qualquer um pode se cadastrar na lista de espera" ON public.lista_espera;
+CREATE POLICY "Qualquer um pode se cadastrar na lista de espera"
+  ON public.lista_espera FOR INSERT
+  WITH CHECK (true);
+
+-- 2. Apenas admins podem ver e editar a lista de espera
+DROP POLICY IF EXISTS "Apenas admins podem gerenciar a lista de espera" ON public.lista_espera;
+CREATE POLICY "Apenas admins podem gerenciar a lista de espera"
+  ON public.lista_espera FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM usuarios WHERE id = auth.uid()::UUID AND role IN ('admin_geral', 'diretor_geral', 'super_admin')
+  ));

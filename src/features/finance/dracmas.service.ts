@@ -11,8 +11,12 @@ export const DracmasAPI = {
     tipo: string;
     descricao?: string;
     registrado_por: string;
-    transacoes: { aluno_id: string; quantidade: number }[];
+    transacoes: { aluno_id: string; quantidade: number; tipo: string }[];
   }) => api.post('/dracmas/lancar-lote', data),
+
+  excluirLote: (data: { turma_id: string; data: string }) => api.post('/dracmas/delete-batch', data),
+
+  excluirLoteAluno: (data: { turma_id: string; aluno_id: string; data: string }) => api.post('/dracmas/delete-student-batch', data),
 
   saldoPorAluno: (alunoId: string) => api.get(`/dracmas/saldo?aluno_id=${alunoId}`),
 

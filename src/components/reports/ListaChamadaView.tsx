@@ -4,21 +4,39 @@ import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import { RelatorioService } from '../../services/relatorio.service';
 import { TurmaService } from '../../services/turma.service';
-import { Loader2, Download, ClipboardCheck, Search } from 'lucide-react';
+import { PolosAPI } from '../../services/polo.service';
+import { Loader2, Download, ClipboardCheck, Search, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const ListaChamadaView: React.FC = () => {
   const { currentUser } = useApp();
+  const isAdminGlobal = !currentUser?.adminUser?.poloId;
+
   const [turmaId, setTurmaId] = useState('');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  const [polos, setPolos] = useState<{ id: string, nome: string }[]>([]);
+  const [selectedPolo, setSelectedPolo] = useState(currentUser?.adminUser?.poloId || '');
   const [turmas, setTurmas] = useState<any[]>([]);
 
+  // Carregar Polos
   useEffect(() => {
-    // Carregar turmas do polo
-    const poloId = currentUser?.adminUser?.polo_id;
-    TurmaService.listarTurmas(poloId ? { polo_id: poloId } : {}).then(setTurmas);
-  }, [currentUser]);
+    if (isAdminGlobal) {
+      PolosAPI.listar().then((data: any) => { // Removed the empty object argument
+        setPolos(Array.isArray(data) ? data : []);
+      });
+    }
+  }, [isAdminGlobal]);
+
+  // Carregar turmas do polo selecionado
+  useEffect(() => {
+    if (isAdminGlobal && !selectedPolo) {
+      setTurmas([]);
+      return;
+    }
+    TurmaService.listarTurmas(selectedPolo ? { polo_id: selectedPolo } : {}).then(setTurmas);
+  }, [selectedPolo, isAdminGlobal]);
 
   const handleGerar = async () => {
     if (!turmaId) return;
@@ -41,11 +59,23 @@ const ListaChamadaView: React.FC = () => {
           <Search className="h-4 w-4 mr-2" />
           Configurar Lista de Chamada
         </h3>
-        <div className="flex gap-4 items-end">
-          <div className="flex-1">
+        <div className="flex flex-col md:flex-row gap-4 items-end">
+          {isAdminGlobal && (
+            <div className="w-full md:w-1/3">
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                <div className="flex items-center"><Building2 className="w-3 h-3 mr-1" /> Filtrar por Polo</div>
+              </label>
+              <Select value={selectedPolo} onChange={setSelectedPolo}>
+                <option value="">Selecione o Polo...</option>
+                {polos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </Select>
+            </div>
+          )}
+
+          <div className="flex-1 w-full">
             <label className="block text-xs font-medium text-gray-500 mb-1">Turma</label>
-            <Select value={turmaId} onChange={setTurmaId}>
-              <option value="">Selecione a turma...</option>
+            <Select value={turmaId} onChange={setTurmaId} disabled={isAdminGlobal && !selectedPolo}>
+              <option value="">{isAdminGlobal && !selectedPolo ? 'Selecione um Polo...' : 'Selecione a turma...'}</option>
               {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
             </Select>
           </div>

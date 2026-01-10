@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Users, 
-  Settings, 
-  Shield, 
-  Database, 
+import {
+  Users,
+  Settings,
+  Shield,
+  Database,
   Award,
   Calendar
 } from 'lucide-react';
@@ -20,6 +20,7 @@ import { SecuritySettings } from '../../components/settings/SecuritySettings';
 import { DracmasSettings } from '../../components/settings/DracmasSettings';
 import { BackupSettings } from '../../components/settings/BackupSettings';
 import { EventsSettings } from '../../components/settings/EventsSettings';
+import { ConfiguracoesService } from '../../services/configuracoes.service';
 
 
 
@@ -63,9 +64,9 @@ const SystemSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'users' | 'config' | 'security' | 'backup' | 'dracmas' | 'events'>('users');
 
 
-  
+
   // Estados para dados dinâmicos dos selects foram movidos para UserManagementSettings
-  
+
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({
     schoolYear: '2024',
     enrollmentPeriod: {
@@ -97,9 +98,47 @@ const SystemSettings: React.FC = () => {
 
   // User Management logic (loading, creating, updating users) has been moved to UserManagementSettings component.
 
-  const saveSystemConfig = () => {
-    // Aqui seria feita a chamada para salvar as configurações
-    showFeedback('success', 'Sucesso', 'Configurações salvas com sucesso!');
+  // Carregar configurações ao montar o componente
+  React.useEffect(() => {
+    const loadSettings = async () => {
+      const data = await ConfiguracoesService.buscarTodasComoObjeto();
+
+      setSystemConfig(prev => ({
+        ...prev,
+        schoolYear: data.ano_letivo || prev.schoolYear,
+        enrollmentPeriod: data.periodo_matricula || prev.enrollmentPeriod,
+        classSchedule: data.horario_aulas || prev.classSchedule,
+        notifications: data.notificacoes || prev.notifications,
+        security: data.seguranca || prev.security,
+        backup: data.backup || prev.backup
+      }));
+    };
+
+    void loadSettings();
+  }, []);
+
+  const saveSystemConfig = async () => {
+    console.log('[DEBUG] Iniciando salvamento das configurações...', systemConfig);
+    try {
+      const payload = {
+        ano_letivo: systemConfig.schoolYear,
+        periodo_matricula: systemConfig.enrollmentPeriod,
+        horario_aulas: systemConfig.classSchedule,
+        notificacoes: systemConfig.notifications,
+        seguranca: systemConfig.security,
+        backup: systemConfig.backup
+      };
+
+      console.log('[DEBUG] Payload enviado:', payload);
+
+      const results = await ConfiguracoesService.salvarLote(payload);
+      console.log('[DEBUG] Resultados do salvamento:', results);
+
+      showFeedback('success', 'Sucesso', 'Configurações salvas com sucesso!');
+    } catch (error: any) {
+      console.error('[DEBUG] Erro ao salvar configurações:', error);
+      showFeedback('error', 'Erro', `Falha ao salvar configurações: ${error.message || 'Erro deconhecido'}`);
+    }
   };
 
   const performBackup = () => {
@@ -136,21 +175,20 @@ const SystemSettings: React.FC = () => {
                 { id: 'security', label: 'Segurança', icon: Shield, permission: canAccessModule('security') },
                 { id: 'backup', label: 'Backup', icon: Database, permission: canAccessModule('backup') }
               ]
-              .filter(tab => tab.permission)
-              .map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id as any)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === id
+                .filter(tab => tab.permission)
+                .map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setActiveTab(id as any)}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {label}
-                </button>
-              ))}
+                      }`}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    {label}
+                  </button>
+                ))}
             </nav>
           </div>
         </Card>
@@ -168,7 +206,7 @@ const SystemSettings: React.FC = () => {
         {activeTab === 'config' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">Parâmetros do Sistema</h2>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Ano Letivo</h3>
@@ -204,26 +242,65 @@ const SystemSettings: React.FC = () => {
               </Card>
 
               <Card>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Horário das Aulas</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Horário e Dias das Aulas</h3>
                 <div className="space-y-4">
-                  <Input
-                    label="Horário de Início"
-                    type="time"
-                    value={systemConfig.classSchedule.startTime}
-                    onChange={(e) => setSystemConfig(prev => ({
-                      ...prev,
-                      classSchedule: { ...prev.classSchedule, startTime: e.target.value }
-                    }))}
-                  />
-                  <Input
-                    label="Horário de Término"
-                    type="time"
-                    value={systemConfig.classSchedule.endTime}
-                    onChange={(e) => setSystemConfig(prev => ({
-                      ...prev,
-                      classSchedule: { ...prev.classSchedule, endTime: e.target.value }
-                    }))}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Horário de Início"
+                      type="time"
+                      value={systemConfig.classSchedule.startTime}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        classSchedule: { ...prev.classSchedule, startTime: e.target.value }
+                      }))}
+                    />
+                    <Input
+                      label="Horário de Término"
+                      type="time"
+                      value={systemConfig.classSchedule.endTime}
+                      onChange={(e) => setSystemConfig(prev => ({
+                        ...prev,
+                        classSchedule: { ...prev.classSchedule, endTime: e.target.value }
+                      }))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Dias das Aulas</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: 'monday', label: 'Segunda' },
+                        { id: 'tuesday', label: 'Terça' },
+                        { id: 'wednesday', label: 'Quarta' },
+                        { id: 'thursday', label: 'Quinta' },
+                        { id: 'friday', label: 'Sexta' },
+                        { id: 'saturday', label: 'Sábado' },
+                        { id: 'sunday', label: 'Domingo' }
+                      ].map(day => (
+                        <label key={day.id} className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50 cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={systemConfig.classSchedule.daysOfWeek.includes(day.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setSystemConfig(prev => {
+                                const days = prev.classSchedule.daysOfWeek;
+                                const newDays = checked
+                                  ? [...days, day.id]
+                                  : days.filter(d => d !== day.id);
+                                return {
+                                  ...prev,
+                                  classSchedule: { ...prev.classSchedule, daysOfWeek: newDays }
+                                };
+                              });
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{day.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </Card>
 
@@ -292,7 +369,7 @@ const SystemSettings: React.FC = () => {
 
         {/* Security Tab */}
         {activeTab === 'security' && (
-          <SecuritySettings 
+          <SecuritySettings
             config={systemConfig.security}
             onUpdate={(newConfig) => setSystemConfig(prev => ({ ...prev, security: newConfig }))}
             onSave={saveSystemConfig}

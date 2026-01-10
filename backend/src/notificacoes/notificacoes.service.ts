@@ -99,36 +99,36 @@ export class NotificacoesService {
   async enviarNotificacaoRecusa(matriculaId: string, motivo: string) {
     // Buscar dados da matrícula
     const { data: matricula } = await this.supabase
-        .getAdminClient()
-        .from('matriculas')
-        .select(`
+      .getAdminClient()
+      .from('matriculas')
+      .select(`
         *,
         aluno:alunos!fk_aluno(id, nome, cpf),
         polo:polos!fk_polo(id, nome)
       `)
-        .eq('id', matriculaId)
-        .single();
+      .eq('id', matriculaId)
+      .single();
 
     if (!matricula || !matricula.aluno) return;
 
     const { data: preMatricula } = await this.supabase
-        .getAdminClient()
-        .from('pre_matriculas')
-        .select('email_responsavel')
-        .eq('cpf', matricula.aluno.cpf)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      .getAdminClient()
+      .from('pre_matriculas')
+      .select('email_responsavel')
+      .eq('cpf', matricula.aluno.cpf)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     const emailDestino = preMatricula?.email_responsavel;
 
     if (!emailDestino) return;
 
     await this.transporter.sendMail({
-        from: process.env.SMTP_FROM,
-        to: emailDestino,
-        subject: 'Atualização sobre sua Pré-matrícula - IBUC System',
-        html: `
+      from: process.env.SMTP_FROM,
+      to: emailDestino,
+      subject: 'Atualização sobre sua Pré-matrícula - IBUC System',
+      html: `
         <h2>Informação sobre sua Pré-matrícula</h2>
         <p>Olá, informamos que a pré-matrícula de <strong>${matricula.aluno.nome}</strong> não pôde ser concluída neste momento.</p>
         <p><strong>Motivo:</strong> ${motivo}</p>
@@ -147,6 +147,36 @@ export class NotificacoesService {
         <p>Seu código de recuperação é:</p>
         <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px;">${codigo}</p>
         <p>Se você não solicitou este código, ignore este e-mail.</p>
+      `,
+    });
+  }
+
+  async enviarNotificacaoListaEspera(email: string, nome: string, poloInfo?: { nome: string; endereco: string; contato: string }) {
+    let poloHtml = '';
+    if (poloInfo) {
+      poloHtml = `
+        <div style="background-color: #f3f4f6; border-left: 4px solid #b91c1c; padding: 15px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #b91c1c;">Polo sugerido para você:</h3>
+          <p><strong>Nome:</strong> ${poloInfo.nome}</p>
+          <p><strong>Endereço:</strong> ${poloInfo.endereco}</p>
+          <p><strong>Contato do Coordenador:</strong> ${poloInfo.contato}</p>
+        </div>
+      `;
+    }
+
+    await this.transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: 'As Matrículas do IBUC System estão ABERTAS! 🚀',
+      html: `
+        <h2>Olá, ${nome}!</h2>
+        <p>Ótimas notícias! Acabamos de abrir um novo período de matrículas no IBUC.</p>
+        ${poloHtml}
+        <p>Como você estava na nossa lista de espera, estamos te avisando em primeira mão para garantir que você consiga realizar a inscrição.</p>
+        <p>Acesse o link abaixo para fazer a pré-matrícula agora:</p>
+        <p><a href="http://localhost:5173/" style="background-color: #b91c1c; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Fazer Pré-matrícula Agora</a></p>
+        <p>Se tiver qualquer dúvida, entre em contato conosco.</p>
+        <p>Que Deus te abençoe!</p>
       `,
     });
   }

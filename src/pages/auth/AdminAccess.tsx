@@ -7,7 +7,7 @@ import Card from '../../components/ui/Card';
 import { Shield, Mail, Lock } from 'lucide-react';
 
 const AdminAccess: React.FC = () => {
-  const { login, showFeedback } = useApp();
+  const { login, showFeedback, currentUser } = useApp();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
@@ -43,14 +43,14 @@ const AdminAccess: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
-    
+
     try {
       const success = await login(formData.email, formData.password, 'admin');
-      
+
       if (success) {
         navigate('/admin/dashboard');
       } else {
@@ -64,6 +64,19 @@ const AdminAccess: React.FC = () => {
       setLoading(false);
     }
   };
+
+  React.useEffect(() => {
+    // Se já estiver logado como admin, redirecionar para o painel apenas se não estiver carregando
+    // Nota: Deixamos o redirecionamento automático, mas se o usuário quiser trocar de conta, 
+    // ele deve usar o botão 'Sair' no painel. 
+    // Para evitar 'loop' ou confusão, se o usuário for forçado para cá por um erro, limpamos o loading.
+    if (currentUser?.role === 'admin') {
+      const timer = setTimeout(() => {
+        navigate('/admin/dashboard', { replace: true });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">

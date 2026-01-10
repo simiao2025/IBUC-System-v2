@@ -88,6 +88,7 @@ export class TurmasService {
     ano_letivo: number;
     turno: 'manha' | 'tarde' | 'noite';
     dias_semana?: number[];
+    horario_inicio?: string;
     status?: 'ativa' | 'inativa' | 'concluida';
     modulo_atual_id?: string;
   }) {
@@ -138,6 +139,7 @@ export class TurmasService {
         ano_letivo: dto.ano_letivo,
         turno: dto.turno,
         dias_semana: Array.isArray(dto.dias_semana) ? dto.dias_semana : [],
+        horario_inicio: dto.horario_inicio || null,
         status: dto.status || 'ativa',
         modulo_atual_id: moduloId || null,
       })
@@ -162,6 +164,7 @@ export class TurmasService {
       ano_letivo?: number;
       turno?: 'manha' | 'tarde' | 'noite';
       dias_semana?: number[];
+      horario_inicio?: string | null;
       status?: 'ativa' | 'inativa' | 'concluida';
       modulo_atual_id?: string | null;
     },
@@ -195,6 +198,7 @@ export class TurmasService {
     if (dto.ano_letivo !== undefined) updateData.ano_letivo = dto.ano_letivo;
     if (dto.turno !== undefined) updateData.turno = dto.turno;
     if (dto.dias_semana !== undefined) updateData.dias_semana = dto.dias_semana;
+    if (dto.horario_inicio !== undefined) updateData.horario_inicio = dto.horario_inicio;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.modulo_atual_id !== undefined) updateData.modulo_atual_id = dto.modulo_atual_id;
 

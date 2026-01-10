@@ -12,25 +12,25 @@ interface AppContextType {
   // Student registration
   currentStudent: Partial<StudentData> | null;
   setCurrentStudent: (student: Partial<StudentData> | null) => void;
-  
+
   // Students database
   students: StudentData[];
   addStudent: (student: StudentData) => void;
-  
+
   // Enrollments
   enrollments: Enrollment[];
   addEnrollment: (enrollment: Enrollment) => void;
-  
+
   // Pre-enrollments
   preMatriculas: PreMatricula[];
   refreshDashboardData: () => Promise<void>;
-  
+
   // Polos
   polos: UiPolo[];
   addPolo: (polo: UiPolo) => void;
   updatePolo: (id: string, polo: UiPolo) => void;
   deletePolo: (id: string) => void;
-  
+
   // Authentication
   currentUser: User | null;
   authLoading: boolean;
@@ -126,7 +126,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const extractToken = (payload: any): string | null => {
@@ -211,7 +211,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         if (!response.ok) {
-          // Token inválido/expirado: limpar sessão
+          // Token inválido/expirado/erro: limpar sessão
+          console.warn('Sessão inválida ou expirada, limpando dados locais.');
           localStorage.removeItem('auth_token');
           localStorage.removeItem('auth_user');
           setCurrentUser(null);
@@ -287,7 +288,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } else {
         rawPayload = await UserServiceV2.login({ email: identifier, password });
       }
-      
+
       const token = extractToken(rawPayload);
       if (token) {
         localStorage.setItem('auth_token', token);
@@ -340,7 +341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!currentUser.adminUser) return true; // Admin padrão tem acesso geral
 
     return currentUser.adminUser.accessLevel === 'geral' &&
-           ['coordenador_geral', 'diretor_geral', 'secretario_geral', 'tesoureiro_geral', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
+      ['coordenador_geral', 'diretor_geral', 'secretario_geral', 'tesoureiro_geral', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
   };
 
   const hasAccessToPolo = (poloId: string): boolean => {
@@ -400,7 +401,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const isAdminRestricted = currentUser.adminUser?.accessLevel === 'polo_especifico';
       const poloId = isAdminRestricted ? currentUser.adminUser?.poloId : undefined;
-      
+
       // Carregar dados em paralelo
       const [alunosData, matriculasData, preMatriculasData] = await Promise.all([
         import('../features/students/aluno.service').then(m => m.AlunosAPI.listar({ polo_id: poloId })),
@@ -499,7 +500,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       showConfirm
     }}>
       {children}
-      
+
       {/* Diálogos Globais */}
       <FeedbackDialog
         isOpen={feedback.isOpen}

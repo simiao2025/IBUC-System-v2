@@ -17,8 +17,13 @@ interface UserManagementUnifiedProps {
   showBackButton?: boolean;
 }
 
+const RESTRICTED_ROLES: AdminRole[] = ['professor', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo'];
+
 const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackButton = false }) => {
   const { polos, currentUser, showFeedback, showConfirm } = useApp();
+  const isRestrictedUser = useMemo(() => {
+    return currentUser?.adminUser?.role ? RESTRICTED_ROLES.includes(currentUser.adminUser.role) : false;
+  }, [currentUser]);
 
   // UI States
   const [showUserForm, setShowUserForm] = useState(false);
@@ -183,9 +188,16 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       const data = await UserServiceV2.listUsers(filters);
 
       let filtered = data;
-      if (filterAccessLevel !== 'all') {
-        filtered = data.filter(u => u.accessLevel === filterAccessLevel);
+
+      // Se for usuário restrito, mostrar apenas ele mesmo
+      if (isRestrictedUser && currentUser?.adminUser) {
+        filtered = data.filter(u => u.id === currentUser.adminUser?.id);
+      } else {
+        if (filterAccessLevel !== 'all') {
+          filtered = data.filter(u => u.accessLevel === filterAccessLevel);
+        }
       }
+
       setAdminUsers(filtered);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -193,7 +205,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     } finally {
       setLoading(false);
     }
-  }, [filterRole, filterAccessLevel, searchTerm, creatorIsPoloScoped, currentAdmin?.poloId, showFeedback]);
+  }, [filterRole, filterAccessLevel, searchTerm, creatorIsPoloScoped, currentAdmin?.poloId, showFeedback, isRestrictedUser, currentUser]);
 
   const loadDirectoratePeople = useCallback(async () => {
     try {
@@ -381,9 +393,11 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
           <h2 className="text-lg font-semibold text-gray-900">Usuários do Sistema</h2>
           <p className="text-sm text-gray-500">Total de {adminUsers.length} usuários encontrados</p>
         </div>
-        <Button onClick={() => { resetNewUserForm(); setShowUserForm(true); void loadDirectoratePeople(); }}>
-          <Plus className="h-4 w-4 mr-2" /> Novo Usuário
-        </Button>
+        {!isRestrictedUser && (
+          <Button onClick={() => { resetNewUserForm(); setShowUserForm(true); void loadDirectoratePeople(); }}>
+            <Plus className="h-4 w-4 mr-2" /> Novo Usuário
+          </Button>
+        )}
       </div>
 
       {/* Filter Bar */}
@@ -448,15 +462,19 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 mt-4 md:mt-0">
-                  <Button variant="outline" size="sm" onClick={() => toggleStatus(user)}>
-                    {user.isActive ? 'Desativar' : 'Ativar'}
-                  </Button>
+                  {!isRestrictedUser && (
+                    <Button variant="outline" size="sm" onClick={() => toggleStatus(user)}>
+                      {user.isActive ? 'Desativar' : 'Ativar'}
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
                     <Edit2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:bg-red-50">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {!isRestrictedUser && (
+                    <Button variant="outline" size="sm" onClick={() => handleDeleteUser(user.id)} className="text-red-600 hover:bg-red-50">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </Card>
@@ -484,6 +502,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                   label="Nome Completo"
                   value={editingUser.name}
                   onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                  disabled={isRestrictedUser}
                 />
               ) : (
                 <Select
@@ -510,47 +529,60 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                 value={editingUser?.email ?? newUser.email}
                 onBlur={(e) => !editingUser && handleEmailBlur(e.target.value)}
                 onChange={(e) => editingUser ? setEditingUser({ ...editingUser, email: e.target.value }) : setNewUser({ ...newUser, email: e.target.value })}
+                disabled={isRestrictedUser && !!editingUser}
               />
               <Input
                 label="CPF"
                 value={editingUser?.cpf ?? newUser.cpf}
                 onChange={(e) => editingUser ? setEditingUser({ ...editingUser, cpf: e.target.value }) : setNewUser({ ...newUser, cpf: e.target.value })}
+                disabled={isRestrictedUser && !!editingUser}
               />
               <Input
                 label="Telefone"
                 value={editingUser?.phone ?? newUser.phone}
                 onChange={(e) => editingUser ? setEditingUser({ ...editingUser, phone: e.target.value }) : setNewUser({ ...newUser, phone: e.target.value })}
+                disabled={isRestrictedUser && !!editingUser}
               />
-              {!editingUser && (
+              {(isRestrictedUser || !editingUser) && (
                 <Input
-                  label="Senha (Máx 6 chars)"
+                  label={isRestrictedUser ? "Nova Senha" : "Senha (Máx 6 chars)"}
                   type="password"
                   maxLength={6}
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                 />
               )}
-              <Select
-                label="Função"
-                value={editingUser?.role ?? newUser.role}
-                onChange={(val) => {
-                  const role = val as AdminRole;
-                  if (editingUser) {
-                    setEditingUser({ ...editingUser, role });
-                  } else {
-                    setNewUser({ ...newUser, role });
-                  }
-                }}
-              >
-                {allowedRolesForCreator().map(role => (
-                  <option key={role} value={role}>{roleLabels[role] || role}</option>
-                ))}
-              </Select>
+              {isRestrictedUser ? (
+                <Input
+                  label="Função"
+                  value={roleLabels[editingUser?.role ?? newUser.role] || (editingUser?.role ?? newUser.role)}
+                  disabled={true}
+                  onChange={() => { }}
+                />
+              ) : (
+                <Select
+                  label="Função"
+                  value={editingUser?.role ?? newUser.role}
+                  onChange={(val) => {
+                    const role = val as AdminRole;
+                    if (editingUser) {
+                      setEditingUser({ ...editingUser, role });
+                    } else {
+                      setNewUser({ ...newUser, role });
+                    }
+                  }}
+                >
+                  {allowedRolesForCreator().map(role => (
+                    <option key={role} value={role}>{roleLabels[role] || role}</option>
+                  ))}
+                </Select>
+              )}
               {roleRequiresPolo((editingUser?.role ?? newUser.role) as AdminRole) && (
                 <Select
                   label="Polo"
                   value={editingUser?.poloId ?? newUser.poloId}
                   onChange={(val) => editingUser ? setEditingUser({ ...editingUser, poloId: val }) : setNewUser({ ...newUser, poloId: val })}
+                  disabled={isRestrictedUser && !!editingUser}
                 >
                   <option value="">Selecione um polo</option>
                   {visiblePolos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -558,8 +590,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
               )}
             </div>
 
-            {/* Permissions Section (from Settings flow) */}
-            {canConfigurePermissionsForRole((editingUser?.role ?? newUser.role) as AdminRole) && (
+            {/* Permissions Section (from Settings flow) - Hidden for restricted users editing themselves */}
+            {!isRestrictedUser && canConfigurePermissionsForRole((editingUser?.role ?? newUser.role) as AdminRole) && (
               <div className="border-t pt-6 mb-6">
                 <h3 className="font-bold text-gray-900 mb-3">Permissões Específicas</h3>
                 <div className="flex space-x-6 mb-4">

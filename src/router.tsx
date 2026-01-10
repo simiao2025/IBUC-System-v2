@@ -101,7 +101,7 @@ export const router = createBrowserRouter([
   { path: '/pre-matricula', element: <PublicLayout><NovaMatriculaPage /></PublicLayout> },
 
   // Admin Routes (protected)
-  { path: '/admin', element: <Navigate to="/admin/dashboard" replace /> },
+  { path: '/admin', element: <ProtectedRoute requireAdmin><Navigate to="/admin/dashboard" replace /></ProtectedRoute> },
   {
     path: '/admin/dashboard',
     element: <ProtectedRoute requireAdmin>{withSuspense(<AdminDashboard />)}</ProtectedRoute>

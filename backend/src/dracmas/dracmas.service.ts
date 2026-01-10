@@ -3,7 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class DracmasService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService) { }
 
   async lancarLote(body: {
     turma_id: string;
@@ -11,7 +11,7 @@ export class DracmasService {
     tipo: string;
     descricao?: string;
     registrado_por: string;
-    transacoes: { aluno_id: string; quantidade: number }[];
+    transacoes: { aluno_id: string; quantidade: number; tipo?: string }[];
   }) {
     const { turma_id, data, tipo, descricao, registrado_por, transacoes } = body;
 
@@ -23,7 +23,7 @@ export class DracmasService {
       aluno_id: t.aluno_id,
       turma_id,
       quantidade: t.quantidade,
-      tipo,
+      tipo: t.tipo || tipo, // Usa o tipo específico da transação ou o do lote
       descricao,
       data,
       registrado_por,
@@ -37,6 +37,31 @@ export class DracmasService {
 
     if (error) throw new BadRequestException(`Erro DB Drácmas Lote: ${error.message}`);
     return inserted;
+  }
+
+  async excluirLote(turmaId: string, data: string) {
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('dracmas_transacoes')
+      .delete()
+      .eq('turma_id', turmaId)
+      .eq('data', data); // Remove todas as transações desta turma nesta data
+
+    if (error) throw new BadRequestException(`Erro ao excluir drácmas: ${error.message}`);
+    return { success: true };
+  }
+
+  async excluirLoteAluno(turmaId: string, alunoId: string, data: string) {
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('dracmas_transacoes')
+      .delete()
+      .eq('turma_id', turmaId)
+      .eq('aluno_id', alunoId)
+      .eq('data', data);
+
+    if (error) throw new BadRequestException(`Erro ao excluir drácmas do aluno: ${error.message}`);
+    return { success: true };
   }
 
   async saldoPorAluno(alunoId: string) {

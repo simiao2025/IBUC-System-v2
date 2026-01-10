@@ -60,6 +60,12 @@ export class AlunosController {
     return this.service.atualizarAluno(id, dto);
   }
 
+  @Get(':id/historico-modulos')
+  @ApiOperation({ summary: 'Buscar histórico de módulos do aluno' })
+  async buscarHistorico(@Param('id') id: string) {
+    return this.service.buscarHistorico(id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Deletar aluno' })

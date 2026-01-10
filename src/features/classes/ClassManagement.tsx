@@ -8,6 +8,7 @@ import { ModulosAPI } from '../../services/modulos.service';
 import type { Modulo } from '../../types/database';
 import { PolosAPI } from '../../services/polo.service';
 import { UserService } from '../../services/userService';
+import { ConfiguracoesService } from '../../services/configuracoes.service';
 import { useApp } from '../../context/AppContext';
 import PageHeader from '../../components/ui/PageHeader';
 import { Lock } from 'lucide-react';
@@ -28,6 +29,8 @@ type TurmaFormState = {
   turno: 'manha' | 'tarde' | 'noite';
   status: 'ativa' | 'inativa' | 'concluida';
   modulo_atual_id: string;
+  dias_semana: number[];
+  horario_inicio: string;
 };
 
 const DEFAULT_FORM: TurmaFormState = {
@@ -40,6 +43,8 @@ const DEFAULT_FORM: TurmaFormState = {
   turno: 'manha',
   status: 'ativa',
   modulo_atual_id: '',
+  dias_semana: [],
+  horario_inicio: '',
 };
 
 export const ClassManagement: React.FC = () => {
@@ -60,6 +65,7 @@ export const ClassManagement: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [transitionTurma, setTransitionTurma] = useState<{ id: string; nome: string } | null>(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [globalConfigs, setGlobalConfigs] = useState<any>({});
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId || '';
@@ -111,6 +117,9 @@ export const ClassManagement: React.FC = () => {
         id: String(u.id),
         nome_completo: String(u.name ?? u.email ?? u.id),
       })));
+
+      const configs = await (ConfiguracoesService as any).buscarTodasComoObjeto();
+      setGlobalConfigs(configs);
     } catch (e) {
       console.error('Erro ao carregar opções de turma:', e);
       setError('Não foi possível carregar polos, níveis e professores.');
@@ -138,6 +147,8 @@ export const ClassManagement: React.FC = () => {
         turno: (t.turno ?? 'manha') as 'manha' | 'tarde' | 'noite',
         status: (t.status ?? 'ativa') as 'ativa' | 'inativa' | 'concluida',
         modulo_atual_id: t.modulo_atual_id,
+        dias_semana: (t as any).dias_semana || [],
+        horario_inicio: (t as any).horario_inicio || '',
         created_at: t.created_at,
       })));
     } catch (e) {
@@ -164,7 +175,11 @@ export const ClassManagement: React.FC = () => {
 
   const startCreate = () => {
     setEditingId(null);
-    setForm(DEFAULT_FORM);
+    setForm({
+      ...DEFAULT_FORM,
+      dias_semana: globalConfigs.dias_semana || [],
+      horario_inicio: globalConfigs.horario_aulas || '',
+    });
   };
 
   const startEdit = (t: TurmaItem) => {
@@ -179,6 +194,8 @@ export const ClassManagement: React.FC = () => {
       turno: t.turno,
       status: (t.status ?? 'ativa') as 'ativa' | 'inativa' | 'concluida',
       modulo_atual_id: t.modulo_atual_id || '',
+      dias_semana: (t as any).dias_semana || [],
+      horario_inicio: (t as any).horario_inicio || '',
     });
   };
 
@@ -222,6 +239,8 @@ export const ClassManagement: React.FC = () => {
         turno: form.turno,
         status: form.status,
         modulo_atual_id: form.modulo_atual_id || undefined,
+        dias_semana: form.dias_semana,
+        horario_inicio: form.horario_inicio || undefined,
       };
 
       if (editingId) {
@@ -400,32 +419,71 @@ export const ClassManagement: React.FC = () => {
               ))}
             </Select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Horário de Início</label>
+            <Input
+              type="time"
+              value={form.horario_inicio}
+              onChange={e => setForm(prev => ({ ...prev, horario_inicio: e.target.value }))}
+            />
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Dias da Semana</label>
+            <div className="flex flex-wrap gap-4">
+              {[
+                { val: 1, label: 'Dom' },
+                { val: 2, label: 'Seg' },
+                { val: 3, label: 'Ter' },
+                { val: 4, label: 'Qua' },
+                { val: 5, label: 'Qui' },
+                { val: 6, label: 'Sex' },
+                { val: 7, label: 'Sáb' },
+              ].map(day => (
+                <label key={day.val} className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                    checked={form.dias_semana.includes(day.val)}
+                    onChange={e => {
+                      const newDays = e.target.checked
+                        ? [...form.dias_semana, day.val]
+                        : form.dias_semana.filter(d => d !== day.val);
+                      setForm(prev => ({ ...prev, dias_semana: newDays.sort() }));
+                    }}
+                  />
+                  <span className="text-sm text-gray-700">{day.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
         </div>
 
-        {form.modulo_atual_id && form.nivel_id && !editingId && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
-            <p className="font-semibold mb-1">Sugestão de Nome (Padrão: [Módulo].[Índice] - [Nível]):</p>
-            <div className="flex flex-wrap gap-2">
-              {[1, 2, 3, 4, 5].map(idx => {
-                const mod = modulos.find(m => m.id === form.modulo_atual_id);
-                const modNum = mod?.numero || '?';
-                const niv = niveis.find(n => n.id === form.nivel_id);
-                const suggestedName = `${modNum}.${idx} - ${niv?.nome || 'Nível'}`;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, nome: suggestedName }))}
-                    className="bg-white px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 transition-colors"
-                  >
-                    {suggestedName}
-                  </button>
-                );
-              })}
+        {
+          form.modulo_atual_id && form.nivel_id && !editingId && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+              <p className="font-semibold mb-1">Sugestão de Nome (Padrão: [Módulo].[Índice] - [Nível]):</p>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4, 5].map(idx => {
+                  const mod = modulos.find(m => m.id === form.modulo_atual_id);
+                  const modNum = mod?.numero || '?';
+                  const niv = niveis.find(n => n.id === form.nivel_id);
+                  const suggestedName = `${modNum}.${idx} - ${niv?.nome || 'Nível'}`;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, nome: suggestedName }))}
+                      className="bg-white px-2 py-1 rounded border border-blue-200 hover:bg-blue-100 transition-colors"
+                    >
+                      {suggestedName}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
         <div className="flex justify-end gap-3 mt-6">
           {editingId && (
@@ -437,7 +495,7 @@ export const ClassManagement: React.FC = () => {
             Salvar
           </Button>
         </div>
-      </Card>
+      </Card >
 
       <Card className="p-6">
         <h2 className="text-lg font-semibold mb-4">Turmas cadastradas</h2>
@@ -494,34 +552,38 @@ export const ClassManagement: React.FC = () => {
         )}
       </Card>
 
-      {transitionTurma && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="max-w-2xl w-full">
-            <ModuleTransitionWizard
-              turmaId={transitionTurma.id}
-              turmaNome={transitionTurma.nome}
-              onClose={() => setTransitionTurma(null)}
-              onSuccess={() => {
-                showFeedback('success', 'Sucesso', 'Módulo encerrado e alunos avançados com sucesso.');
-                setTransitionTurma(null);
-                carregarTurmas();
-              }}
-            />
+      {
+        transitionTurma && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="max-w-2xl w-full">
+              <ModuleTransitionWizard
+                turmaId={transitionTurma.id}
+                turmaNome={transitionTurma.nome}
+                onClose={() => setTransitionTurma(null)}
+                onSuccess={() => {
+                  showFeedback('success', 'Sucesso', 'Módulo encerrado e alunos avançados com sucesso.');
+                  setTransitionTurma(null);
+                  carregarTurmas();
+                }}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {showBatchModal && (
-        <BatchClosureModal
-          turmas={turmas}
-          polos={polos}
-          onClose={() => setShowBatchModal(false)}
-          onSuccess={() => {
-            setShowBatchModal(false);
-            carregarTurmas();
-          }}
-        />
-      )}
-    </div>
+      {
+        showBatchModal && (
+          <BatchClosureModal
+            turmas={turmas}
+            polos={polos}
+            onClose={() => setShowBatchModal(false)}
+            onSuccess={() => {
+              setShowBatchModal(false);
+              carregarTurmas();
+            }}
+          />
+        )
+      }
+    </div >
   );
 };

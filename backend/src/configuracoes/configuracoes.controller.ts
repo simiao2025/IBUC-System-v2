@@ -35,6 +35,7 @@ export class ConfiguracoesController {
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Atualizar valor de uma configuração' })
     atualizar(@Param('chave') chave: string, @Body('valor') valor: any) {
+        console.log(`[DEBUG] Recebido PUT /configuracoes/${chave}`, { valor });
         return this.configuracoesService.atualizar(chave, valor);
     }
 }

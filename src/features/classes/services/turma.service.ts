@@ -15,6 +15,9 @@ export interface TurmaItem {
   turno: 'manha' | 'tarde' | 'noite';
   status: 'ativa' | 'inativa' | 'concluida';
   modulo_atual_id?: string | null;
+  dias_semana?: number[] | null;
+  horario_inicio?: string | null;
+  horario_fim?: string | null;
   created_at?: string;
 }
 
@@ -35,7 +38,7 @@ export const TurmasAPI = {
   atualizar: (id: string, data: unknown) => api.put(`/turmas/${id}`, data),
   deletar: (id: string) => api.delete(`/turmas/${id}`),
   previewTransicao: (id: string) => api.get<any[]>(`/turmas/${id}/preview-transition`),
-  encerrarModulo: (id: string, data: { alunos_confirmados: string[]; valor_cents?: number }) => 
+  encerrarModulo: (id: string, data: { alunos_confirmados: string[]; valor_cents?: number }) =>
     api.post(`/turmas/${id}/close-module`, data),
   getOccupancy: (id: string) => api.get<{ count: number }>(`/turmas/${id}/occupancy`),
 };

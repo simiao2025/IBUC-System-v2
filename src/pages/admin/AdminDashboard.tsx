@@ -279,6 +279,20 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {currentUser?.adminUser?.role === 'secretario_polo' && (
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white border-none"
+                >
+                  <Link to="/admin/alunos/novo" state={{ from: '/admin/dashboard' }}>
+                    <span className="flex items-center">
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Fazer Matrícula
+                    </span>
+                  </Link>
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"

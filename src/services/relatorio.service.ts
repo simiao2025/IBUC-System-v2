@@ -6,6 +6,18 @@ import { api } from '../lib/api';
 
 export const RelatoriosAPI = {
   gerarBoletim: (alunoId: string, periodo: string) => api.get(`/relatorios/boletim?aluno_id=${alunoId}&periodo=${periodo}`),
+  getDadosBoletim: async (alunoId: string, moduloId: string) => {
+    const res = await api.get(`/relatorios/boletim-dados?aluno_id=${alunoId}&modulo_id=${moduloId}`);
+    return res;
+  },
+  gerarBoletimLote: async (filtros: { polo_id?: string; turma_id?: string; modulo_id: string; aluno_id?: string; aluno_ids?: string[] }) => {
+    const res = await api.post('/relatorios/boletim-lote', filtros);
+    return res;
+  },
+  getJobStatus: async (jobId: string) => {
+    const res = await api.get(`/workers/job/${jobId}`);
+    return res;
+  },
   historicoAluno: (alunoId: string, periodo?: string) => {
     const params = new URLSearchParams();
     params.append('aluno_id', alunoId);
@@ -59,6 +71,18 @@ export const LgpdAPI = {
 export class RelatorioService {
   static async gerarBoletim(alunoId: string, periodo: string) {
     return RelatoriosAPI.gerarBoletim(alunoId, periodo);
+  }
+
+  static async getDadosBoletim(alunoId: string, moduloId: string) {
+    return RelatoriosAPI.getDadosBoletim(alunoId, moduloId);
+  }
+
+  static async gerarBoletimLote(filtros: { polo_id?: string; turma_id?: string; modulo_id: string; aluno_id?: string; aluno_ids?: string[] }) {
+    return RelatoriosAPI.gerarBoletimLote(filtros);
+  }
+
+  static async getJobStatus(jobId: string) {
+    return RelatoriosAPI.getJobStatus(jobId);
   }
 
   static async historicoAluno(alunoId: string, periodo?: string) {

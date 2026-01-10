@@ -393,6 +393,12 @@ export function usePreMatricula(isAdminView = false) {
         ? polos.filter(p => getUserAllowedPolos().includes(p.id))
         : polos;
 
+    const resetForm = () => {
+        setFormData(INITIAL_FORM_DATA);
+        setSubmitted(false);
+        setErrors({});
+    };
+
     return {
         formData,
         setFormData,
@@ -405,6 +411,7 @@ export function usePreMatricula(isAdminView = false) {
         handleInputChange,
         handleHealthChange,
         buscarCEP,
-        handleSubmit
+        handleSubmit,
+        resetForm
     };
 }

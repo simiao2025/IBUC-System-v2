@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Users, BookOpen, MapPin, Award, Calendar, ChevronDown, ChevronUp, MessageCircle, Search, Phone, Mail } from 'lucide-react';
+import { Users, BookOpen, MapPin, Award, ChevronDown, ChevronUp, Phone, Mail } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
-import Input from '../../components/ui/Input';
 import { PoloService } from '../../services/polo.service';
-import { Levels } from '../../types/database';
+import { ConfiguracoesService } from '../../services/configuracoes.service';
+import { ListaEsperaService } from '../../services/listaEspera.service';
 
 const Home: React.FC = () => {
   const [polosAtivos, setPolosAtivos] = useState<any[]>([]);
   const [loadingPolos, setLoadingPolos] = useState(true);
+  const [isEnrollmentOpen, setIsEnrollmentOpen] = useState(true);
+  const [waitlistData, setWaitlistData] = useState({ nome: '', email: '', telefone: '', cidade: '', bairro: '' });
+  const [submittingWaitlist, setSubmittingWaitlist] = useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -23,19 +27,43 @@ const Home: React.FC = () => {
     }
   }, [location]);
   useEffect(() => {
-    const fetchPolos = async () => {
+    const fetchInitialData = async () => {
       try {
-        const data = await PoloService.listarPolos();
-        // Filtrar apenas os ativos (embora o service já possa lidar com isso se passado o param)
-        setPolosAtivos(data.filter((p: any) => p.ativo !== false));
+        // Buscar Polos
+        const polosData = await PoloService.listarPolos();
+        setPolosAtivos(polosData.filter((p: any) => p.ativo !== false));
+
+        // Buscar Configurações de Matrícula
+        const config = await ConfiguracoesService.buscarTodasComoObjeto();
+        if (config.periodo_matricula) {
+          const now = new Date();
+          const start = new Date(config.periodo_matricula.start);
+          const end = new Date(config.periodo_matricula.end);
+
+          setIsEnrollmentOpen(now >= start && now <= end);
+        }
       } catch (error) {
-        console.error('Erro ao buscar polos na home:', error);
+        console.error('Erro ao buscar dados iniciais na home:', error);
       } finally {
         setLoadingPolos(false);
       }
     };
-    fetchPolos();
+    fetchInitialData();
   }, []);
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingWaitlist(true);
+    try {
+      await ListaEsperaService.cadastrar(waitlistData);
+      setWaitlistSuccess(true);
+      setWaitlistData({ nome: '', email: '', telefone: '', cidade: '', bairro: '' });
+    } catch (error: any) {
+      alert(error.message || 'Erro ao cadastrar na lista de espera.');
+    } finally {
+      setSubmittingWaitlist(false);
+    }
+  };
 
   return (
     <div className="space-y-16">
@@ -57,17 +85,78 @@ const Home: React.FC = () => {
                 Instituto Bíblico Único Caminho
               </p>
             </div>
-            
+
             <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto leading-relaxed">
-              Formamos crianças e jovens nos caminhos do Senhor através do ensino bíblico de qualidade, 
+              Formamos crianças e jovens nos caminhos do Senhor através do ensino bíblico de qualidade,
               desenvolvendo valores cristãos e preparando uma nova geração para servir a Deus.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-red-600">
-                <Link to="/pre-matricula">Fazer pré-matrícula</Link>
-              </Button>
-            </div>
+
+            {isEnrollmentOpen ? (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button asChild variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-red-600">
+                  <Link to="/pre-matricula">Fazer pré-matrícula</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="max-w-md mx-auto bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20">
+                <p className="text-lg font-medium mb-4">Matrículas encerradas no momento, deseja preecher lista de espera?</p>
+                {waitlistSuccess ? (
+                  <div className="bg-green-500/20 border border-green-500 text-green-100 p-3 rounded-lg">
+                    ✅ Cadastro realizado! Notificaremos você assim que abrirmos novas vagas.
+                  </div>
+                ) : (
+                  <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Seu Nome completo"
+                      required
+                      className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                      value={waitlistData.nome}
+                      onChange={e => setWaitlistData({ ...waitlistData, nome: e.target.value })}
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        type="email"
+                        placeholder="E-mail"
+                        required
+                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                        value={waitlistData.email}
+                        onChange={e => setWaitlistData({ ...waitlistData, email: e.target.value })}
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Telefone"
+                        required
+                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                        value={waitlistData.telefone}
+                        onChange={e => setWaitlistData({ ...waitlistData, telefone: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        placeholder="Cidade"
+                        required
+                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                        value={waitlistData.cidade}
+                        onChange={e => setWaitlistData({ ...waitlistData, cidade: e.target.value })}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Bairro"
+                        required
+                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                        value={waitlistData.bairro}
+                        onChange={e => setWaitlistData({ ...waitlistData, bairro: e.target.value })}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full bg-white text-red-700 hover:bg-gray-100" disabled={submittingWaitlist}>
+                      {submittingWaitlist ? 'Cadastrando...' : 'Quero entrar na lista'}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -79,8 +168,8 @@ const Home: React.FC = () => {
             Nossa Missão
           </h2>
           <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-            Proporcionar educação cristã de qualidade para crianças e jovens, fundamentada nos 
-            valores bíblicos, promovendo o desenvolvimento integral do ser humano e formando 
+            Proporcionar educação cristã de qualidade para crianças e jovens, fundamentada nos
+            valores bíblicos, promovendo o desenvolvimento integral do ser humano e formando
             cidadãos comprometidos com os princípios do Reino de Deus.
           </p>
         </div>
@@ -278,12 +367,19 @@ const Home: React.FC = () => {
           <p className="text-xl mb-8 max-w-3xl mx-auto">
             Garanta já a vaga do seu filho e proporcione a ele uma educação cristã de qualidade.
           </p>
-          <Button asChild size="lg" className="bg-white !text-black hover:bg-gray-100">
-            <Link to="/pre-matricula" className="flex items-center justify-center">
-              <Users className="h-5 w-5 mr-2" />
-              FAZER PRÉ-MATRÍCULA AGORA
-            </Link>
-          </Button>
+          {isEnrollmentOpen ? (
+            <Button asChild size="lg" className="bg-white !text-black hover:bg-gray-100">
+              <Link to="/pre-matricula" className="flex items-center justify-center">
+                <Users className="h-5 w-5 mr-2" />
+                FAZER PRÉ-MATRÍCULA AGORA
+              </Link>
+            </Button>
+          ) : (
+            <div className="bg-white/10 p-6 rounded-lg border border-white/20 inline-block px-12">
+              <p className="text-xl font-medium mb-4">Vagas em breve!</p>
+              <p className="text-white/80">Participe da lista de espera no topo desta página.</p>
+            </div>
+          )}
         </div>
       </section>
 

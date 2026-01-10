@@ -27,6 +27,7 @@ import { EventosModule } from './eventos/eventos.module';
 import { ModulosModule } from './modulos/modulos.module';
 import { AuthV2Module } from './auth-v2/auth-v2.module';
 import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
+import { ListaEsperaModule } from './lista-espera/lista-espera.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
     ModulosModule,
     AuthV2Module,
     ConfiguracoesModule,
+    ListaEsperaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

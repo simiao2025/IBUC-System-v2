@@ -94,7 +94,7 @@ export interface UpdateAlunoDto {
 
 @Injectable()
 export class AlunosService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService) { }
 
   async criarAluno(dto: CreateAlunoDto) {
     // Verificar se polo existe
@@ -368,6 +368,40 @@ export class AlunosService {
     }
 
     return { message: 'Aluno deletado com sucesso' };
+  }
+
+  async buscarHistorico(alunoId: string) {
+    // Buscar histórico do aluno
+    const { data: historico, error: histError } = await this.supabase
+      .getAdminClient()
+      .from('aluno_historico_modulos')
+      .select('*')
+      .eq('aluno_id', alunoId)
+      .order('modulo_numero', { ascending: true });
+
+    if (histError) {
+      throw new BadRequestException(`Erro ao buscar histórico: ${histError.message}`);
+    }
+
+    if (!historico || historico.length === 0) {
+      return [];
+    }
+
+    // Buscar informações dos módulos
+    const moduloNumeros = [...new Set(historico.map(h => h.modulo_numero))];
+    const { data: modulos } = await this.supabase
+      .getAdminClient()
+      .from('modulos')
+      .select('id, numero, titulo')
+      .in('numero', moduloNumeros);
+
+    // Combinar dados
+    const resultado = historico.map(h => ({
+      ...h,
+      modulo_info: modulos?.find(m => m.numero === h.modulo_numero) || null
+    }));
+
+    return resultado;
   }
 }
 

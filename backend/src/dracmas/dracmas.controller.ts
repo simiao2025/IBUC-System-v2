@@ -15,6 +15,11 @@ export class DracmasController {
     return this.service.lancarLote(body);
   }
 
+  @Post('delete-student-batch')
+  async excluirLoteAluno(@Body() body: { turma_id: string; aluno_id: string; data: string }) {
+    return this.service.excluirLoteAluno(body.turma_id, body.aluno_id, body.data);
+  }
+
   @Get('saldo')
   async saldo(@Query('aluno_id') alunoId: string) {
     return this.service.saldoPorAluno(alunoId);

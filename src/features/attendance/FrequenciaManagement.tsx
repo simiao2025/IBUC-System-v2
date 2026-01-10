@@ -11,7 +11,7 @@ import { TurmasAPI } from '../../services/turma.service';
 import { LicoesAPI } from '../../services/modulos.service';
 import { PolosAPI } from '../../services/polo.service';
 import { useApp } from '../../context/AppContext';
-import { BookOpen, GraduationCap, Calendar as CalendarIcon, Beaker, Trash2, Edit2, History } from 'lucide-react';
+import { BookOpen, GraduationCap, Calendar as CalendarIcon, Beaker, Trash2, Edit2, History, X, User } from 'lucide-react';
 
 type TurmaOption = {
   id: string;
@@ -116,6 +116,7 @@ const AdminFrequencia: React.FC = () => {
         const params: any = {};
         if (isProfessor) {
           params.professor_id = adminUser?.id;
+          params.status = 'ativa';
         } else if (isGlobalAdmin) {
           if (filterPoloId) params.polo_id = filterPoloId;
         } else if (accessLevel === 'polo_especifico' && poloId) {
@@ -255,13 +256,39 @@ const AdminFrequencia: React.FC = () => {
     if (!turmaId) return;
     setLoadingHistory(true);
     try {
-      const resp: any = await PresencasAPI.porTurma(turmaId);
-      const registros = resp?.registros || [];
+      const [presencasResponse, dracmasResponse] = await Promise.all([
+        PresencasAPI.porTurma(turmaId),
+        DracmasAPI.porTurma(turmaId)
+      ]);
 
-      setAlunos(prev => prev.map(aluno => ({
-        ...aluno,
-        historico: registros.filter((r: any) => r.aluno_id === aluno.aluno_id).reverse()
-      })));
+      const presencas = (presencasResponse as any)?.registros || [];
+      const dracmas = (dracmasResponse as any)?.transacoes || [];
+
+      setAlunos(prev => prev.map(aluno => {
+        // Encontra presenças do aluno
+        const alunoPresencas = presencas.filter((r: any) => r.aluno_id === aluno.aluno_id);
+
+        // Mapeia histórico combinando presença com drácmas daquela data
+        const historicoCombinado = alunoPresencas.map((p: any) => {
+          // Filtra drácmas desta data para este aluno
+          const dracmasDoDia = dracmas.filter((d: any) => d.aluno_id === aluno.aluno_id && d.data === p.data);
+
+          const totalDracmas = dracmasDoDia.reduce((acc: number, curr: any) => acc + (curr.quantidade || 0), 0);
+
+          // Agrupa por tipo (código do critério)
+          const dracmasPorTipo = dracmasDoDia.reduce((acc: any, curr: any) => {
+            acc[curr.tipo] = (acc[curr.tipo] || 0) + curr.quantidade;
+            return acc;
+          }, {});
+
+          return { ...p, dracmas: totalDracmas, dracmasPorTipo };
+        });
+
+        return {
+          ...aluno,
+          historico: historicoCombinado.reverse()
+        };
+      }));
     } catch (err) {
       console.error('Erro ao carregar histórico:', err);
     } finally {
@@ -271,20 +298,91 @@ const AdminFrequencia: React.FC = () => {
 
   // useEffect separado por turmaId removido para evitar race conditions com carregarDadosTurma
 
+  const [editingModalData, setEditingModalData] = useState<{
+    alunoId: string;
+    alunoNome: string;
+    originalRecord: any;
+    data: string;
+    status: StatusPresenca;
+    observacao: string;
+    dracmas: Record<string, number | string>;
+  } | null>(null);
+
   const handleEditRecord = (alunoId: string, record: any) => {
-    setAlunos(prev => prev.map(a => {
-      if (a.aluno_id === alunoId) {
-        return {
-          ...a,
-          data: record.data,
-          licao_id: record.licao_id || '',
-          status: record.status,
-          observacao: record.observacao || ''
-        };
+    const aluno = alunos.find(a => a.aluno_id === alunoId);
+    if (!aluno) return;
+
+    setEditingModalData({
+      alunoId,
+      alunoNome: aluno.nome,
+      originalRecord: record,
+      data: record.data,
+      status: record.status,
+      observacao: record.observacao || '',
+      dracmas: { ...record.dracmasPorTipo } || {}
+    });
+  };
+
+  const handleCloseEditModal = () => {
+    setEditingModalData(null);
+  };
+
+  const handleSaveEditModal = async () => {
+    if (!editingModalData) return;
+    setSubmitting(true);
+    try {
+      // 1. Atualizar Presença (Upsert)
+      await PresencasAPI.lancarLote([{
+        aluno_id: editingModalData.alunoId,
+        turma_id: turmaId,
+        data: editingModalData.data,
+        licao_id: editingModalData.originalRecord.licao_id || null,
+        status: editingModalData.status,
+        observacao: editingModalData.observacao,
+        lancado_por: currentUser.id
+      }]);
+
+      // 2. Atualizar Drácmas
+      // Primeiro limpar antigas DESTE ALUNO nesta data
+      await DracmasAPI.excluirLoteAluno({
+        turma_id: turmaId,
+        aluno_id: editingModalData.alunoId,
+        data: editingModalData.data
+      });
+
+      // Preparar novas drácmas
+      const dracmasList: any[] = [];
+      Object.entries(editingModalData.dracmas).forEach(([tipo, qtd]) => {
+        const quantidade = Number(qtd);
+        if (quantidade > 0) {
+          dracmasList.push({
+            aluno_id: editingModalData.alunoId,
+            quantidade,
+            tipo
+          });
+        }
+      });
+
+      if (dracmasList.length > 0) {
+        await DracmasAPI.lancarLote({
+          turma_id: turmaId,
+          data: editingModalData.data,
+          tipo: 'AJUSTE',
+          descricao: `Ajuste manual do aluno ${editingModalData.alunoNome}`,
+          registrado_por: currentUser.id,
+          transacoes: dracmasList
+        });
       }
-      return a;
-    }));
-    showFeedback('success', 'Dados Carregados', 'Os dados deste registro foram carregados para edição.');
+
+      showFeedback('success', 'Atualizado', 'Registro atualizado com sucesso.');
+      await carregarHistorico();
+      setEditingModalData(null);
+    } catch (err: any) {
+      console.error(err);
+      showFeedback('error', 'Erro', 'Falha ao salvar a edição. Verifique o console.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDeleteRecord = (id: string) => {
@@ -608,7 +706,7 @@ const AdminFrequencia: React.FC = () => {
                                 <Input
                                   type="number"
                                   min={0}
-                                  value={aluno.dracmas[c.codigo] || 0}
+                                  value={aluno.dracmas[c.codigo] || ''}
                                   onChange={e => updateDracmas(aluno.aluno_id, c.codigo, e.target.value)}
                                   className="h-7 text-[10px] w-16"
                                 />
@@ -634,6 +732,13 @@ const AdminFrequencia: React.FC = () => {
                                 <th className="px-3 py-1.5 text-left text-[9px] font-bold text-gray-500 uppercase">Data</th>
                                 <th className="px-3 py-1.5 text-left text-[9px] font-bold text-gray-500 uppercase">Lição</th>
                                 <th className="px-3 py-1.5 text-left text-[9px] font-bold text-gray-500 uppercase">Status</th>
+                                {criteriosDracma
+                                  .filter(c => aluno.historico.some((h: any) => h.dracmasPorTipo && h.dracmasPorTipo[c.codigo] > 0))
+                                  .map(c => (
+                                    <th key={c.codigo} className="px-3 py-1.5 text-center text-[9px] font-bold text-gray-500 uppercase" title={c.nome}>
+                                      {c.nome.substring(0, 15)}{c.nome.length > 15 ? '...' : ''}
+                                    </th>
+                                  ))}
                                 <th className="px-3 py-1.5 text-right text-[9px] font-bold text-gray-500 uppercase">Ações</th>
                               </tr>
                             </thead>
@@ -651,21 +756,42 @@ const AdminFrequencia: React.FC = () => {
                                       {reg.status}
                                     </span>
                                   </td>
+                                  {criteriosDracma
+                                    .filter(c => aluno.historico.some((h: any) => h.dracmasPorTipo && h.dracmasPorTipo[c.codigo] > 0))
+                                    .map(c => (
+                                      <td key={c.codigo} className="px-3 py-1.5 text-center">
+                                        {reg.dracmasPorTipo && reg.dracmasPorTipo[c.codigo] > 0 ? (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                            +{reg.dracmasPorTipo[c.codigo]}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] text-gray-300">-</span>
+                                        )}
+                                      </td>
+                                    ))}
                                   <td className="px-3 py-1.5 text-right space-x-2">
-                                    <button
+                                    <Button
                                       type="button"
+                                      variant="outline"
+                                      size="sm"
                                       onClick={() => handleEditRecord(aluno.aluno_id, reg)}
-                                      className="text-teal-600 hover:text-teal-800"
+                                      className="text-teal-600 hover:text-teal-800 hover:bg-teal-50"
+                                      title="Editar"
                                     >
-                                      <Edit2 className="w-3 h-3" />
-                                    </button>
-                                    <button
+                                      <Edit2 className="w-3 h-3 mr-1" />
+                                      Editar
+                                    </Button>
+                                    <Button
                                       type="button"
+                                      variant="outline"
+                                      size="sm"
                                       onClick={() => handleDeleteRecord(reg.id)}
-                                      className="text-red-500 hover:text-red-700"
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 hover:border-red-200"
+                                      title="Excluir"
                                     >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+                                      <Trash2 className="w-3 h-3 mr-1" />
+                                      Excluir
+                                    </Button>
                                   </td>
                                 </tr>
                               ))}
@@ -688,6 +814,114 @@ const AdminFrequencia: React.FC = () => {
           </form>
         </Card>
       </div>
+
+      {editingModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+              <h3 className="text-lg font-bold text-gray-800">
+                Editar Lançamento
+              </h3>
+              <button
+                onClick={handleCloseEditModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={submitting}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="bg-teal-100 p-2 rounded-full">
+                  <User className="w-5 h-5 text-teal-700" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 uppercase">Aluno</p>
+                  <p className="text-base font-bold text-gray-900">{editingModalData.alunoNome}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data</label>
+                  <Input
+                    type="date"
+                    value={editingModalData.data}
+                    disabled
+                    className="bg-gray-100 text-gray-500 font-medium"
+                  />
+                  <p className="text-[9px] text-gray-400 mt-1">A data não pode ser alterada na edição rápida.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
+                  <Select
+                    value={editingModalData.status}
+                    onChange={v => setEditingModalData({ ...editingModalData, status: v })}
+                  >
+                    <option value="presente">Presente</option>
+                    <option value="falta">Falta</option>
+                    <option value="atraso">Atraso</option>
+                    <option value="justificativa">Justificativa</option>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center">
+                  Drácmas <span className="ml-2 text-[9px] font-normal normal-case text-gray-400">(Deixe vazio para 0)</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {criteriosDracma.map(c => (
+                    <div key={c.codigo}>
+                      <span className="block text-[10px] font-bold text-gray-400 uppercase mb-0.5 truncate" title={c.nome}>
+                        {c.nome}
+                      </span>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={editingModalData.dracmas[c.codigo] || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setEditingModalData({
+                            ...editingModalData,
+                            dracmas: {
+                              ...editingModalData.dracmas,
+                              [c.codigo]: val
+                            }
+                          });
+                        }}
+                        className="h-8 text-xs"
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Observação</label>
+                <textarea
+                  className="w-full text-xs p-2 border rounded-md focus:ring-teal-500 focus:border-teal-500"
+                  rows={2}
+                  value={editingModalData.observacao}
+                  onChange={e => setEditingModalData({ ...editingModalData, observacao: e.target.value })}
+                  placeholder="Justificativa ou anotação..."
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t flex justify-end space-x-3">
+              <Button variant="outline" onClick={handleCloseEditModal} disabled={submitting}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveEditModal} disabled={submitting}>
+                {submitting ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

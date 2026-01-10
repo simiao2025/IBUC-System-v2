@@ -1,13 +1,27 @@
 import { Processor, Process } from '@nestjs/bull';
 import { Job } from 'bull';
-import PDFDocument from 'pdfkit';
+import PDFDocument = require('pdfkit');
 import * as fs from 'fs';
 import * as path from 'path';
 import { SupabaseService } from '../../supabase/supabase.service';
 import * as QRCode from 'qrcode';
+import axios from 'axios';
 
 @Processor('pdf-generation')
 export class PdfProcessor {
+  private logoBuffer: Buffer | null = null;
+
+  private async getLogo() {
+    if (this.logoBuffer) return this.logoBuffer;
+    try {
+      const resp = await axios.get('https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png', { responseType: 'arraybuffer' });
+      this.logoBuffer = Buffer.from(resp.data);
+      return this.logoBuffer;
+    } catch (e) {
+      return null;
+    }
+  }
+
   constructor(private supabase: SupabaseService) { }
 
   @Process('termo-matricula')
@@ -118,29 +132,47 @@ export class PdfProcessor {
     const { alunoId, periodo } = job.data;
     const client = this.supabase.getAdminClient();
 
-    // 1. Buscar Dados do Aluno e Matrícula Ativa
+    // 1. Buscar Dados do Aluno (Sem embedding para evitar ambiguidade)
     const { data: aluno, error: alunoError } = await client
       .from('alunos')
       .select(`
         id,
         nome,
         cpf,
-        polo:polos(id, nome),
-        matriculas:matriculas(
-          id,
-          status,
-          turma:turmas(id, nome, nivel:niveis(nome))
-        )
+        sexo,
+        polo:polos!fk_polo(id, nome)
       `)
       .eq('id', alunoId)
       .single();
 
     if (alunoError || !aluno) {
-      throw new Error(`Aluno não encontrado: ${alunoId}`);
+      throw new Error(`Aluno não encontrado: ${alunoId} (${alunoError?.message})`);
     }
 
-    const matriculaAtiva = (aluno as any).matriculas?.find((m: any) => m.status === 'ativa');
-    const turma = matriculaAtiva?.turma;
+    // 2. Buscar Matrículas separadamente
+    const { data: matriculas, error: matriculasError } = await client
+      .from('matriculas')
+      .select(`
+        id,
+        status,
+        protocolo,
+        turma:turmas!fk_turma(
+          id, 
+          nome, 
+          dia_semana:dias_semana, 
+          horario:horario_inicio,
+          professor_id,
+          nivel:niveis(nome)
+        )
+      `)
+      .eq('aluno_id', alunoId);
+
+    if (matriculasError) {
+      throw new Error(`Erro ao buscar matrículas: ${matriculasError.message}`);
+    }
+
+    const matriculaAtiva = (matriculas as any)?.find((m: any) => m.status === 'ativa');
+    const turma = (matriculaAtiva as any)?.turma;
 
     // 2. Buscar Presenças no Período
     // Simplificando período: se for YYYY-MM, pegamos o mês inteiro
@@ -181,68 +213,106 @@ export class PdfProcessor {
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // --- Design do Boletim ---
-    // Cabeçalho
-    doc.rect(0, 0, doc.page.width, 100).fill('#1e293b');
-    doc.fillColor('#ffffff').fontSize(24).text('IBUC - BOLETIM ESCOLAR', 50, 40);
-    doc.fontSize(10).text('Instituto Bíblico da Última Colheita', 50, 70);
+    // --- Design do Boletim (ACADÊMICO) ---
+    doc.rect(40, 30, doc.page.width - 80, doc.page.height - 60).lineWidth(1.5).stroke('#000000');
 
-    doc.fillColor('#334155').fontSize(12);
-    doc.moveDown(4);
+    // Cabeçalho
+    const logo = await this.getLogo();
+    if (logo) {
+      doc.image(logo, 60, 50, { width: 100 });
+      doc.fillColor('#000000').fontSize(14).font('Helvetica').text('Instituto Bíblico Único Caminho', 170, 60);
+      doc.fontSize(12).text('Palmas - TO', 170, 80);
+    } else {
+      doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold').text('IBUC', 40, 60, { align: 'center' });
+      doc.fontSize(14).font('Helvetica').text('Instituto Bíblico Único Caminho', 40, 90, { align: 'center' });
+      doc.fontSize(12).text('Palmas - TO', 40, 110, { align: 'center' });
+    }
+
+    doc.moveTo(60, 130).lineTo(535, 130).lineWidth(1).stroke('#000000');
+    doc.fontSize(15).font('Helvetica-Bold').text('BOLETIM DO ALUNO', 40, 145, { align: 'center' });
 
     // Info do Aluno
-    doc.font('Helvetica-Bold').text(`Aluno: ${aluno.nome}`);
-    doc.font('Helvetica').text(`CPF: ${aluno.cpf || '---'}`);
-    doc.text(`Polo: ${(aluno as any).polo?.nome || '---'}`);
-    doc.text(`Período de Referência: ${periodo}`);
+    const infoY = 180;
+    doc.fontSize(11).font('Helvetica');
+
+    doc.font('Helvetica-Bold').text('Aluno: ', 60, infoY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
+    const protocoloFmt = (matriculaAtiva as any)?.protocolo ? (matriculaAtiva as any).protocolo.split('-').slice(0, 2).join('-') : '---';
+    doc.font('Helvetica-Bold').text('Matrícula: ', 400, infoY, { continued: true }).font('Helvetica').text(protocoloFmt);
+
+    doc.font('Helvetica-Bold').text('CPF: ', 60, infoY + 20, { continued: true }).font('Helvetica').text(aluno.cpf || '---');
+    doc.font('Helvetica-Bold').text('Sexo: ', 400, infoY + 20, { continued: true }).font('Helvetica').text(aluno.sexo === 'M' ? 'Masculino' : aluno.sexo === 'F' ? 'Feminino' : 'Outro');
+
+    doc.font('Helvetica-Bold').text('Turma: ', 60, infoY + 40, { continued: true }).font('Helvetica').text(`${turma?.nome || '---'} ${turma?.nivel?.nome || ''}`);
+    doc.font('Helvetica-Bold').text('Polo: ', 400, infoY + 40, { continued: true }).font('Helvetica').text((aluno as any).polo?.nome || '---');
+
+    const diasMapa: Record<number, string> = {
+      1: 'Domingo', 2: 'Segunda-feira', 3: 'Terça-feira', 4: 'Quarta-feira',
+      5: 'Quinta-feira', 6: 'Sexta-feira', 7: 'Sábado'
+    };
+    const diaDesc = turma?.dia_semana?.[0] ? diasMapa[turma.dia_semana[0]] : '---';
+    const horarioFmt = turma?.horario ? turma.horario.substring(0, 5) : '---';
+
+    const professorId = (turma as any)?.professor_id;
+    let professorNome = '---';
+    if (professorId) {
+      const { data: profData } = await client.from('usuarios').select('nome_completo').eq('id', professorId).single();
+      professorNome = profData?.nome_completo || '---';
+    }
+
+    // Buscar Ano Letivo das configurações
+    const { data: configAno } = await client
+      .from('configuracoes_sistema')
+      .select('valor')
+      .eq('chave', 'ano_letivo')
+      .maybeSingle();
+
+    const anoLetivo = configAno?.valor || '---';
+
+    doc.font('Helvetica-Bold').text('Ano Letivo: ', 60, infoY + 60, { continued: true }).font('Helvetica').text(anoLetivo);
+    doc.font('Helvetica-Bold').text('Período Ref: ', 400, infoY + 60, { continued: true }).font('Helvetica').text(periodo);
+
+    doc.font('Helvetica-Bold').text('Dia/Hora: ', 60, infoY + 80, { continued: true }).font('Helvetica').text(`${diaDesc} às ${horarioFmt}`);
+    doc.font('Helvetica-Bold').text('Professor(a): ', 400, infoY + 80, { continued: true }).font('Helvetica').text(professorNome);
+
+    doc.moveTo(60, 260).lineTo(535, 260).lineWidth(1).stroke('#000000');
+
+    // Resumo Mensal
+    const summaryY = 280;
+    doc.rect(60, summaryY, 475, 80).lineWidth(1.5).stroke('#000000');
+    doc.fontSize(11).font('Helvetica-Bold').text('RESUMO DO PERÍODO', 70, summaryY + 10);
+
+    doc.font('Helvetica').fontSize(10);
+    doc.text(`Aulas Registradas: ${totalAulas}`, 70, summaryY + 35);
+    doc.text(`Frequência no Mês: ${frequencia}%`, 230, summaryY + 35);
+    doc.text(`Drácmas Ganhos: ${ganhoDracmas}`, 380, summaryY + 35);
+
+    const situacao = frequencia >= 75 ? 'REGULAR' : 'CURSANDO';
+    doc.font('Helvetica-Bold').fontSize(11).text(`Situação: ${situacao}`, 70, summaryY + 55);
+
+    // Detalhamento de Presenças (Se houver espaço)
+    doc.moveDown(8);
+    doc.fontSize(10).font('Helvetica-Bold').text('Detalhamento de Frequência');
+    doc.moveTo(60, doc.y + 5).lineTo(535, doc.y + 5).stroke();
+
     doc.moveDown();
+    doc.font('Helvetica').fontSize(9);
+    presencas?.slice(0, 10).forEach((p, idx) => {
+      doc.text(`${new Date(p.data).toLocaleDateString('pt-BR')} - Status: ${p.status.toUpperCase()}`, 60, doc.y + 5);
+    });
 
-    doc.rect(50, doc.y, 500, 2).fill('#e2e8f0');
-    doc.moveDown();
+    // Assinaturas
+    const footY = doc.page.height - 150;
+    doc.moveTo(60, footY).lineTo(535, footY).lineWidth(1).stroke('#000000');
 
-    // Stats Grid
-    const startY = doc.y;
-    doc.rect(50, startY, 160, 60).stroke('#cbd5e1');
-    doc.text('FREQUÊNCIA', 60, startY + 10);
-    doc.fontSize(20).text(`${frequencia}%`, 60, startY + 30);
+    // Assinatura Professora (esquerda)
+    doc.moveTo(60, footY + 75).lineTo(260, footY + 75).stroke();
+    doc.fontSize(9).font('Helvetica').text('Assinatura da Professora', 60, footY + 80, { width: 200, align: 'center' });
 
-    doc.rect(220, startY, 160, 60).stroke('#cbd5e1');
-    doc.fontSize(12).text('AULAS NO MÊS', 230, startY + 10);
-    doc.fontSize(20).text(`${totalAulas}`, 230, startY + 30);
+    // Assinatura Diretor (direita)
+    doc.moveTo(335, footY + 75).lineTo(535, footY + 75).stroke();
+    doc.fontSize(9).font('Helvetica').text('Assinatura do Diretor', 335, footY + 80, { width: 200, align: 'center' });
 
-    doc.rect(390, startY, 160, 60).stroke('#cbd5e1');
-    doc.fontSize(12).text('DRÁCMAS', 400, startY + 10);
-    doc.fontSize(20).text(`+${ganhoDracmas}`, 400, startY + 30);
-
-    doc.moveDown(5);
-    doc.fontSize(12).font('Helvetica-Bold').text('Detalhamento Acadêmico');
-    doc.moveDown();
-
-    // Tabela de Disciplinas (Mockada enquanto não há tabela no banco)
-    const tableTop = doc.y;
-    doc.fontSize(10).font('Helvetica-Bold');
-    doc.text('Disciplina', 50, tableTop);
-    doc.text('Nível', 250, tableTop);
-    doc.text('Status', 450, tableTop);
-
-    doc.moveDown();
-    doc.font('Helvetica');
-    doc.rect(50, doc.y, 500, 1).fill('#f1f5f9');
-    doc.moveDown(0.5);
-
-    const nivelNome = turma?.nivel?.nome || 'N/A';
-    doc.text('Formação Ministerial', 50, doc.y);
-    doc.text(nivelNome, 250, doc.y - 12); // Adjust Y because of moveDown
-    doc.text(frequencia >= 75 ? 'Regular' : 'Abaixo da Média', 450, doc.y - 12);
-
-    doc.moveDown(4);
-    doc.fontSize(8).fillColor('#64748b').text('Este documento é uma representação digital das atividades realizadas no período.', { align: 'center' });
-
-    // QR Code de Autenticidade
-    const qrData = `https://ibuc.com.br/validar/${alunoId}/${periodo}`;
-    const qrBuffer = await QRCode.toBuffer(qrData);
-    doc.image(qrBuffer, 460, 680, { width: 80 });
-    doc.text('Valide este documento em ibuc.com.br/validar', 50, 740);
+    doc.fontSize(8).text('Este documento é uma representação digital das atividades realizadas no período.', 60, footY + 100);
 
     doc.end();
 
@@ -262,6 +332,293 @@ export class PdfProcessor {
       });
 
     // Limpar arquivo local
+    fs.unlinkSync(filePath);
+
+    return { success: true, path: storagePath };
+  }
+
+  @Process('boletim-lote')
+  async handleBoletimLote(job: Job<{ alunoIds: string[]; moduloId: string }>) {
+    const { alunoIds, moduloId } = job.data;
+    const client = this.supabase.getAdminClient();
+
+    // Gerar nome de arquivo determinístico para permitir "update" (overwrite)
+    const crypto = require('crypto');
+    const hash = crypto.createHash('md5').update((alunoIds || []).sort().join(',')).digest('hex');
+    const fileName = `boletim-lote-${moduloId}-${hash.substring(0, 8)}-${job.id}.pdf`;
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4', autoFirstPage: false });
+    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'boletins-lote', fileName);
+
+    if (!fs.existsSync(path.dirname(filePath))) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    }
+
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // 1. Fetch Modulo Shared
+    const { data: modulo } = await client.from('modulos').select('titulo, numero').eq('id', moduloId).single();
+    const moduloTitulo = modulo?.titulo || 'Módulo Desconhecido';
+    const moduloNumero = modulo?.numero || 0;
+
+    // 2. Fetch Lessons Shared
+    const { data: licoesModulo } = await client.from('licoes').select('id').eq('modulo_id', moduloId);
+    const licaoIdsSet = new Set(licoesModulo?.map(l => l.id) || []);
+    const totalLicoesModulo = licaoIdsSet.size;
+
+    let studentsProcessed = 0;
+    let errorLog: string[] = [];
+
+    // Iterar sobre cada aluno e gerar sua página
+    for (const alunoId of (alunoIds || [])) {
+      if (!alunoId) continue;
+
+      try {
+        // --- BUSCA DE DADOS ---
+        // 1. Buscar Dados do Aluno (Sem embedding para evitar ambiguidade)
+        const { data: aluno, error: alunoError } = await client
+          .from('alunos')
+          .select(`
+            id, 
+            nome, 
+            cpf, 
+            sexo,
+            polo:polos!fk_polo(nome)
+          `)
+          .eq('id', alunoId)
+          .single();
+
+        if (alunoError || !aluno) {
+          errorLog.push(`[V4-SURGICAL] Aluno ${alunoId}: não encontrado ou erro na query do aluno (${alunoError?.message || 'NULL'})`);
+          continue;
+        }
+
+        // 2. Buscar Matrículas separadamente para evitar erro "more than one relationship"
+        const { data: matriculas, error: matriculasError } = await client
+          .from('matriculas')
+          .select(`
+            id, 
+            status, 
+            protocolo,
+            turma:turmas!fk_turma(
+              id, 
+              nome, 
+              dia_semana:dias_semana, 
+              horario:horario_inicio,
+              professor_id,
+              nivel:niveis(nome)
+            )
+          `)
+          .eq('aluno_id', alunoId);
+
+        if (matriculasError) {
+          errorLog.push(`[V4-SURGICAL] Aluno ${alunoId}: erro ao buscar matrículas (${matriculasError.message})`);
+          continue;
+        }
+
+        const matriculaAtiva = (matriculas as any)?.find((m: any) => m.status === 'ativa');
+        const turma = (matriculaAtiva as any)?.turma;
+
+        // Buscar TODAS as presenças do aluno e filtrar em memória
+        const { data: presencas } = await client
+          .from('presencas')
+          .select('status, licao_id')
+          .eq('aluno_id', alunoId);
+
+        const presencasFiltradas = (presencas || []).filter((p: any) => p.licao_id && licaoIdsSet.has(p.licao_id));
+        const totalAulas = Math.max(totalLicoesModulo, presencasFiltradas.length);
+        const presentes = presencasFiltradas.filter((p: any) => ['presente', 'atraso', 'justificativa'].includes(p.status)).length;
+        const frequencia = totalAulas > 0 ? Math.round((presentes / totalAulas) * 100) : 0;
+
+        // Drácmas
+        const { data: dracmas } = await client
+          .from('dracmas_transacoes')
+          .select('quantidade')
+          .eq('aluno_id', alunoId);
+        const totalDracmas = dracmas?.reduce((acc, curr) => acc + (curr.quantidade || 0), 0) || 0;
+
+        // --- GERAÇÃO DA PÁGINA (MODELO ACADÊMICO CLÁSSICO) ---
+        doc.addPage();
+        studentsProcessed++;
+
+        // --- BACKGROUND & MOLDURA ---
+        doc.rect(0, 0, doc.page.width, doc.page.height).fill('#ffffff');
+        doc.rect(40, 30, doc.page.width - 80, doc.page.height - 60).lineWidth(1.5).stroke('#000000');
+
+        // --- CABEÇALHO (CENTRALIZADO) ---
+        const logoLote = await this.getLogo();
+        if (logoLote) {
+          doc.image(logoLote, 60, 50, { width: 100 });
+          doc.fillColor('#000000').fontSize(14).font('Helvetica').text('Instituto Bíblico Único Caminho', 170, 60);
+          doc.fontSize(12).text('Palmas - TO', 170, 80);
+        } else {
+          doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold').text('IBUC', 40, 60, { align: 'center' });
+          doc.fontSize(14).font('Helvetica').text('Instituto Bíblico Único Caminho', 40, 90, { align: 'center' });
+          doc.fontSize(12).text('Palmas - TO', 40, 110, { align: 'center' });
+        }
+
+        doc.moveTo(60, 125).lineTo(535, 125).lineWidth(1).stroke('#000000');
+
+        doc.fontSize(15).font('Helvetica-Bold').text('BOLETIM DO ALUNO', 40, 140, { align: 'center' });
+
+        // --- DADOS DO ALUNO (GRID COMPACTO) ---
+        const infoY = 170;
+        doc.fontSize(10).font('Helvetica');
+
+        // Linha 1: Aluno e Matrícula
+        doc.font('Helvetica-Bold').text('Aluno: ', 60, infoY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
+        const protocoloFmt = (matriculaAtiva as any)?.protocolo ? (matriculaAtiva as any).protocolo.split('-').slice(0, 2).join('-') : '---';
+        doc.font('Helvetica-Bold').text('Matrícula: ', 380, infoY, { continued: true }).font('Helvetica').text(protocoloFmt);
+
+        // Linha 2: CPF e Sexo
+        doc.font('Helvetica-Bold').text('CPF: ', 60, infoY + 18, { continued: true }).font('Helvetica').text(aluno.cpf || '---');
+        doc.font('Helvetica-Bold').text('Sexo: ', 380, infoY + 18, { continued: true }).font('Helvetica').text(aluno.sexo === 'M' ? 'Masculino' : aluno.sexo === 'F' ? 'Feminino' : 'Outro');
+
+        // Linha 3: Turma e Polo
+        doc.font('Helvetica-Bold').text('Turma: ', 60, infoY + 36, { continued: true }).font('Helvetica').text(`${turma?.nome || '---'} ${turma?.nivel?.nome || ''}`);
+        doc.font('Helvetica-Bold').text('Polo: ', 380, infoY + 36, { continued: true }).font('Helvetica').text((aluno as any).polo?.nome || '---');
+
+        // Linha 4: Dia da Semana e Professor
+        const diasMapa: Record<number, string> = {
+          1: 'Domingo', 2: 'Segunda-feira', 3: 'Terça-feira', 4: 'Quarta-feira',
+          5: 'Quinta-feira', 6: 'Sexta-feira', 7: 'Sábado'
+        };
+        const diaDesc = turma?.dia_semana?.[0] ? diasMapa[turma.dia_semana[0]] : '---';
+        const horarioFmt = turma?.horario ? turma.horario.substring(0, 5) : '---';
+
+        const { data: configAno } = await client.from('configuracoes_sistema').select('valor').eq('chave', 'ano_letivo').maybeSingle();
+        const anoLetivo = configAno?.valor || '---';
+
+        const professorId = (turma as any)?.professor_id;
+        let professorNome = '---';
+        if (professorId) {
+          const { data: profData } = await client.from('usuarios').select('nome_completo').eq('id', professorId).single();
+          professorNome = profData?.nome_completo || '---';
+        }
+
+        doc.font('Helvetica-Bold').text('Professor(a): ', 60, infoY + 54, { continued: true }).font('Helvetica').text(professorNome);
+        doc.font('Helvetica-Bold').text('Ano Letivo: ', 380, infoY + 54, { continued: true }).font('Helvetica').text(anoLetivo);
+
+        // Linha 5: Dia/Hora
+        doc.font('Helvetica-Bold').text('Dia/Hora: ', 60, infoY + 72, { continued: true }).font('Helvetica').text(`${diaDesc} às ${horarioFmt}`);
+
+        doc.moveTo(60, 255).lineTo(535, 255).lineWidth(1).stroke('#000000');
+
+        // --- MÓDULO ---
+        doc.fontSize(13).font('Helvetica-Bold').text(`MÓDULO ${moduloNumero} - ${moduloTitulo.toUpperCase()}`, 40, 275, { align: 'center' });
+
+        // --- TABELA DE AULAS ---
+        const tableY = 295;
+        // Cabeçalho da Tabela
+        doc.rect(60, tableY, 475, 22).lineWidth(1.2).stroke('#000000');
+        doc.fontSize(9).font('Helvetica-Bold');
+        doc.text('LIÇÕES', 70, tableY + 7);
+        doc.text('FREQUÊNCIA', 415, tableY + 7);
+        doc.text('DRÁCMAS', 485, tableY + 7);
+
+        doc.moveTo(410, tableY).lineTo(410, tableY + 22).stroke();
+        doc.moveTo(480, tableY).lineTo(480, tableY + 22).stroke();
+
+        let currentY = tableY + 22;
+        let totalDracmasCalculados = 0;
+        let totalPresentesCalculados = 0;
+
+        const { data: licoes } = await client.from('licoes').select('id, titulo, ordem').eq('modulo_id', moduloId).order('ordem', { ascending: true });
+
+        for (const licao of (licoes || [])) {
+          doc.rect(60, currentY, 475, 20).stroke('#000000');
+          doc.moveTo(410, currentY).lineTo(410, currentY + 20).stroke();
+          doc.moveTo(480, currentY).lineTo(480, currentY + 20).stroke();
+
+          doc.fillColor('#000000').fontSize(8).font('Helvetica');
+          doc.text(licao.titulo, 70, currentY + 6, { width: 330, ellipsis: true });
+
+          const presenca = presencasFiltradas.find((p: any) => p.licao_id === licao.id);
+          const estaPresente = presenca && ['presente', 'atraso', 'justificativa'].includes(presenca.status);
+          const statusChar = presenca ? (estaPresente ? 'P' : 'F') : '-';
+
+          if (estaPresente) {
+            totalPresentesCalculados++;
+            totalDracmasCalculados += 3;
+          }
+
+          doc.text(statusChar, 415, currentY + 6, { width: 60, align: 'center' });
+          const dracmaVal = estaPresente ? 3 : 0;
+          doc.text(dracmaVal.toString(), 485, currentY + 6, { width: 45, align: 'center' });
+
+          currentY += 20;
+          if (currentY > 700) break;
+        }
+
+        // --- RESUMO DO MÓDULO ---
+        const summaryY = currentY + 15;
+        doc.rect(60, summaryY, 475, 70).lineWidth(1.2).stroke('#000000');
+        doc.fontSize(10).font('Helvetica-Bold').text('RESUMO DO MÓDULO', 70, summaryY + 8);
+
+        doc.font('Helvetica').fontSize(9);
+        doc.text(`Total de Presenças: ${totalPresentesCalculados} / ${totalLicoesModulo}`, 70, summaryY + 28);
+        doc.text(`Frequência: ${frequencia}%`, 230, summaryY + 28);
+        doc.text(`Total de Drácmas: ${totalDracmasCalculados}`, 380, summaryY + 28);
+
+        const aprovado = frequencia >= 75;
+        doc.font('Helvetica-Bold').fontSize(10).text(`Situação: ${aprovado ? 'REGULAR' : 'CURSANDO'}`, 70, summaryY + 48);
+
+        // --- LEGENDA (FORA DO QUADRO) ---
+        const footerY = summaryY + 80;
+        doc.fontSize(7).font('Helvetica').text('Legenda: P = Presente | F = Falta | Critério: Frequência mínima de 75%', 60, footerY);
+
+        // --- ASSINATURAS ---
+        const signY = footerY + 20;
+
+        // Assinatura Professora (esquerda)
+        doc.moveTo(60, signY + 30).lineTo(260, signY + 30).stroke();
+        doc.fontSize(8).text('Assinatura da Professora', 60, signY + 35, { width: 200, align: 'center' });
+
+        // Assinatura Diretor (direita)
+        doc.moveTo(335, signY + 30).lineTo(535, signY + 30).stroke();
+        doc.fontSize(8).text('Assinatura do Diretor', 335, signY + 35, { width: 200, align: 'center' });
+
+        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 60, signY + 55);
+
+      } catch (err) {
+        errorLog.push(`Erro geral Aluno ${alunoId}: ${err.message}`);
+        console.error(`Erro ao gerar boletim para aluno ${alunoId} no lote:`, err);
+      }
+    }
+
+    // Se nenhuma página foi adicionada, mostrar log de erros no PDF
+    if (studentsProcessed === 0) {
+      doc.addPage();
+      doc.fontSize(16).fillColor('#b91c1c').text('Falha na Geração do Lote', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(10).fillColor('#374151').text('Nenhum dado encontrado para os critérios selecionados ou ocorreram erros.', { align: 'center' });
+      doc.moveDown();
+      doc.text(`Total de IDs enviados: ${alunoIds?.length || 0}`);
+      doc.text(`Módulo ID: ${moduloId}`);
+      doc.moveDown();
+      doc.text('Logs de Erro:', { font: 'Helvetica-Bold' });
+      errorLog.slice(0, 20).forEach(log => doc.text(`- ${log}`, { fontSize: 8 }));
+      if (errorLog.length > 20) doc.text('... (mais erros omitidos)');
+    }
+
+    doc.end();
+
+    await new Promise<void>((resolve) => {
+      stream.on('finish', () => resolve());
+    });
+
+    // Upload
+    const fileBuffer = fs.readFileSync(filePath);
+    const storagePath = `boletins-lote/${fileName}`;
+
+    await client.storage
+      .from('documentos')
+      .upload(storagePath, fileBuffer, {
+        contentType: 'application/pdf',
+        upsert: true
+      });
+
     fs.unlinkSync(filePath);
 
     return { success: true, path: storagePath };

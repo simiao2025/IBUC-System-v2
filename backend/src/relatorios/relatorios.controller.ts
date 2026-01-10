@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Param, Res, Body, Request, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
 import { RelatoriosService } from './relatorios.service';
@@ -13,6 +13,30 @@ export class RelatoriosController {
   @Get('boletim')
   async gerarBoletim(@Query('aluno_id') alunoId: string, @Query('periodo') periodo: string) {
     return this.service.gerarBoletim(alunoId, periodo);
+  }
+
+  @Get('boletim-dados')
+  async getDadosBoletim(
+    @Query('aluno_id') alunoId: string,
+    @Query('modulo_id') moduloId: string
+  ) {
+    return this.service.getDadosBoletim(alunoId, moduloId);
+  }
+
+  @Post('boletim-lote')
+  async gerarBoletimLote(
+    @Body() body: {
+      polo_id?: string;
+      turma_id?: string;
+      modulo_id: string;
+      aluno_id?: string;
+      aluno_ids?: string[];
+    },
+    @Request() req
+  ) {
+    // Extrair usuário para validação de permissão no service
+    const userIndex = req.user; // Assumindo que o Guard já populou isso
+    return this.service.gerarBoletimLote(body, userIndex);
   }
 
   @Get('historico')
