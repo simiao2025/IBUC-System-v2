@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Query, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
-import { Public } from '../auth-v2/decorators/public.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/public.decorator';
 import { PreMatriculasService } from './pre-matriculas.service';
 import { CreatePreMatriculaDto, UpdatePreMatriculaStatusDto, UpdatePreMatriculaDto } from './dto';
 

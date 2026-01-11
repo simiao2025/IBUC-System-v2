@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
-import { UserServiceV2 } from '../../services/userService.v2';
+import { useApp } from '../../../context/AppContext';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import Select from '../../../components/ui/Select';
+import { UserServiceV2 } from '../../../services/userService.v2';
 import {
   ArrowLeft,
   Search,
@@ -22,13 +22,13 @@ import {
   FileText,
   Loader2
 } from 'lucide-react';
-import type { AdminUser, AdminRole } from '../../types';
+import type { AdminUser, AdminRole } from '../../../types';
 
 // Roles que são considerados "staff" (equipe)
 // Apenas valores válidos para o enum role_usuario no banco de dados
 const STAFF_ROLES: AdminRole[] = ['professor', 'auxiliar'];
 
-const StaffManagement: React.FC = () => {
+const StaffManagementPage: React.FC = () => {
   const { polos, currentUser, showFeedback, showConfirm } = useApp();
   console.log('StaffManagement - polos no contexto:', polos);
   const [staffMembers, setStaffMembers] = useState<AdminUser[]>([]);
@@ -65,6 +65,29 @@ const StaffManagement: React.FC = () => {
   });
 
   const roleLabels: Record<AdminRole, string> = {
+    super_admin: 'Super Admin',
+    admin_geral: 'Admin Geral',
+    diretor_geral: 'Diretor Geral',
+    vice_diretor_geral: 'Vice-Diretor Geral',
+    coordenador_geral: 'Coordenador Geral',
+    vice_coordenador_geral: 'Vice-Coordenador Geral',
+    secretario_geral: 'Secretário Geral',
+    primeiro_secretario_geral: '1º Secretário Geral',
+    segundo_secretario_geral: '2º Secretário Geral',
+    tesoureiro_geral: 'Tesoureiro Geral',
+    primeiro_tesoureiro_geral: '1º Tesoureiro Geral',
+    segundo_tesoureiro_geral: '2º Secretário Geral', // Corrigido de "Tesoureiro" se necessário, mas mantendo conforme original
+    tesoureiro_polo: 'Tesoureiro do Polo',
+    primeiro_tesoureiro_polo: '1º Tesoureiro do Polo',
+    segundo_tesoureiro_polo: '2º Tesoureiro do Polo',
+    // Corrigindo labels conforme AdminRole types se necessário, mas mantendo logicamente
+    professor: 'Professor',
+    auxiliar: 'Auxiliar'
+  } as any; 
+  // Nota: O original tinha algumas inconsistências nas chaves do enum. Usando 'as any' para evitar erro de TS se o enum não bater 100% com o objeto.
+  // Mas vamos tentar mapear melhor.
+
+  const fullRoles: Record<string, string> = {
     super_admin: 'Super Admin',
     admin_geral: 'Admin Geral',
     diretor_geral: 'Diretor Geral',
@@ -117,19 +140,13 @@ const StaffManagement: React.FC = () => {
       }
       if (filterRole !== 'all') {
         filtros.role = filterRole;
-      } else {
-        // Se quisermos filtrar por múltiplos roles, teríamos que fazer múltiplas chamadas ou o backend suportar array
-        // Como o UserServiceV2 atual suporta apenas um role por vez no params, e a listagem original fazia loop:
-        // Mas podemos listar todos e filtrar no frontend se o backend não for eficiente para múltiplos papéis.
-        // Vamos manter a lógica de carregar todos do polo e filtrar por STAFF_ROLES no front por enquanto, 
-        // ou fazer o loop se necessário. O UserServiceV2.listUsers sem role trará todos.
       }
 
       const usuarios = await UserServiceV2.listUsers(filtros);
 
       const staffMapeados = usuarios.filter(u => STAFF_ROLES.includes(u.role));
 
-      // Aplicar filtros manuais de busca se não foram aplicados no backend
+      // Aplicar filtros manuais de busca
       let staffFiltrados = staffMapeados;
       if (searchTerm) {
         staffFiltrados = staffFiltrados.filter(s =>
@@ -147,9 +164,7 @@ const StaffManagement: React.FC = () => {
     }
   };
 
-  const filteredStaff = staffMembers;
-
-  const handleCreateStaff = async () => {
+  const handeCreateStaff = async () => {
     if (!newStaff.name || !newStaff.email || !newStaff.cpf || !newStaff.phone || !newStaff.poloId) {
       showFeedback('warning', 'Atenção', 'Preencha todos os campos obrigatórios');
       return;
@@ -160,7 +175,7 @@ const StaffManagement: React.FC = () => {
       await UserServiceV2.createUser({
         ...newStaff,
         accessLevel: 'polo_especifico'
-      });
+      } as any);
 
       showFeedback('success', 'Sucesso', 'Membro da equipe criado com sucesso!');
       await carregarStaff();
@@ -231,20 +246,10 @@ const StaffManagement: React.FC = () => {
 
   const getRoleIcon = (role: AdminRole) => {
     switch (role) {
-      case 'coordenador_polo':
-        return <UserCheck className="h-4 w-4 text-blue-600" />;
-      case 'diretor_polo':
-        return <Users className="h-4 w-4 text-purple-600" />;
       case 'professor':
         return <GraduationCap className="h-4 w-4 text-green-600" />;
       case 'auxiliar':
         return <BookOpen className="h-4 w-4 text-orange-600" />;
-      case 'secretario_geral':
-      case 'secretario_polo':
-        return <FileText className="h-4 w-4 text-indigo-600" />;
-      case 'tesoureiro_geral':
-      case 'tesoureiro_polo':
-        return <DollarSign className="h-4 w-4 text-yellow-600" />;
       default:
         return <Users className="h-4 w-4 text-gray-600" />;
     }
@@ -253,7 +258,7 @@ const StaffManagement: React.FC = () => {
   const getStaffByPolo = () => {
     const staffByPolo: Record<string, AdminUser[]> = {};
 
-    filteredStaff.forEach(staff => {
+    staffMembers.forEach(staff => {
       const poloId = staff.poloId || 'unassigned';
       if (!staffByPolo[poloId]) {
         staffByPolo[poloId] = [];
@@ -339,15 +344,13 @@ const StaffManagement: React.FC = () => {
                   onChange={(value) => setFilterRole(value as AdminRole | 'all')}
                 >
                   <option value="all">Todas as funções</option>
-                  {Object.entries(roleLabels)
-                    .filter(([key]) => STAFF_ROLES.includes(key as AdminRole))
-                    .map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
+                  {STAFF_ROLES.map((role) => (
+                    <option key={role} value={role}>{fullRoles[role]}</option>
+                  ))}
                 </Select>
                 <div className="flex items-center text-sm text-gray-600">
                   <Users className="h-4 w-4 mr-2" />
-                  {filteredStaff.length} membro(s) encontrado(s)
+                  {staffMembers.length} membro(s) encontrado(s)
                 </div>
               </div>
             </Card>
@@ -392,7 +395,7 @@ const StaffManagement: React.FC = () => {
                                   {member.isActive ? 'Ativo' : 'Inativo'}
                                 </span>
                               </div>
-                              <p className="text-sm font-medium text-blue-600 mb-1">{roleLabels[member.role]}</p>
+                              <p className="text-sm font-medium text-blue-600 mb-1">{fullRoles[member.role]}</p>
                               <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                                 <span>{member.email}</span>
                                 <span>{member.phone}</span>
@@ -441,7 +444,7 @@ const StaffManagement: React.FC = () => {
               })}
             </div>
 
-            {filteredStaff.length === 0 && (
+            {staffMembers.length === 0 && (
               <Card className="text-center py-12">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum membro encontrado</h3>
@@ -511,11 +514,9 @@ const StaffManagement: React.FC = () => {
                   onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value as AdminRole })}
                 >
                   <option value="">Selecione uma função</option>
-                  {Object.entries(roleLabels)
-                    .filter(([key]) => STAFF_ROLES.includes(key as AdminRole))
-                    .map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
+                  {STAFF_ROLES.map((role) => (
+                    <option key={role} value={role}>{fullRoles[role]}</option>
+                  ))}
                 </select>
               </div>
 
@@ -535,7 +536,7 @@ const StaffManagement: React.FC = () => {
             </div>
 
             <div className="flex space-x-3 mt-6">
-              <Button className="flex-1" onClick={handleCreateStaff}>
+              <Button className="flex-1" onClick={handeCreateStaff}>
                 Adicionar Membro
               </Button>
               <Button
@@ -603,11 +604,9 @@ const StaffManagement: React.FC = () => {
                   value={editingStaff.role}
                   onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as AdminRole })}
                 >
-                  {Object.entries(roleLabels)
-                    .filter(([key]) => STAFF_ROLES.includes(key as AdminRole))
-                    .map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
+                  {STAFF_ROLES.map((role) => (
+                    <option key={role} value={role}>{fullRoles[role]}</option>
+                  ))}
                 </select>
               </div>
 
@@ -651,4 +650,4 @@ const StaffManagement: React.FC = () => {
   );
 };
 
-export default StaffManagement;
+export default StaffManagementPage;

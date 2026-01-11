@@ -11,17 +11,17 @@ import StudentAccess from './pages/auth/StudentAccess';
 import AdminAccess from './pages/auth/AdminAccess';
 
 // Lazy Load Admin Pages
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminDashboard = lazy(() => import('./features/dashboard/pages/AdminDashboardPage'));
 const StudentManagement = lazy(() => import('./features/students/StudentManagement'));
-const TurmaManagement = lazy(() => import('./pages/admin/TurmaManagement'));
-const ModulosManagement = lazy(() => import('./pages/admin/ModulosManagement'));
+const TurmaManagement = lazy(() => import('./features/classes/pages/ClassManagementPage'));
+const ModulosManagement = lazy(() => import('./features/curriculum/pages/ModulosManagementPage'));
 const FrequenciaManagement = lazy(() => import('./features/attendance/FrequenciaManagement'));
 const FinanceiroManagement = lazy(() => import('./features/finance/FinanceiroManagement'));
-const PoloManagement = lazy(() => import('./pages/admin/PoloManagement'));
-const DiretoriaManagement = lazy(() => import('./pages/admin/DiretoriaManagement'));
-const EducationalReportManagement = lazy(() => import('./pages/admin/EducationalReportManagement'));
-const SystemSettings = lazy(() => import('./pages/admin/SystemSettings'));
-const StaffManagement = lazy(() => import('./pages/admin/StaffManagement'));
+const PoloManagement = lazy(() => import('./features/polos/pages/PoloManagementPage'));
+const DiretoriaManagement = lazy(() => import('./features/diretoria/pages/DiretoriaManagementPage'));
+const EducationalReportManagement = lazy(() => import('./features/reports/pages/EducationalReportManagementPage'));
+const SystemSettings = lazy(() => import('./features/settings/pages/SystemSettingsPage'));
+const StaffManagement = lazy(() => import('./features/staff/pages/StaffManagementPage'));
 const PreMatriculaManagement = lazy(() => import('./features/enrollments/PreMatriculaManagement'));
 const AttendanceByClassManagement = lazy(() => import('./features/attendance/AttendanceByClassManagement'));
 const AttendanceByStudentManagement = lazy(() => import('./features/students/AttendanceByStudentManagement'));

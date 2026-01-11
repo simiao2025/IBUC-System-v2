@@ -11,7 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MatriculasService } from './matriculas.service';
 import { CreateMatriculaDto, UpdateMatriculaDto, AprovarMatriculaDto } from './dto';
-import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Matrículas')
 @Controller('matriculas')

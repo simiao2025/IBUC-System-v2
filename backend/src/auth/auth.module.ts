@@ -11,4 +11,4 @@ import { UsuariosModule } from '../usuarios/usuarios.module';
     providers: [JwtStrategy],
     exports: [PassportModule],
 })
-export class AuthV2Module { }
+export class AuthModule { }

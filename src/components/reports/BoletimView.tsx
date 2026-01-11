@@ -330,42 +330,27 @@ const BoletimView: React.FC = () => {
         aluno_ids: alunoIds
       }) as any;
 
-      const jobId = res.jobId;
+      // Backend agora retorna direto: { status: 'completed', result: { success: true, path: ... } }
+      const resultObj = res.data?.result || res?.result || res;
+      
+      const path = resultObj?.path;
 
-      // Polling
-      const checkStatus = async () => {
-        try {
-          const status = await RelatorioService.getJobStatus(jobId) as any;
+      if (path) {
+        const { data } = supabase.storage.from('documentos').getPublicUrl(path);
 
-          if (status.state === 'completed') {
-            const path = status.result.path;
-            const { data } = supabase.storage.from('documentos').getPublicUrl(path);
-
-            if (data?.publicUrl) {
-              window.open(data.publicUrl, '_blank');
-            } else {
-              alert('Erro ao obter URL do arquivo.');
-            }
-            setGenerating(false);
-          } else if (status.state === 'failed') {
-            console.error('Falha no Job:', status.failedReason, status.stacktrace);
-            alert(`Erro no processamento: ${status.failedReason || 'Erro desconhecido'}`);
-            setGenerating(false);
-          } else {
-            setTimeout(checkStatus, 2000);
-          }
-        } catch (e) {
-          console.error('Erro no polling:', e);
-          setGenerating(false);
-          alert('Erro ao verificar status.');
+        if (data?.publicUrl) {
+           window.open(data.publicUrl, '_blank');
+        } else {
+           alert('Erro ao obter URL do arquivo.');
         }
-      };
-
-      checkStatus();
-
+      } else {
+         console.warn('Resposta sem path:', res);
+         alert('Erro: PDF não retornou caminho.');
+      }
     } catch (error) {
       console.error('Erro ao iniciar geração:', error);
       alert('Erro ao processar lote.');
+    } finally {
       setGenerating(false);
     }
   };
@@ -481,9 +466,9 @@ const BoletimView: React.FC = () => {
           </div>
 
           <div className="flex justify-end border-t pt-4">
-            <Button onClick={handleGerarPDF} disabled={generating} variant="secondary" className="w-full md:w-auto">
+            <Button onClick={handleGerarPDF} disabled={generating} variant="primary" className="w-full md:w-auto">
               {generating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-              {generating ? 'Processando PDF...' : `Confirmar e Gerar PDF (${previewAlunos.length} alunos)`}
+              {generating ? 'Processando...' : 'Gerar PDF'}
             </Button>
           </div>
         </Card>

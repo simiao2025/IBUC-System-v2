@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import { Polo } from '../../types';
-import { PoloService } from '../../services/polo.service';
-import type { Polo as DbPolo } from '../../types/database';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
+import { useApp } from '../../../context/AppContext';
+import { Polo } from '../../../types';
+import { PoloService } from '../../../services/polo.service';
+import type { Polo as DbPolo } from '../../../types/database';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import Select from '../../../components/ui/Select';
 import { 
   MapPin, 
   Plus, 
@@ -18,7 +18,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 
-const PoloManagement: React.FC = () => {
+const PoloManagementPage: React.FC = () => {
   const { polos, addPolo, updatePolo, deletePolo, showFeedback, showConfirm } = useApp();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
@@ -537,4 +537,4 @@ const PoloManagement: React.FC = () => {
   );
 };
 
-export default PoloManagement;
+export default PoloManagementPage;

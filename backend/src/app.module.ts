@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseModule } from './supabase/supabase.module';
@@ -25,7 +24,7 @@ import { NiveisModule } from './niveis/niveis.module';
 import { CertificadosModule } from './certificados/certificados.module';
 import { EventosModule } from './eventos/eventos.module';
 import { ModulosModule } from './modulos/modulos.module';
-import { AuthV2Module } from './auth-v2/auth-v2.module';
+import { AuthModule } from './auth/auth.module';
 import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { ListaEsperaModule } from './lista-espera/lista-espera.module';
 
@@ -34,12 +33,8 @@ import { ListaEsperaModule } from './lista-espera/lista-espera.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    BullModule.forRoot({
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        password: process.env.REDIS_PASSWORD || undefined,
-      },
+    ConfigModule.forRoot({
+      isGlobal: true,
     }),
     SupabaseModule,
     PolosModule,
@@ -63,7 +58,7 @@ import { ListaEsperaModule } from './lista-espera/lista-espera.module';
     CertificadosModule,
     EventosModule,
     ModulosModule,
-    AuthV2Module,
+    AuthModule,
     ConfiguracoesModule,
     ListaEsperaModule,
   ],

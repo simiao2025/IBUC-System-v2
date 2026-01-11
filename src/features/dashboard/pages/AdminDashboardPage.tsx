@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import { useAccessControl } from '../../components/AccessControl';
-import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import ConfirmDialog from '../../components/ui/ConfirmDialog';
-import { Icon3D } from '../../components/ui/Icon3D';
+import { useApp } from '@/context/AppContext';
+import { useAccessControl } from '@/components/AccessControl';
+import { useNavigationConfirm } from '@/hooks/useNavigationConfirm';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { Icon3D } from '@/components/ui/Icon3D';
 import {
   Users,
   MapPin,
@@ -47,7 +47,7 @@ const AdminDashboard: React.FC = () => {
 
   React.useEffect(() => {
     const loadCertCount = async () => {
-      const { CertificadoService } = await import('../../services/certificado.service');
+      const { CertificadoService } = await import('@/services/certificado.service');
       const total = await CertificadoService.contarTotal();
       setCertCount(total);
     };
@@ -57,7 +57,7 @@ const AdminDashboard: React.FC = () => {
   React.useEffect(() => {
     const loadEvents = async () => {
       try {
-        const { EventosService } = await import('../../services/eventos.service');
+        const { EventosService } = await import('@/services/eventos.service');
         const today = new Date().toISOString().split('T')[0];
         const data = await EventosService.listar({
           date_from: today,

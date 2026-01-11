@@ -12,8 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
-import { Public } from '../auth-v2/decorators/public.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/public.decorator';
 import { PolosService, CreatePoloDto, UpdatePoloDto } from './polos.service';
 
 @UseGuards(JwtAuthGuard)

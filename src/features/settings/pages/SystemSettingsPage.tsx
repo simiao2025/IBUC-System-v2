@@ -7,26 +7,20 @@ import {
   Award,
   Calendar
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
-import { useAccessControl } from '../../components/AccessControl';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Input from '../../components/ui/Input';
-import PageHeader from '../../components/ui/PageHeader';
+import { useApp } from '../../../context/AppContext';
+import { useAccessControl } from '../../../components/AccessControl';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import Input from '../../../components/ui/Input';
+import PageHeader from '../../../components/ui/PageHeader';
 
 // New Components
-import UserManagement from '../../features/users/UserManagement';
-import { SecuritySettings } from '../../components/settings/SecuritySettings';
-import { DracmasSettings } from '../../components/settings/DracmasSettings';
-import { BackupSettings } from '../../components/settings/BackupSettings';
-import { EventsSettings } from '../../components/settings/EventsSettings';
-import { ConfiguracoesService } from '../../services/configuracoes.service';
-
-
-
-// AdminModuleKey needs to be imported if it was not global, checking usage...
-// It was used in SystemSettings for moduleOptions.
-// Assuming it's global or I need to keep it if it was defined here (it wasn't defined here in the original file, likely global).
+import UserManagement from '../../../features/users/UserManagement';
+import { SecuritySettings } from '../../../components/settings/SecuritySettings';
+import { DracmasSettings } from '../../../components/settings/DracmasSettings';
+import { BackupSettings } from '../../../components/settings/BackupSettings';
+import { EventsSettings } from '../../../components/settings/EventsSettings';
+import { ConfiguracoesService } from '../../../services/configuracoes.service';
 
 // Interface SystemConfig
 interface SystemConfig {
@@ -58,14 +52,10 @@ interface SystemConfig {
   };
 }
 
-const SystemSettings: React.FC = () => {
+const SystemSettingsPage: React.FC = () => {
   const { currentUser, showFeedback } = useApp();
   const { canManageUsers, canAccessModule } = useAccessControl();
   const [activeTab, setActiveTab] = useState<'users' | 'config' | 'security' | 'backup' | 'dracmas' | 'events'>('users');
-
-
-
-  // Estados para dados dinâmicos dos selects foram movidos para UserManagementSettings
 
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({
     schoolYear: '2024',
@@ -95,8 +85,6 @@ const SystemSettings: React.FC = () => {
       lastBackup: '2024-01-15T02:00:00'
     }
   });
-
-  // User Management logic (loading, creating, updating users) has been moved to UserManagementSettings component.
 
   // Carregar configurações ao montar o componente
   React.useEffect(() => {
@@ -152,8 +140,6 @@ const SystemSettings: React.FC = () => {
     }));
     showFeedback('success', 'Sucesso', 'Backup realizado com sucesso!');
   };
-
-
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -390,4 +376,4 @@ const SystemSettings: React.FC = () => {
   );
 };
 
-export default SystemSettings;
+export default SystemSettingsPage;

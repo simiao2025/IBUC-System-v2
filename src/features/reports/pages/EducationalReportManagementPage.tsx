@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import PageHeader from '../../components/ui/PageHeader';
-import Card from '../../components/ui/Card';
-import BoletimView from '../../components/reports/BoletimView';
-import HistoricoView from '../../components/reports/HistoricoView';
-import EstatisticasView from '../../components/reports/EstatisticasView';
-import DracmasReportView from '../../components/reports/DracmasReportView';
-import ListaAlunosView from '../../components/reports/ListaAlunosView';
-import AtestadoMatriculaView from '../../components/reports/AtestadoMatriculaView';
-import ListaChamadaView from '../../components/reports/ListaChamadaView';
-import ConsolidadoFrequenciaView from '../../components/reports/ConsolidadoFrequenciaView';
-import InadimplenciaReportView from '../../components/reports/InadimplenciaReportView';
+import PageHeader from '../../../components/ui/PageHeader';
+import Card from '../../../components/ui/Card';
+import BoletimView from '../../../components/reports/BoletimView';
+import HistoricoView from '../../../components/reports/HistoricoView';
+import EstatisticasView from '../../../components/reports/EstatisticasView';
+import DracmasReportView from '../../../components/reports/DracmasReportView';
+import ListaAlunosView from '../../../components/reports/ListaAlunosView';
+import AtestadoMatriculaView from '../../../components/reports/AtestadoMatriculaView';
+import ListaChamadaView from '../../../components/reports/ListaChamadaView';
+import ConsolidadoFrequenciaView from '../../../components/reports/ConsolidadoFrequenciaView';
+import InadimplenciaReportView from '../../../components/reports/InadimplenciaReportView';
 import { 
   FileText, 
   GraduationCap, 
@@ -21,7 +21,7 @@ import {
   FileCheck2,
   ChevronRight
 } from 'lucide-react';
-import { useAccessControl } from '../../components/AccessControl';
+import { useAccessControl } from '../../../components/AccessControl';
 
 type ReportTab = 
   | 'boletim' 
@@ -34,7 +34,7 @@ type ReportTab =
   | 'financeiro' 
   | 'estatisticas';
 
-const EducationalReportManagement: React.FC = () => {
+const EducationalReportManagementPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ReportTab>('boletim');
   const { canAccessModule } = useAccessControl();
 
@@ -101,21 +101,6 @@ const EducationalReportManagement: React.FC = () => {
             {activeTab === 'frequencia_consolidada' && <ConsolidadoFrequenciaView />}
             {activeTab === 'financeiro' && <InadimplenciaReportView />}
             {activeTab === 'estatisticas' && <EstatisticasView />}
-            
-            {/* Placeholder logic removed as all modules are implemented or not selected */}
-            {activeTab === ('placeholder' as any) && (
-              <Card className="p-12 text-center">
-                <div className="inline-flex p-4 bg-gray-100 rounded-full mb-4">
-                  {React.createElement(reportModules.find(m => m.id === activeTab)?.icon || FileText, { className: "h-8 w-8 text-gray-400" })}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Relatório em Desenvolvimento
-                </h3>
-                <p className="text-gray-600">
-                  O relatório de <strong>{reportModules.find(m => m.id === activeTab)?.label}</strong> está sendo implementado e estará disponível em breve.
-                </p>
-              </Card>
-            )}
           </div>
         </div>
       </div>
@@ -123,4 +108,4 @@ const EducationalReportManagement: React.FC = () => {
   );
 };
 
-export default EducationalReportManagement;
+export default EducationalReportManagementPage;

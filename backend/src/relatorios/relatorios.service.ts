@@ -1,8 +1,8 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { WorkersService } from '../workers/workers.service';
-import { CurrentUser } from '../auth-v2/interfaces/current-user.interface';
-import { PoloScopeUtil } from '../auth-v2/utils/polo-scope.util';
+import { CurrentUser } from '../auth/interfaces/current-user.interface';
+import { PoloScopeUtil } from '../auth/utils/polo-scope.util';
 
 @Injectable()
 export class RelatoriosService {
@@ -54,8 +54,8 @@ export class RelatoriosService {
 
   async gerarBoletim(alunoId: string, periodo: string, user?: CurrentUser) {
     await this.validarAcessoAoAluno(alunoId, user);
-    const jobId = await this.workers.gerarBoletim(alunoId, periodo);
-    return { status: 'processing', jobId };
+    const result = await this.workers.gerarBoletim(alunoId, periodo);
+    return { status: 'completed', result };
   }
 
   async getDadosBoletim(alunoId: string, moduloId: string, user?: CurrentUser) {
@@ -256,13 +256,13 @@ export class RelatoriosService {
       throw new Error('Nenhum aluno encontrado para os filtros selecionados.');
     }
 
-    // 3. Despachar Job
-    // Envia lista de IDs e o módulo alvo
-    const jobId = await this.workers.gerarBoletimLote(alunoIds, filtros.modulo_id);
+    // 3. Processamento Síncrono (sem Job)
+    const result = await this.workers.gerarBoletimLote(alunoIds, filtros.modulo_id);
 
     return {
-      message: 'Processamento iniciado',
-      jobId,
+      message: 'Processamento concluído',
+      status: 'completed',
+      result,
       total_alunos: alunoIds.length
     };
   }
@@ -294,33 +294,65 @@ export class RelatoriosService {
 
     if (histError) throw new Error(`Erro ao buscar histórico de módulos: ${histError.message}`);
 
-    // Buscar informações dos módulos para o histórico
+    // 3. Matrícula Atual e Turmas em Curso
+    const { data: matriculasAtivas } = await client
+      .from('matriculas')
+      .select('*, turma:turmas!fk_turma(id, nome, modulo_atual_id, modulo:modulos(titulo, numero))')
+      .eq('aluno_id', alunoId)
+      .eq('status', 'ativa');
+
+    // Buscar informações dos módulos para o histórico e módulos atuais
     const moduloNumeros = [...new Set((historico || []).map(h => h.modulo_numero))];
+    const moduloIdsAtuais = [...new Set((matriculasAtivas || []).map(m => m.turma?.modulo_atual_id).filter(Boolean))];
+
     let modulosInfo: any[] = [];
+    let licoesPorModulo: Record<string, any[]> = {};
+
+    // Buscar por número (histórico)
     if (moduloNumeros.length > 0) {
       const { data: mods } = await client
         .from('modulos')
         .select('id, numero, titulo')
         .in('numero', moduloNumeros);
-      modulosInfo = mods || [];
+      modulosInfo = [...(mods || [])];
     }
 
-    // 3. Resumo de Frequência Geral (Histórica)
+    // Buscar lições para todos os módulos (históricos e atuais)
+    const allModIds = [
+      ...modulosInfo.map(m => m.id),
+      ...moduloIdsAtuais
+    ];
+
+    if (allModIds.length > 0) {
+      const { data: licoes } = await client
+        .from('licoes')
+        .select('id, modulo_id, titulo, ordem')
+        .in('modulo_id', allModIds)
+        .order('ordem', { ascending: true });
+
+      (licoes || []).forEach(l => {
+        if (!licoesPorModulo[l.modulo_id]) licoesPorModulo[l.modulo_id] = [];
+        licoesPorModulo[l.modulo_id].push(l);
+      });
+    }
+
+    // 4. Resumo de Frequência Geral (Histórica)
     const { data: todasPresencas } = await client
       .from('presencas')
-      .select('status')
+      .select('status, licao_id, data')
+      .eq('aluno_id', alunoId);
+
+    // 5. Drácmas do Aluno
+    const { data: dracmasTransacoes } = await client
+      .from('dracmas_transacoes')
+      .select('data, quantidade')
       .eq('aluno_id', alunoId);
 
     const totalAulas = todasPresencas?.length || 0;
     const presentes = todasPresencas?.filter(p => ['presente', 'atraso', 'justificativa'].includes(p.status)).length || 0;
     const frequenciaGeral = totalAulas > 0 ? Math.round((presentes / totalAulas) * 100) : 0;
 
-    // 4. Matrícula Atual e Turmas em Curso
-    const { data: matriculasAtivas } = await client
-      .from('matriculas')
-      .select('*, turma:turmas!fk_turma(id, nome, modulo:modulos(titulo, numero))')
-      .eq('aluno_id', alunoId)
-      .eq('status', 'ativa');
+    const matriculaAtiva = matriculasAtivas?.[0];
 
     return {
       aluno: {
@@ -331,6 +363,68 @@ export class RelatoriosService {
         polo: (aluno as any).polo?.nome || (aluno as any).polo?.[0]?.nome,
         frequencia_geral: frequenciaGeral,
       },
+      matricula: matriculaAtiva ? {
+        data_inicio: matriculaAtiva.created_at,
+        status: matriculaAtiva.status,
+        protocolo: matriculaAtiva.protocolo,
+      } : null,
+      disciplinas: [
+        ...(historico || []).flatMap(h => {
+          const mInfo = modulosInfo.find(m => m.numero === h.modulo_numero);
+          const licoesM = mInfo ? (licoesPorModulo[mInfo.id] || []) : [];
+          
+          if (licoesM.length === 0) {
+            return [{
+              data_aula: h.created_at,
+              nome: mInfo?.titulo || `Módulo ${h.modulo_numero}`,
+              dracmas: 0,
+              frequencia: 'P',
+              aprovado: true,
+              situacao: 'CONCLUÍDO'
+            }];
+          }
+
+          return licoesM.map(l => {
+            const presenca = (todasPresencas || []).find(p => p.licao_id === l.id);
+            // Somar todos os dracmas ganhos nessa data
+            const dracmaL = presenca ? (dracmasTransacoes || [])
+              .filter(d => d.data === presenca.data)
+              .reduce((sum, d) => sum + (d.quantidade || 0), 0) : 0;
+            const isP = !presenca || ['presente', 'atraso', 'justificativa'].includes(presenca.status);
+
+            return {
+              data_aula: presenca?.data || h.created_at,
+              nome: l.titulo,
+              dracmas: dracmaL,
+              frequencia: isP ? 'P' : 'F',
+              aprovado: isP,
+              situacao: isP ? 'APROVADO' : 'REPROVADO'
+            };
+          });
+        }),
+        ...(matriculasAtivas || []).flatMap(m => {
+          const licoesC = m.turma?.modulo_atual_id ? (licoesPorModulo[m.turma.modulo_atual_id] || []) : [];
+          return licoesC
+            .filter(l => (todasPresencas || []).some(p => p.licao_id === l.id))
+            .map(l => {
+              const presenca = (todasPresencas || []).find(p => p.licao_id === l.id);
+              const isP = ['presente', 'atraso', 'justificativa'].includes(presenca?.status);
+              // Somar todos os dracmas ganhos nessa data
+              const dracmaL = presenca ? (dracmasTransacoes || [])
+                .filter(d => d.data === presenca.data)
+                .reduce((sum, d) => sum + (d.quantidade || 0), 0) : 0;
+              
+              return {
+                data_aula: presenca?.data || null,
+                nome: l.titulo,
+                dracmas: dracmaL,
+                frequencia: isP ? 'P' : 'F',
+                aprovado: isP,
+                situacao: isP ? 'APROVADO' : 'REPROVADO'
+              };
+            });
+        })
+      ],
       percurso_concluido: (historico || []).map(h => {
         const mInfo = modulosInfo.find(m => m.numero === h.modulo_numero);
         return {
@@ -351,8 +445,8 @@ export class RelatoriosService {
 
   async gerarHistoricoPdf(alunoId: string, user?: CurrentUser) {
     await this.validarAcessoAoAluno(alunoId, user);
-    const jobId = await this.workers.gerarHistorico(alunoId);
-    return { status: 'processing', jobId };
+    const result = await this.workers.gerarHistorico(alunoId);
+    return { status: 'completed', result };
   }
 
   async estatisticasPorPolo(periodo?: string, user?: CurrentUser) {

@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Query, Param, Res, Body, Request, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RelatoriosService } from './relatorios.service';
-import { PoloScopeGuard } from '../auth-v2/guards/polo-scope.guard';
+import { PoloScopeGuard } from '../auth/guards/polo-scope.guard';
 
 @UseGuards(JwtAuthGuard, PoloScopeGuard)
 @ApiBearerAuth()

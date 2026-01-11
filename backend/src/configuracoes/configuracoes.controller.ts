@@ -1,6 +1,6 @@
 import { Controller, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
 import { ConfiguracoesService } from './configuracoes.service';
-import { JwtAuthGuard } from '../auth-v2/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('configuracoes')

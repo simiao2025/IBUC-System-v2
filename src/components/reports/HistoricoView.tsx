@@ -92,44 +92,26 @@ const HistoricoView: React.FC = () => {
     setGeneratingPdf(true);
     try {
       const res = await RelatorioService.gerarHistoricoPdf(selectedAluno) as any;
-      const jobId = res?.jobId || res?.data?.jobId;
+      // Backend refatonado retorna agora direto: { status: 'completed', result: { success: true, path: ... } }
+      // Ou compatibilidade: o res já é o objeto
 
-      if (!jobId) {
-        throw new Error('ID do Job não recebido');
-      }
-
-      // Polling para aguardar o PDF
-      const poll = async () => {
-        const statusRes = await RelatorioService.getJobStatus(jobId) as any;
-        const status = statusRes?.data || statusRes;
-
-        if (status.state === 'completed') {
-          setGeneratingPdf(false);
-          // O retorno do backend no processor é { success: true, path: storagePath }
-          const path = status.result?.path;
-          if (path) {
-            const { data } = supabase.storage.from('documentos').getPublicUrl(path);
-            if (data?.publicUrl) {
-              window.open(data.publicUrl, '_blank');
-            } else {
-              alert('Erro ao obter URL pública do PDF.');
-            }
-          } else {
-            alert('PDF gerado, mas caminho não encontrado.');
-          }
-        } else if (status.state === 'failed') {
-          setGeneratingPdf(false);
-          alert('Erro ao gerar PDF: ' + (status.failedReason || 'Erro desconhecido'));
+      const result = res.data?.result || res?.result || res;
+      const path = result?.path;
+      
+      if (path) {
+        const { data } = supabase.storage.from('documentos').getPublicUrl(path);
+        if (data?.publicUrl) {
+          window.open(data.publicUrl, '_blank');
         } else {
-          // Continua tentando após 2 segundos
-          setTimeout(poll, 2000);
+          alert('Erro ao obter URL pública do PDF.');
         }
-      };
-
-      poll();
+      } else {
+        alert('Erro ao gerar PDF: Caminho não retornado.');
+      }
     } catch (error) {
-      console.error('Erro ao iniciar geração de PDF:', error);
-      alert('Erro ao iniciar geração de PDF.');
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar PDF.');
+    } finally {
       setGeneratingPdf(false);
     }
   };
@@ -183,26 +165,27 @@ const HistoricoView: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold border-b pb-2">Disciplinas Concluídas</h3>
             {historico.disciplinas?.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Período</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disciplina</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Média Final</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Freq. %</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Situação</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Aula</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lição</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Drácmas</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frequência</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aprovado</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {historico.disciplinas.map((d: any, idx: number) => (
                       <tr key={idx}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{d.periodo}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {d.data_aula ? new Date(d.data_aula).toLocaleDateString('pt-BR') : '-'}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{d.nome}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{d.media}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{d.frequencia}%</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-indigo-600 font-bold">{d.dracmas}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-gray-700">{d.frequencia}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${d.aprovado ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
@@ -215,21 +198,20 @@ const HistoricoView: React.FC = () => {
                 </table>
               </div>
             ) : (
-              <p className="text-gray-500 italic">Nenhuma disciplina concluída registrada.</p>
+              <p className="text-gray-500 italic">Nenhuma lição estudada registrada.</p>
             )}
           </div>
 
           <div className="mt-8 flex justify-end gap-3 print:hidden">
             <Button
-              variant="outline"
+              variant="primary"
               onClick={handleGerarPdf}
-              className="bg-primary-50 text-primary-700 border-primary-100 hover:bg-primary-100"
               disabled={generatingPdf}
             >
               {generatingPdf ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</>
               ) : (
-                <><Download className="h-4 w-4 mr-2" /> Gerar PDF (Oficial)</>
+                <><Download className="h-4 w-4 mr-2" /> Gerar PDF</>
               )}
             </Button>
           </div>

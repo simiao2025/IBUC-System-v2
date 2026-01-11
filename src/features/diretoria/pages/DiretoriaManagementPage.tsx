@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import { DiretoriaService } from '../../services/diretoria.service';
-import { UserServiceV2 } from '../../services/userService.v2';
-import { useApp } from '../../context/AppContext';
-import type { AdminUser, AdminRole } from '../../types';
+import Card from '../../../components/ui/Card';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import { DiretoriaService } from '../../../services/diretoria.service';
+import { UserServiceV2 } from '../../../services/userService.v2';
+import { useApp } from '../../../context/AppContext';
+import type { AdminUser, AdminRole } from '../../../types';
 import {
   Crown,
   UserCheck,
@@ -18,7 +18,7 @@ import {
   Shield,
   Loader2
 } from 'lucide-react';
-import PageHeader from '../../components/ui/PageHeader';
+import PageHeader from '../../../components/ui/PageHeader';
 
 interface DirectoratePosition {
   id: string;
@@ -33,11 +33,6 @@ interface DirectoratePosition {
   polo_id?: string;
   polo_nome?: string;
 }
-
-// type DiretoriaPoloApiRow = DiretoriaPoloRow & {
-//   polo?: { id: string; nome: string; codigo?: string } | null;
-//   usuario?: { id: string; nome_completo: string; email: string; role: string } | null;
-// };
 
 const cargoOptions = [
   { value: 'diretor_geral', label: 'Diretor Geral' },
@@ -57,8 +52,6 @@ const cargoOptions = [
   { value: 'primeiro_tesoureiro_polo', label: '1º Tesoureiro do Polo' },
   { value: 'segundo_tesoureiro_polo', label: '2º Tesoureiro do Polo' },
 ] as const;
-
-// type CargoFrontend = (typeof cargoOptions)[number]['value'];
 
 // Mapeamento de cargos do frontend para o backend
 const cargoMapping: Record<string, 'diretor' | 'vice_diretor' | 'coordenador' | 'vice_coordenador' | 'primeiro_secretario' | 'segundo_secretario' | 'primeiro_tesoureiro' | 'segundo_tesoureiro'> = {
@@ -97,7 +90,7 @@ const reverseCargoMapping: Record<string, string> = {
   tesoureiro: 'tesoureiro_geral',
 };
 
-const DiretoriaManagement: React.FC = () => {
+const DiretoriaManagementPage: React.FC = () => {
   const { polos, currentUser } = useApp();
   const [searchParams] = useSearchParams();
   const [directorate, setDirectorate] = useState<DirectoratePosition[]>([]);
@@ -505,7 +498,11 @@ const DiretoriaManagement: React.FC = () => {
       yellow: 'from-yellow-50 to-yellow-100 border-yellow-200 text-yellow-600 text-yellow-800'
     };
 
-    const [bg, border, iconColor, titleColor] = colorClasses[color].split(' ');
+    const colors = colorClasses[color].split(' ');
+    const bg = colors[0];
+    const border = colors[1];
+    const iconColor = colors[2];
+    const titleColor = colors[3];
 
     return (
       <Card className={`text-center bg-gradient-to-br ${bg} ${border}`}>
@@ -689,8 +686,6 @@ const DiretoriaManagement: React.FC = () => {
                 {renderLeadershipCard('primeiro_tesoureiro_geral', '1º Tesoureiro Geral', Shield, 'yellow')}
                 {renderLeadershipCard('segundo_tesoureiro_geral', '2º Tesoureiro Geral', Shield, 'yellow')}
               </div>
-
-
             )}
 
             {/* Historical Record */}
@@ -801,179 +796,177 @@ const DiretoriaManagement: React.FC = () => {
             </Card>
           </>
         )}
-      </div >
+      </div>
 
       {/* Form Modal */}
-      {
-        showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">
-                {editingPosition ? 'Editar Cargo' : 'Novo Cargo da Diretoria'}
-              </h2>
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              {editingPosition ? 'Editar Cargo' : 'Novo Cargo da Diretoria'}
+            </h2>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {directorateMode === 'polo' && !editingPosition && (
-                  <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg">
-                    <input
-                      type="checkbox"
-                      id="isNewUser"
-                      checked={isNewUser}
-                      onChange={(e) => {
-                        setIsNewUser(e.target.checked);
-                        if (e.target.checked) setFormData(p => ({ ...p, usuario_id: '' }));
-                      }}
-                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isNewUser" className="text-sm font-medium text-blue-800">
-                      Criar novo usuário automaticamente
-                    </label>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-4">
-                  {directorateMode === 'polo' && !isNewUser ? (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Selecionar Usuário Existente
-                      </label>
-                      <select
-                        name="usuario_id"
-                        value={formData.usuario_id || ''}
-                        onChange={(e) => {
-                          const userId = e.target.value;
-                          const selected = availableUsers.find(u => u.id === userId);
-                          setFormData(prev => ({
-                            ...prev,
-                            usuario_id: userId,
-                            nome_completo: selected?.name || '',
-                            telefone: selected?.phone || '',
-                            email: selected?.email || '',
-                          }));
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                        required
-                        disabled={usersLoading}
-                      >
-                        <option value="">
-                          {usersLoading ? 'Carregando usuários...' : 'Selecione um usuário'}
-                        </option>
-                        {availableUsers.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.name} ({u.role})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <Input
-                      label="Nome Completo"
-                      name="nome_completo"
-                      value={formData.nome_completo || ''}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  )}
-
-                  {(isNewUser || directorateMode === 'geral') && (
-                    <Input
-                      label="CPF (Usado para senha inicial: 6 primeiros dígitos)"
-                      name="cpf"
-                      placeholder="000.000.000-00"
-                      value={formData.cpf || ''}
-                      onChange={handleInputChange}
-                      required={isNewUser}
-                    />
-                  )}
-
-                  <Input
-                    label="Telefone"
-                    name="telefone"
-                    type="tel"
-                    placeholder="(63) 99999-9999"
-                    value={formData.telefone || ''}
-                    onChange={handleInputChange}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {directorateMode === 'polo' && !editingPosition && (
+                <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="isNewUser"
+                    checked={isNewUser}
+                    onChange={(e) => {
+                      setIsNewUser(e.target.checked);
+                      if (e.target.checked) setFormData(p => ({ ...p, usuario_id: '' }));
+                    }}
+                    className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                   />
+                  <label htmlFor="isNewUser" className="text-sm font-medium text-blue-800">
+                    Criar novo usuário automaticamente
+                  </label>
+                </div>
+              )}
 
-                  <Input
-                    label="Email"
-                    name="email"
-                    type="email"
-                    placeholder="email@ibuc.org.br"
-                    value={formData.email || ''}
-                    onChange={handleInputChange}
-                    required
-                  />
-
+              <div className="grid grid-cols-1 gap-4">
+                {directorateMode === 'polo' && !isNewUser ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cargo
+                      Selecionar Usuário Existente
                     </label>
                     <select
-                      name="cargo"
-                      value={formData.cargo || ''}
-                      onChange={handleInputChange}
+                      name="usuario_id"
+                      value={formData.usuario_id || ''}
+                      onChange={(e) => {
+                        const userId = e.target.value;
+                        const selected = availableUsers.find(u => u.id === userId);
+                        setFormData(prev => ({
+                          ...prev,
+                          usuario_id: userId,
+                          nome_completo: selected?.name || '',
+                          telefone: selected?.phone || '',
+                          email: selected?.email || '',
+                        }));
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       required
+                      disabled={usersLoading}
                     >
-                      {currentCargoOptions.map((opt: any) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option value="">
+                        {usersLoading ? 'Carregando usuários...' : 'Selecione um usuário'}
+                      </option>
+                      {availableUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
                       ))}
                     </select>
                   </div>
-
+                ) : (
                   <Input
-                    label="Data de Início"
-                    name="data_inicio"
-                    type="date"
-                    value={formData.data_inicio || ''}
+                    label="Nome Completo"
+                    name="nome_completo"
+                    value={formData.nome_completo || ''}
                     onChange={handleInputChange}
                     required
                   />
+                )}
+
+                {(isNewUser || directorateMode === 'geral') && (
+                  <Input
+                    label="CPF (Usado para senha inicial: 6 primeiros dígitos)"
+                    name="cpf"
+                    placeholder="000.000.000-00"
+                    value={formData.cpf || ''}
+                    onChange={handleInputChange}
+                    required={isNewUser}
+                  />
+                )}
+
+                <Input
+                  label="Telefone"
+                  name="telefone"
+                  type="tel"
+                  placeholder="(63) 99999-9999"
+                  value={formData.telefone || ''}
+                  onChange={handleInputChange}
+                />
+
+                <Input
+                  label="Email"
+                  name="email"
+                  type="email"
+                  placeholder="email@ibuc.org.br"
+                  value={formData.email || ''}
+                  onChange={handleInputChange}
+                  required
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cargo
+                  </label>
+                  <select
+                    name="cargo"
+                    value={formData.cargo || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    required
+                  >
+                    {currentCargoOptions.map((opt: any) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="flex space-x-3 mt-6">
-                  <Button type="submit" className="flex-1" disabled={saving}>
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        {editingPosition ? 'Salvar Alterações' : 'Adicionar Cargo'}
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingPosition(null);
-                      setFormData({
-                        nome_completo: '',
-                        telefone: '',
-                        email: '',
-                        cpf: '',
-                        cargo: directorateMode === 'polo' ? 'diretor' : 'secretario_geral',
-                        data_inicio: new Date().toISOString().split('T')[0],
-                        usuario_id: '',
-                      });
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </Card>
-          </div>
-        )
-      }
-    </div >
+                <Input
+                  label="Data de Início"
+                  name="data_inicio"
+                  type="date"
+                  value={formData.data_inicio || ''}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <Button type="submit" className="flex-1" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {editingPosition ? 'Salvar Alterações' : 'Adicionar Cargo'}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingPosition(null);
+                    setFormData({
+                      nome_completo: '',
+                      telefone: '',
+                      email: '',
+                      cpf: '',
+                      cargo: directorateMode === 'polo' ? 'diretor' : 'secretario_geral',
+                      data_inicio: new Date().toISOString().split('T')[0],
+                      usuario_id: '',
+                    });
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 };
 
-export default DiretoriaManagement;
+export default DiretoriaManagementPage;
