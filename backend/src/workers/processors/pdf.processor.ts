@@ -236,8 +236,9 @@ export class PdfProcessor {
     doc.fontSize(11).font('Helvetica');
 
     doc.font('Helvetica-Bold').text('Aluno: ', 60, infoY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
-    const protocoloFmt = (matriculaAtiva as any)?.protocolo ? (matriculaAtiva as any).protocolo.split('-').slice(0, 2).join('-') : '---';
-    doc.font('Helvetica-Bold').text('Matrícula: ', 400, infoY, { continued: true }).font('Helvetica').text(protocoloFmt);
+    const protocolRaw = (matriculaAtiva as any)?.protocolo || '---';
+    const protocolFmt = protocolRaw.split('-').slice(0, 2).join('-');
+    doc.font('Helvetica-Bold').text('Matrícula: ', 400, infoY, { continued: true }).font('Helvetica').text(protocolFmt);
 
     doc.font('Helvetica-Bold').text('CPF: ', 60, infoY + 20, { continued: true }).font('Helvetica').text(aluno.cpf || '---');
     doc.font('Helvetica-Bold').text('Sexo: ', 400, infoY + 20, { continued: true }).font('Helvetica').text(aluno.sexo === 'M' ? 'Masculino' : aluno.sexo === 'F' ? 'Feminino' : 'Outro');
@@ -468,7 +469,8 @@ export class PdfProcessor {
 
         // Linha 1: Aluno e Matrícula
         doc.font('Helvetica-Bold').text('Aluno: ', 60, infoY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
-        const protocoloFmt = (matriculaAtiva as any)?.protocolo ? (matriculaAtiva as any).protocolo.split('-').slice(0, 2).join('-') : '---';
+        const protocolRawLote = (matriculaAtiva as any)?.protocolo || '---';
+        const protocoloFmt = protocolRawLote.split('-').slice(0, 2).join('-');
         doc.font('Helvetica-Bold').text('Matrícula: ', 380, infoY, { continued: true }).font('Helvetica').text(protocoloFmt);
 
         // Linha 2: CPF e Sexo
@@ -833,6 +835,304 @@ export class PdfProcessor {
   async handleRelatorioFinanceiro(job: Job<{ poloId: string; periodo: string }>) {
     // Implementar relatório financeiro
     console.log('Gerando relatório financeiro...', job.data);
+  }
+
+  @Process('historico')
+  async handleHistorico(job: Job<{ alunoId: string }>) {
+    const { alunoId } = job.data;
+    const client = this.supabase.getAdminClient();
+
+    // 1. Buscar Dados Básicos do Aluno
+    const { data: aluno, error: alunoError } = await client
+      .from('alunos')
+      .select('id, nome, cpf, rg, data_nascimento, status, polo:polos!fk_polo(id, nome, codigo)')
+      .eq('id', alunoId)
+      .single();
+
+    if (alunoError || !aluno) {
+      throw new Error(`Aluno não encontrado: ${alunoId}`);
+    }
+
+    // 2. Buscar Histórico de Módulos (Concluídos)
+    const { data: historico, error: histError } = await client
+      .from('aluno_historico_modulos')
+      .select('*')
+      .eq('aluno_id', alunoId)
+      .order('ano_conclusao', { ascending: true })
+      .order('modulo_numero', { ascending: true });
+
+    if (histError) throw new Error(`Erro ao buscar histórico de módulos: ${histError.message}`);
+
+    // Buscar informações dos módulos e suas lições para o histórico
+    const moduloNumeros = [...new Set((historico || []).map(h => h.modulo_numero))];
+    let modulosInfo: any[] = [];
+    let licoesPorModulo: Record<string, any[]> = {};
+
+    if (moduloNumeros.length > 0) {
+      const { data: mods } = await client
+        .from('modulos')
+        .select('id, numero, titulo, carga_horaria')
+        .in('numero', moduloNumeros);
+      modulosInfo = mods || [];
+
+      // Buscar lições dos módulos históricos
+      const modIds = modulosInfo.map(m => m.id);
+      const { data: licoes } = await client
+        .from('licoes')
+        .select('modulo_id, titulo, ordem')
+        .in('modulo_id', modIds)
+        .order('ordem', { ascending: true });
+
+      (licoes || []).forEach(l => {
+        if (!licoesPorModulo[l.modulo_id]) licoesPorModulo[l.modulo_id] = [];
+        licoesPorModulo[l.modulo_id].push(l);
+      });
+    }
+
+    // 3. Matrícula Atual e Turmas em Curso
+    const { data: matriculasAtivas, error: mError } = await client
+      .from('matriculas')
+      .select('*, turma:turmas!fk_turma(id, nome, modulo_atual_id, modulo:modulos(id, titulo, numero, carga_horaria))')
+      .eq('aluno_id', alunoId)
+      .eq('status', 'ativa');
+
+    if (mError) throw new Error(`Erro ao buscar matrículas ativas: ${mError.message}`);
+
+    // 4. Buscar Presenças e Drácmas (Para o Histórico Detalhado)
+    const { data: presencas } = await client
+      .from('presencas')
+      .select('status, licao_id, data, turma_id')
+      .eq('aluno_id', alunoId);
+
+    const { data: dracmasTrans } = await client
+      .from('dracmas_transacoes')
+      .select('quantidade, data, turma_id')
+      .eq('aluno_id', alunoId);
+
+    // Buscar lições para todos os módulos (históricos e em curso)
+    for (const mAtiva of (matriculasAtivas || [])) {
+      const modId = mAtiva.turma?.modulo_atual_id;
+      if (modId && !licoesPorModulo[modId]) {
+        const { data: licoes, error: lError } = await client
+          .from('licoes')
+          .select('id, modulo_id, titulo, ordem')
+          .eq('modulo_id', modId)
+          .order('ordem', { ascending: true });
+        if (lError) console.warn(`Erro ao buscar lições para módulo ${modId}: ${lError.message}`);
+        licoesPorModulo[modId] = licoes || [];
+      }
+    }
+
+    // 4. Iniciar Geração do PDF
+    const doc = new PDFDocument({ margin: 0, size: 'A4' });
+    const fileName = `historico-${alunoId}-${Date.now()}.pdf`;
+    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'historicos', fileName);
+
+    if (!fs.existsSync(path.dirname(filePath))) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    }
+
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // --- Layout das Cores ---
+    const primaryBlue = '#1e3a8a';
+    const lightGray = '#f3f4f6';
+    const borderGray = '#d1d5db';
+    const textGray = '#374151';
+
+    // --- Header ---
+    doc.rect(0, 0, 595.28, 100).fill(primaryBlue);
+    const logoRel = await this.getLogo();
+    if (logoRel) {
+      doc.image(logoRel, 40, 20, { width: 60 });
+    } else {
+      doc.fillColor('#ffffff').fontSize(20).font('Helvetica-Bold').text('IBUC', 40, 40);
+    }
+
+    doc.fillColor('#ffffff').fontSize(16).font('Helvetica-Bold').text('INSTITUTO BÍBLICO ÚNICO CAMINHO', 120, 35, { align: 'center', width: 400 });
+    doc.fontSize(12).font('Helvetica').text('HISTÓRICO ESCOLAR - CURSO MODULAR', 120, 58, { align: 'center', width: 400 });
+
+    let currentY = 120;
+
+    // --- Seção: Dados do Aluno ---
+    doc.rect(40, currentY, 515, 110).fill(lightGray).stroke(primaryBlue);
+    doc.fillColor(primaryBlue).fontSize(11).font('Helvetica-Bold').text('DADOS DO ALUNO', 55, currentY + 10);
+
+    currentY += 30;
+    doc.fillColor(textGray).fontSize(10).font('Helvetica');
+    doc.font('Helvetica-Bold').text('Nome: ', 55, currentY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
+
+    currentY += 18;
+    doc.font('Helvetica-Bold').text('RG: ', 55, currentY, { continued: true }).font('Helvetica').text(aluno.rg || '---', { continued: true });
+    doc.font('Helvetica-Bold').text('   CPF: ', { continued: true }).font('Helvetica').text(aluno.cpf || '---', { continued: true });
+    const protocolRaw = (matriculasAtivas?.[0] as any)?.protocolo || '---';
+    const protocolParts = protocolRaw.split('-');
+    const matriculaNum = protocolParts.length >= 2 ? protocolParts.slice(0, 2).join('-') : protocolRaw;
+    doc.font('Helvetica-Bold').text('   Matrícula: ', { continued: true }).font('Helvetica').text(matriculaNum);
+
+    currentY += 18;
+    doc.font('Helvetica-Bold').text('Curso: ', 55, currentY, { continued: true }).font('Helvetica').text('TEOLOGIA INFANTO JUVENIL');
+
+    currentY += 18;
+    doc.font('Helvetica-Bold').text('Modalidade: ', 55, currentY, { continued: true }).font('Helvetica').text('Educação Teológica Modular por Faixa Etária');
+
+    currentY += 40;
+
+    // --- Módulos Concluídos ---
+    let totalCH = 0;
+    let totalNotas = 0;
+    let countDisciplinas = 0;
+
+    for (const histItem of (historico || [])) {
+      const modInfo = modulosInfo.find(m => m.numero === histItem.modulo_numero);
+      const ch = modInfo?.carga_horaria || 60;
+      totalCH += ch;
+      totalNotas += histItem.media_final || 0;
+      countDisciplinas++;
+
+      // Verificar quebra de página
+      if (currentY > 700) {
+        doc.addPage();
+        currentY = 40;
+      }
+
+      // Título do Módulo
+      doc.rect(40, currentY, 515, 25).fill(primaryBlue);
+      doc.fillColor('#ffffff').fontSize(10).font('Helvetica-Bold').text(`MÓDULO ${histItem.modulo_numero} - ${modInfo?.titulo?.toUpperCase() || 'MODULO'} (${ch}h)`, 50, currentY + 7);
+
+      currentY += 28;
+
+      // Header da Tabela
+      doc.rect(40, currentY, 515, 20).fill(borderGray);
+      doc.fillColor(textGray).fontSize(9).font('Helvetica-Bold');
+      doc.text('LIÇÃO', 50, currentY + 6);
+      doc.text('FREQUÊNCIA', 350, currentY + 6);
+      doc.text('DRÁCMAS', 420, currentY + 6);
+      doc.text('SITUAÇÃO', 480, currentY + 6);
+
+      currentY += 20;
+
+      // Listar Lições como Linhas da Tabela
+      const licoesM = licoesPorModulo[modInfo?.id] || [];
+      for (const licao of licoesM) {
+        if (currentY > 750) { doc.addPage(); currentY = 40; }
+
+        // Buscar frequência e drácmas para esta lição
+        const presencaItem = (presencas || []).find(p => p.licao_id === licao.id);
+        const freq = presencaItem ? (['presente', 'atraso', 'justificativa'].includes(presencaItem.status) ? 'P' : 'F') : '---';
+
+        let dracmasLicao = 0;
+        if (presencaItem?.data) {
+          dracmasLicao = (dracmasTrans || [])
+            .filter(d => d.data === presencaItem.data)
+            .reduce((acc, curr) => acc + (curr.quantidade || 0), 0);
+        }
+
+        doc.rect(40, currentY, 515, 20).stroke(borderGray);
+        doc.fillColor(textGray).fontSize(8).font('Helvetica');
+        doc.text(licao.titulo, 50, currentY + 6, { width: 280, ellipsis: true });
+        doc.text(freq, 350, currentY + 6, { width: 50, align: 'center' });
+        doc.text(dracmasLicao.toString(), 420, currentY + 6, { width: 50, align: 'center' });
+        doc.text(histItem.situacao?.toUpperCase() || '---', 480, currentY + 6);
+
+        currentY += 20;
+      }
+      currentY += 10;
+    }
+
+    // --- Em Curso (Se houver) ---
+    for (const mAtiva of (matriculasAtivas || [])) {
+      if (currentY > 700) { doc.addPage(); currentY = 40; }
+      const t = mAtiva.turma;
+      const modNum = t?.modulo?.numero || '?';
+      const modTitulo = t?.modulo?.titulo || 'MÓDULO';
+
+      doc.rect(40, currentY, 515, 25).fill('#fbbf24'); // Amarelo para "Em Curso"
+      doc.fillColor('#000000').fontSize(10).font('Helvetica-Bold').text(`MÓDULO ${modNum} - ${modTitulo.toUpperCase()} (EM CURSO)`, 50, currentY + 7);
+
+      currentY += 28;
+      doc.fillColor(primaryBlue).fontSize(9).font('Helvetica-Bold').text(`Turma: ${t?.nome || ''}`, 55, currentY);
+      currentY += 15;
+
+      // Header da Tabela (Em Curso)
+      doc.rect(40, currentY, 515, 20).fill(borderGray);
+      doc.fillColor(textGray).fontSize(9).font('Helvetica-Bold');
+      doc.text('LIÇÃO', 50, currentY + 6);
+      doc.text('FREQUÊNCIA', 350, currentY + 6);
+      doc.text('DRÁCMAS', 420, currentY + 6);
+      doc.text('SITUAÇÃO', 480, currentY + 6);
+      currentY += 20;
+
+      const licoesC = licoesPorModulo[t?.modulo_atual_id] || [];
+      for (const licao of licoesC) {
+        if (currentY > 750) { doc.addPage(); currentY = 40; }
+
+        const presencaItem = (presencas || []).find(p => p.licao_id === licao.id && p.turma_id === t?.id);
+        const freq = presencaItem ? (['presente', 'atraso', 'justificativa'].includes(presencaItem.status) ? 'P' : 'F') : '---';
+
+        let dracmasLicao = 0;
+        if (presencaItem?.data) {
+          dracmasLicao = (dracmasTrans || [])
+            .filter(d => d.data === presencaItem.data && d.turma_id === t?.id)
+            .reduce((acc, curr) => acc + (curr.quantidade || 0), 0);
+        }
+
+        doc.rect(40, currentY, 515, 20).stroke(borderGray);
+        doc.fillColor(textGray).fontSize(8).font('Helvetica');
+        doc.text(licao.titulo, 50, currentY + 6, { width: 280, ellipsis: true });
+        doc.text(freq, 350, currentY + 6, { width: 50, align: 'center' });
+        doc.text(dracmasLicao.toString(), 420, currentY + 6, { width: 50, align: 'center' });
+        doc.text('CURSANDO', 480, currentY + 6);
+
+        currentY += 20;
+      }
+      currentY += 20;
+    }
+
+    // --- Resumo Geral ---
+    if (currentY > 650) { doc.addPage(); currentY = 40; }
+    const mediaGeral = countDisciplinas > 0 ? (totalNotas / countDisciplinas).toFixed(1) : '---';
+
+    doc.rect(40, currentY, 515, 60).fill(lightGray).stroke(primaryBlue);
+    doc.fillColor(primaryBlue).fontSize(11).font('Helvetica-Bold').text('RESUMO GERAL', 55, currentY + 10);
+    doc.fillColor(textGray).fontSize(9).font('Helvetica');
+    doc.text(`Carga Horária Cumprida: `, 55, currentY + 30, { continued: true }).font('Helvetica-Bold').text(`${totalCH}h`, { continued: true }).font('Helvetica').text(`  |  Média Final: `, { continued: true }).font('Helvetica-Bold').text(mediaGeral);
+    const situacaoFinal = aluno.status === 'concluido' ? 'CONCLUÍDO' : 'EM ANDAMENTO';
+    doc.font('Helvetica').text(`Situação Final: `, { continued: true }).font('Helvetica-Bold').fillColor(aluno.status === 'concluido' ? '#059669' : primaryBlue).text(situacaoFinal);
+
+    // --- Footer & Assinaturas ---
+    const signY = 750;
+    doc.fillColor(textGray).fontSize(8).font('Helvetica').text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 40, signY - 20);
+
+    doc.moveTo(60, signY + 30).lineTo(250, signY + 30).stroke(textGray);
+    doc.fontSize(8).text('Assinatura do Diretor', 60, signY + 35, { width: 190, align: 'center' });
+
+    doc.moveTo(345, signY + 30).lineTo(535, signY + 30).stroke(textGray);
+    doc.fontSize(8).text('Assinatura do Secretário Acadêmico', 345, signY + 35, { width: 190, align: 'center' });
+
+    doc.fontSize(7).fillColor('#9ca3af').text(`Documento emitido pelo IBUC System v2 | ID de Validação: HIST-${alunoId.substring(0, 8)}`, 0, 810, { align: 'center', width: 595 });
+
+    doc.end();
+
+    await new Promise<void>((resolve) => {
+      stream.on('finish', () => resolve());
+    });
+
+    // 5. Upload para Storage
+    const fileBuffer = fs.readFileSync(filePath);
+    const storagePath = `historicos/${alunoId}/${fileName}`;
+
+    await client.storage
+      .from('documentos')
+      .upload(storagePath, fileBuffer, {
+        contentType: 'application/pdf',
+        upsert: true
+      });
+
+    fs.unlinkSync(filePath);
+
+    return { success: true, path: storagePath };
   }
 }
 

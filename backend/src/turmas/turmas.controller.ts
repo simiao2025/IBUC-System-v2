@@ -55,6 +55,7 @@ export class TurmasController {
     @Query('nivel_id') nivelId?: string,
     @Query('professor_id') professorId?: string,
     @Query('status') status?: string,
+    @Query('modulo_atual_id') moduloAtualId?: string,
     @Query('ano_letivo') anoLetivo?: string,
   ) {
     const filtros: any = {};
@@ -62,6 +63,7 @@ export class TurmasController {
     if (nivelId) filtros.nivel_id = nivelId;
     if (professorId) filtros.professor_id = professorId;
     if (status) filtros.status = status;
+    if (moduloAtualId) filtros.modulo_atual_id = moduloAtualId;
     if (anoLetivo) filtros.ano_letivo = parseInt(anoLetivo, 10);
 
     return this.service.listarTurmas(filtros);

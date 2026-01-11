@@ -25,6 +25,7 @@ export const RelatoriosAPI = {
     const query = params.toString();
     return api.get(`/relatorios/historico?${query}`);
   },
+  gerarHistoricoPdf: (alunoId: string) => api.get(`/relatorios/historico-pdf?aluno_id=${alunoId}`),
   estatisticasPorPolo: (periodo?: string) => {
     const params = new URLSearchParams();
     if (periodo) params.append('periodo', periodo);
@@ -87,6 +88,11 @@ export class RelatorioService {
 
   static async historicoAluno(alunoId: string, periodo?: string) {
     return RelatoriosAPI.historicoAluno(alunoId, periodo);
+  }
+
+  static async gerarHistoricoPdf(alunoId: string) {
+    const res = await RelatoriosAPI.gerarHistoricoPdf(alunoId);
+    return res;
   }
 
   static async estatisticasPorPolo(periodo?: string) {

@@ -236,6 +236,7 @@ export class TurmasService {
     nivel_id?: string;
     professor_id?: string;
     status?: string;
+    modulo_atual_id?: string;
     ano_letivo?: number;
   }) {
     let query = this.supabase
@@ -258,6 +259,10 @@ export class TurmasService {
 
     if (filtros?.status) {
       query = query.eq('status', filtros.status);
+    }
+
+    if (filtros?.modulo_atual_id) {
+      query = query.eq('modulo_atual_id', filtros.modulo_atual_id);
     }
 
     if (typeof filtros?.ano_letivo === 'number') {

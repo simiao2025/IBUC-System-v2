@@ -13,7 +13,13 @@ export class WorkersService {
   }
 
   async gerarBoletim(alunoId: string, periodo: string) {
-    await this.pdfQueue.add('boletim', { alunoId, periodo });
+    const job = await this.pdfQueue.add('boletim', { alunoId, periodo });
+    return job.id;
+  }
+
+  async gerarHistorico(alunoId: string) {
+    const job = await this.pdfQueue.add('historico', { alunoId });
+    return job.id;
   }
 
   async gerarBoletimLote(alunoIds: string[], moduloId: string) {

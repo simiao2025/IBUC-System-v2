@@ -6,8 +6,9 @@ import { RelatorioService } from '../../services/relatorio.service';
 import { AlunosAPI } from '../../features/students/aluno.service';
 import { TurmasAPI } from '../../services/turma.service';
 import { PolosAPI } from '../../services/polo.service';
-import { Loader2, GraduationCap, Calendar, Download, Building2 } from 'lucide-react';
+import { Download, GraduationCap, Loader2, Calendar, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { supabase } from '../../lib/supabase';
 
 const HistoricoView: React.FC = () => {
   const { currentUser } = useApp();
@@ -22,6 +23,7 @@ const HistoricoView: React.FC = () => {
 
   const [historico, setHistorico] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   // Carregar Polos se for admin global
   useEffect(() => {
@@ -82,6 +84,53 @@ const HistoricoView: React.FC = () => {
       alert('Erro ao buscar histórico.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGerarPdf = async () => {
+    if (!selectedAluno) return;
+    setGeneratingPdf(true);
+    try {
+      const res = await RelatorioService.gerarHistoricoPdf(selectedAluno) as any;
+      const jobId = res?.jobId || res?.data?.jobId;
+
+      if (!jobId) {
+        throw new Error('ID do Job não recebido');
+      }
+
+      // Polling para aguardar o PDF
+      const poll = async () => {
+        const statusRes = await RelatorioService.getJobStatus(jobId) as any;
+        const status = statusRes?.data || statusRes;
+
+        if (status.state === 'completed') {
+          setGeneratingPdf(false);
+          // O retorno do backend no processor é { success: true, path: storagePath }
+          const path = status.result?.path;
+          if (path) {
+            const { data } = supabase.storage.from('documentos').getPublicUrl(path);
+            if (data?.publicUrl) {
+              window.open(data.publicUrl, '_blank');
+            } else {
+              alert('Erro ao obter URL pública do PDF.');
+            }
+          } else {
+            alert('PDF gerado, mas caminho não encontrado.');
+          }
+        } else if (status.state === 'failed') {
+          setGeneratingPdf(false);
+          alert('Erro ao gerar PDF: ' + (status.failedReason || 'Erro desconhecido'));
+        } else {
+          // Continua tentando após 2 segundos
+          setTimeout(poll, 2000);
+        }
+      };
+
+      poll();
+    } catch (error) {
+      console.error('Erro ao iniciar geração de PDF:', error);
+      alert('Erro ao iniciar geração de PDF.');
+      setGeneratingPdf(false);
     }
   };
 
@@ -170,10 +219,18 @@ const HistoricoView: React.FC = () => {
             )}
           </div>
 
-          <div className="mt-8 flex justify-end print:hidden">
-            <Button variant="outline" onClick={() => window.print()}>
-              <Download className="h-4 w-4 mr-2" />
-              Imprimir Histórico
+          <div className="mt-8 flex justify-end gap-3 print:hidden">
+            <Button
+              variant="outline"
+              onClick={handleGerarPdf}
+              className="bg-primary-50 text-primary-700 border-primary-100 hover:bg-primary-100"
+              disabled={generatingPdf}
+            >
+              {generatingPdf ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</>
+              ) : (
+                <><Download className="h-4 w-4 mr-2" /> Gerar PDF (Oficial)</>
+              )}
             </Button>
           </div>
         </Card>

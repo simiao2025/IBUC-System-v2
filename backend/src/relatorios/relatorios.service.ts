@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { WorkersService } from '../workers/workers.service';
+import { CurrentUser } from '../auth-v2/interfaces/current-user.interface';
+import { PoloScopeUtil } from '../auth-v2/utils/polo-scope.util';
 
 @Injectable()
 export class RelatoriosService {
@@ -9,12 +11,55 @@ export class RelatoriosService {
     private workers: WorkersService,
   ) { }
 
-  async gerarBoletim(alunoId: string, periodo: string) {
-    await this.workers.gerarBoletim(alunoId, periodo);
-    return { status: 'processing' };
+  private async validarAcessoAoAluno(alunoId: string, user?: CurrentUser) {
+    if (!user || PoloScopeUtil.isGlobal(user)) return;
+
+    const { data: aluno } = await this.supabase
+      .getAdminClient()
+      .from('alunos')
+      .select('polo_id')
+      .eq('id', alunoId)
+      .single();
+
+    if (aluno && aluno.polo_id !== user.polo_id) {
+      throw new ForbiddenException('Você não tem permissão para acessar dados deste aluno.');
+    }
   }
 
-  async getDadosBoletim(alunoId: string, moduloId: string) {
+  private async validarAcessoATurma(turmaId: string, user?: CurrentUser) {
+    if (!user || PoloScopeUtil.isGlobal(user)) return;
+
+    const { data: turma } = await this.supabase
+      .getAdminClient()
+      .from('turmas')
+      .select('polo_id')
+      .eq('id', turmaId)
+      .single();
+
+    if (turma && turma.polo_id !== user.polo_id) {
+      throw new ForbiddenException('Você não tem permissão para acessar dados desta turma.');
+    }
+  }
+
+  private forcePoloScope(filtros: any, user?: CurrentUser) {
+    if (!user || PoloScopeUtil.isGlobal(user)) return filtros;
+
+    // Se o usuário não é global, forçamos o polo_id dele
+    // e removemos qualquer polo_id que ele tenha tentado passar manualmente
+    return {
+      ...filtros,
+      polo_id: user.polo_id
+    };
+  }
+
+  async gerarBoletim(alunoId: string, periodo: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
+    const jobId = await this.workers.gerarBoletim(alunoId, periodo);
+    return { status: 'processing', jobId };
+  }
+
+  async getDadosBoletim(alunoId: string, moduloId: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
     const client = this.supabase.getAdminClient();
 
     // 1. Dados do Aluno e Matrícula
@@ -166,24 +211,11 @@ export class RelatoriosService {
 
   async gerarBoletimLote(
     filtros: { polo_id?: string; turma_id?: string; modulo_id: string; aluno_id?: string; aluno_ids?: string[] },
-    currentUser: any // { userId: string, role: string, poloId?: string }
+    user?: CurrentUser
   ) {
+    const scopeFiltros = this.forcePoloScope(filtros, user);
     const client = this.supabase.getAdminClient();
-    let poloId = filtros.polo_id;
-
-    // 1. Validar Permissões e Escopo de Polo
-    // (Assumindo que currentUser já vem resolvido do Guard/Decorator)
-    if (currentUser?.poloId) {
-      if (poloId && poloId !== currentUser.poloId) {
-        throw new Error('Acesso não autorizado a este polo');
-      }
-      poloId = currentUser.poloId;
-    }
-
-    if (!poloId && !filtros.aluno_id && !filtros.turma_id && !currentUser?.poloId) {
-      // Se for admin global e não mandou nada, perigoso. Exigir pelo menos um polo.
-      // Mas a lógica hierárquica abaixo resolve se mandou turma ou aluno.
-    }
+    let poloId = scopeFiltros.polo_id;
 
     // 2. Resolver IDs dos Alunos (Hierarquia: Aluno > Turma > Polo)
     let alunoIds: string[] = [];
@@ -235,7 +267,8 @@ export class RelatoriosService {
     };
   }
 
-  async historicoAluno(alunoId: string) {
+  async historicoAluno(alunoId: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
     const client = this.supabase.getAdminClient();
 
     // 1. Dados Básicos do Aluno
@@ -249,15 +282,28 @@ export class RelatoriosService {
       throw new Error('Aluno não encontrado para gerar histórico');
     }
 
+    // ... (restante da lógica mantida)
+
     // 2. Histórico de Módulos (Concluídos)
-    const { data: modulosHistorico, error: histError } = await client
+    const { data: historico, error: histError } = await client
       .from('aluno_historico_modulos')
-      .select('*, modulo_info:modulos(titulo, numero)')
+      .select('*')
       .eq('aluno_id', alunoId)
       .order('ano_conclusao', { ascending: true })
       .order('modulo_numero', { ascending: true });
 
     if (histError) throw new Error(`Erro ao buscar histórico de módulos: ${histError.message}`);
+
+    // Buscar informações dos módulos para o histórico
+    const moduloNumeros = [...new Set((historico || []).map(h => h.modulo_numero))];
+    let modulosInfo: any[] = [];
+    if (moduloNumeros.length > 0) {
+      const { data: mods } = await client
+        .from('modulos')
+        .select('id, numero, titulo')
+        .in('numero', moduloNumeros);
+      modulosInfo = mods || [];
+    }
 
     // 3. Resumo de Frequência Geral (Histórica)
     const { data: todasPresencas } = await client
@@ -282,37 +328,55 @@ export class RelatoriosService {
         cpf: aluno.cpf,
         data_nascimento: aluno.data_nascimento,
         status: aluno.status,
-        polo: (aluno as any).polo?.nome,
+        polo: (aluno as any).polo?.nome || (aluno as any).polo?.[0]?.nome,
         frequencia_geral: frequenciaGeral,
       },
-      percurso_concluido: modulosHistorico.map(h => ({
-        modulo: h.modulo_info?.titulo || `Módulo ${h.modulo_numero}`,
-        ano: h.ano_conclusao,
-        situacao: h.situacao,
-        data_registro: h.created_at
-      })),
-      em_curso: matriculasAtivas?.map(m => ({
+      percurso_concluido: (historico || []).map(h => {
+        const mInfo = modulosInfo.find(m => m.numero === h.modulo_numero);
+        return {
+          modulo: mInfo?.titulo || `Módulo ${h.modulo_numero}`,
+          ano: h.ano_conclusao,
+          situacao: h.situacao,
+          data_registro: h.created_at
+        };
+      }),
+      em_curso: (matriculasAtivas || []).map(m => ({
         turma: m.turma?.nome,
         modulo: m.turma?.modulo?.titulo || 'N/A',
         periodo: m.periodo_letivo
-      })) || [],
+      })),
       data_emissao: new Date().toISOString(),
     };
   }
 
-  async estatisticasPorPolo(periodo?: string) {
+  async gerarHistoricoPdf(alunoId: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
+    const jobId = await this.workers.gerarHistorico(alunoId);
+    return { status: 'processing', jobId };
+  }
+
+  async estatisticasPorPolo(periodo?: string, user?: CurrentUser) {
     try {
       const client = this.supabase.getAdminClient();
 
-      // Buscar todos os polos ativos
-      const { data: polos, error: polosError } = await client
+      // Buscar polos (filtrar se não for global)
+      let polosQuery = client
         .from('polos')
         .select('id, nome, codigo')
         .eq('status', 'ativo');
 
+      if (user && !PoloScopeUtil.isGlobal(user)) {
+        polosQuery = polosQuery.eq('id', user.polo_id);
+      }
+
+      const { data: polos, error: polosError } = await polosQuery;
+
       if (polosError) throw polosError;
 
       const estatisticas = [];
+      let totalMatriculasAtivas = 0;
+      let totalAlunosGeral = 0;
+      let totalAlunosInativos = 0;
 
       // Para cada polo, buscar estatísticas
       for (const polo of polos || []) {
@@ -324,11 +388,25 @@ export class RelatoriosService {
 
         if (alunosError) throw alunosError;
 
-        // Total de matrículas no período
+        totalAlunosGeral += totalAlunos || 0;
+
+        // Alunos inativos (para calcular evasão)
+        const { count: alunosInativos, error: inativosError } = await client
+          .from('alunos')
+          .select('*', { count: 'exact', head: true })
+          .eq('polo_id', polo.id)
+          .neq('status', 'ativo');
+
+        if (inativosError) throw inativosError;
+
+        totalAlunosInativos += alunosInativos || 0;
+
+        // Matrículas ativas (filtradas por status)
         let matriculasQuery = client
           .from('matriculas')
           .select('*', { count: 'exact', head: true })
-          .eq('polo_id', polo.id);
+          .eq('polo_id', polo.id)
+          .eq('status', 'ativa');
 
         if (periodo && periodo.includes('|')) {
           const [inicio, fim] = periodo.split('|');
@@ -339,8 +417,10 @@ export class RelatoriosService {
           }
         }
 
-        const { count: totalMatriculas, error: matriculasError } = await matriculasQuery;
+        const { count: matriculasAtivas, error: matriculasError } = await matriculasQuery;
         if (matriculasError) throw matriculasError;
+
+        totalMatriculasAtivas += matriculasAtivas || 0;
 
         // Total de professores (usuários com role 'professor' vinculados ao polo)
         const { count: totalProfessores, error: professoresError } = await client
@@ -374,33 +454,45 @@ export class RelatoriosService {
 
         const totalPresencas = presencas.length;
         const presencasPresentes = presencas.filter(p => ['presente', 'atraso', 'justificativa'].includes(p.status)).length;
-        const mediaFrequencia = totalPresencas > 0 ? (presencasPresentes / totalPresencas) * 100 : 0;
+        const frequencia = totalPresencas > 0
+          ? Math.round((presencasPresentes / totalPresencas) * 100 * 10) / 10
+          : 0;
 
+        // Usar frequência como proxy para média (escala 0-10)
+        const media = parseFloat((frequencia / 10).toFixed(1));
+
+        // Estrutura corrigida - nomes esperados pelo frontend
         estatisticas.push({
-          poloId: polo.id,
-          poloNome: polo.nome,
-          poloCodigo: polo.codigo,
-          totalAlunos: totalAlunos || 0,
-          totalMatriculas: totalMatriculas || 0,
-          totalProfessores: totalProfessores || 0,
-          mediaFrequencia: Math.round(mediaFrequencia * 10) / 10, // 1 casa decimal
+          id: polo.id,
+          nome: polo.nome,
+          codigo: polo.codigo,
+          total_alunos: totalAlunos || 0,
+          total_matriculas: matriculasAtivas || 0,
+          total_professores: totalProfessores || 0,
+          frequencia: frequencia,
+          media: media
         });
       }
 
       // Ordenar por nome do polo
-      estatisticas.sort((a, b) => a.poloNome.localeCompare(b.poloNome));
+      estatisticas.sort((a, b) => a.nome.localeCompare(b.nome));
 
+      // Calcular métricas gerais
+      const evasaoPercentual = totalAlunosGeral > 0
+        ? Math.round((totalAlunosInativos / totalAlunosGeral) * 100 * 10) / 10
+        : 0;
+
+      const mediaNotasGeral = estatisticas.length > 0
+        ? Math.round((estatisticas.reduce((sum, e) => sum + e.media, 0) / estatisticas.length) * 10) / 10
+        : 0;
+
+      // Estrutura corrigida - formato esperado pelo frontend
       return {
-        porPolo: estatisticas,
-        resumoGeral: {
-          totalPolos: estatisticas.length,
-          totalAlunos: estatisticas.reduce((sum, e) => sum + e.totalAlunos, 0),
-          totalMatriculas: estatisticas.reduce((sum, e) => sum + e.totalMatriculas, 0),
-          totalProfessores: estatisticas.reduce((sum, e) => sum + e.totalProfessores, 0),
-          mediaFrequenciaGeral: estatisticas.length > 0
-            ? Math.round((estatisticas.reduce((sum, e) => sum + e.mediaFrequencia, 0) / estatisticas.length) * 10) / 10
-            : 0,
-        }
+        total_alunos: totalAlunosGeral,
+        matriculas_ativas: totalMatriculasAtivas,
+        evasao_percentual: evasaoPercentual,
+        media_notas_geral: mediaNotasGeral,
+        polos: estatisticas
       };
 
     } catch (error) {
@@ -416,7 +508,8 @@ export class RelatoriosService {
     polo_id?: string;
     inicio?: string;
     fim?: string;
-  }) {
+  }, user?: CurrentUser) {
+    const scopeFiltros = this.forcePoloScope(filtros, user);
     try {
       const client = this.supabase.getAdminClient();
 
@@ -431,7 +524,7 @@ export class RelatoriosService {
       if (filtros.aluno_id) query = query.eq('aluno_id', filtros.aluno_id);
       if (filtros.turma_id) query = query.eq('turma_id', filtros.turma_id);
       if (filtros.nivel_id) query = query.eq('turma.nivel_id', filtros.nivel_id);
-      if (filtros.polo_id) query = query.eq('turma.polo_id', filtros.polo_id);
+      if (scopeFiltros.polo_id) query = query.eq('turma.polo_id', scopeFiltros.polo_id);
       if (filtros.inicio) query = query.gte('data', filtros.inicio);
       if (filtros.fim) query = query.lte('data', filtros.fim);
 
@@ -461,7 +554,8 @@ export class RelatoriosService {
     turma_id?: string;
     nivel_id?: string;
     status?: string;
-  }) {
+  }, user?: CurrentUser) {
+    const scopeFiltros = this.forcePoloScope(filtros, user);
     try {
       const client = this.supabase.getAdminClient();
 
@@ -482,7 +576,7 @@ export class RelatoriosService {
           )
         `);
 
-      if (filtros.polo_id) query = query.eq('polo_id', filtros.polo_id);
+      if (scopeFiltros.polo_id) query = query.eq('polo_id', scopeFiltros.polo_id);
       if (filtros.status) query = query.eq('status', filtros.status);
 
       const { data, error } = await query.order('nome');
@@ -511,7 +605,8 @@ export class RelatoriosService {
     }
   }
 
-  async relatorioAtestadoMatricula(alunoId: string) {
+  async relatorioAtestadoMatricula(alunoId: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
     try {
       const client = this.supabase.getAdminClient();
 
@@ -562,7 +657,8 @@ export class RelatoriosService {
     }
   }
 
-  async relatorioListaChamada(turmaId: string) {
+  async relatorioListaChamada(turmaId: string, user?: CurrentUser) {
+    await this.validarAcessoATurma(turmaId, user);
     try {
       const client = this.supabase.getAdminClient();
 
@@ -610,7 +706,8 @@ export class RelatoriosService {
     turma_id?: string;
     inicio?: string;
     fim?: string;
-  }) {
+  }, user?: CurrentUser) {
+    const scopeFiltros = this.forcePoloScope(filtros, user);
     try {
       const client = this.supabase.getAdminClient();
 
@@ -626,7 +723,7 @@ export class RelatoriosService {
         `);
 
       if (filtros.turma_id) query = query.eq('turma_id', filtros.turma_id);
-      if (filtros.polo_id) query = query.eq('turma.polo_id', filtros.polo_id);
+      if (scopeFiltros.polo_id) query = query.eq('turma.polo_id', scopeFiltros.polo_id);
       if (filtros.inicio) query = query.gte('data', filtros.inicio);
       if (filtros.fim) query = query.lte('data', filtros.fim);
 
@@ -671,7 +768,8 @@ export class RelatoriosService {
     }
   }
 
-  async relatorioInadimplencia(filtros: { polo_id?: string; data_referencia?: string }) {
+  async relatorioInadimplencia(filtros: { polo_id?: string; data_referencia?: string }, user?: CurrentUser) {
+    const scopeFiltros = this.forcePoloScope(filtros, user);
     try {
       const client = this.supabase.getAdminClient();
       const hoje = filtros.data_referencia || new Date().toISOString().split('T')[0];
@@ -690,8 +788,8 @@ export class RelatoriosService {
         .eq('status', 'pendente')
         .lt('vencimento', hoje);
 
-      if (filtros.polo_id) {
-        query = query.eq('polo_id', filtros.polo_id);
+      if (scopeFiltros.polo_id) {
+        query = query.eq('polo_id', scopeFiltros.polo_id);
       }
 
       const { data, error } = await query.order('vencimento');

@@ -19,17 +19,12 @@ const BoletimView: React.FC = () => {
   const [turmas, setTurmas] = useState<{ id: string, nome: string }[]>([]);
   const [alunos, setAlunos] = useState<{ id: string, nome: string }[]>([]);
   const [modulos, setModulos] = useState<{ id: string, titulo: string, numero: number }[]>([]);
-  const [niveis, setNiveis] = useState<{ id: string, nome: string }[]>([]);
-  const [professores, setProfessores] = useState<{ id: string, nome_completo: string }[]>([]);
 
   const [selectedPolo, setSelectedPolo] = useState(currentUser?.adminUser?.poloId || '');
   const [selectedTurma, setSelectedTurma] = useState('');
   const [selectedAluno, setSelectedAluno] = useState('');
   const [selectedModulo, setSelectedModulo] = useState('');
-  const [selectedNivel, setSelectedNivel] = useState('');
-  const [selectedProfessor, setSelectedProfessor] = useState('');
 
-  const [boletim, setBoletim] = useState<any | null>(null);
   const [previewAlunos, setPreviewAlunos] = useState<any[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -46,44 +41,7 @@ const BoletimView: React.FC = () => {
     }
   }, [isAdminGlobal]);
 
-  // 2. Carregar Níveis
-  useEffect(() => {
-    const loadNiveis = async () => {
-      try {
-        const { data } = await supabase.from('niveis').select('id, nome').order('ordem');
-        setNiveis(data || []);
-      } catch (err) {
-        console.error('Erro ao carregar níveis:', err);
-      }
-    };
-    loadNiveis();
-  }, []);
-
-  // 3. Carregar Professores (filtrados por Polo se selecionado)
-  useEffect(() => {
-    const loadProfessores = async () => {
-      try {
-        let query = supabase
-          .from('usuarios')
-          .select('id, nome_completo')
-          .eq('role', 'professor')
-          .eq('ativo', true)
-          .order('nome_completo');
-
-        if (selectedPolo) {
-          query = query.eq('polo_id', selectedPolo);
-        }
-
-        const { data } = await query;
-        setProfessores(data || []);
-      } catch (err) {
-        console.error('Erro ao carregar professores:', err);
-      }
-    };
-    loadProfessores();
-  }, [selectedPolo]);
-
-  // 4. Carregar Módulos
+  // 2. Carregar Módulos
   useEffect(() => {
     const loadModulos = async () => {
       try {
@@ -93,7 +51,7 @@ const BoletimView: React.FC = () => {
         if (selectedAluno) {
           try {
             const hist = await AlunosAPI.buscarHistorico(selectedAluno) as any;
-            const dadosBoletim = await RelatorioService.getDadosBoletim(selectedAluno, 'atual').catch(() => null);
+            const dadosBoletim = await RelatorioService.getDadosBoletim(selectedAluno, 'atual').catch(() => null) as any;
             const moduloAtual = dadosBoletim?.modulo?.numero;
 
             const numerosPermitidos = new Set(hist?.map((h: any) => h.modulo_info?.numero));
@@ -155,12 +113,12 @@ const BoletimView: React.FC = () => {
       try {
         let dados = [];
         if (selectedPolo) {
-          const res = await TurmasAPI.listar({ polo_id: selectedPolo }) as any;
+          const res = await TurmasAPI.listar({ polo_id: selectedPolo, status: 'ativa' }) as any;
           dados = res?.data || res || [];
         } else if (isAdminGlobal) {
           dados = [];
         } else {
-          const res = await TurmasAPI.listar({}) as any;
+          const res = await TurmasAPI.listar({ status: 'ativa' }) as any;
           dados = res?.data || res || [];
         }
         setTurmas(Array.isArray(dados) ? dados.map((t: any) => ({ id: t.id, nome: t.nome })) : []);
@@ -207,90 +165,147 @@ const BoletimView: React.FC = () => {
 
   // Limpar visualizações ao mudar filtros
   useEffect(() => {
-    setBoletim(null);
     setPreviewAlunos([]);
     setShowPreview(false);
-  }, [selectedPolo, selectedTurma, selectedAluno, selectedModulo, selectedNivel, selectedProfessor]);
+  }, [selectedPolo, selectedTurma, selectedAluno, selectedModulo]);
 
   const handleConsultar = async () => {
     if (!selectedModulo) return;
 
     setGenerating(true);
-    setBoletim(null);
     setPreviewAlunos([]);
     setShowPreview(false);
 
     try {
-      if (selectedAluno) {
-        // Modo Individual
-        const data = await RelatorioService.getDadosBoletim(selectedAluno, selectedModulo);
-        setBoletim(data);
-      } else {
-        // Modo Lote - Construir filtros dinamicamente
-        const filtros: any = { status: 'ativo' };
+      // Sempre usar modo lista (mesmo para aluno individual)
+      const filtros: any = { status: 'ativo' };
 
-        if (selectedPolo) filtros.polo_id = selectedPolo;
-        if (selectedTurma) filtros.turma_id = selectedTurma;
-        if (selectedNivel) filtros.nivel_atual_id = selectedNivel;
+      // Validação: pelo menos um critério além do módulo (para admin global)
+      if (isAdminGlobal && !selectedPolo && !selectedTurma && !selectedAluno) {
+        alert('Selecione ao menos um filtro (Polo, Turma ou Aluno) além do Módulo.');
+        setGenerating(false);
+        return;
+      }
 
-        // Se professor selecionado, buscar turmas do professor
-        if (selectedProfessor) {
-          const { data: turmasProf } = await supabase
-            .from('turmas')
-            .select('id')
-            .eq('professor_id', selectedProfessor)
-            .eq('status', 'ativa');
+      // Filtrar alunos por módulo
+      let alunosEncontrados: any[] = [];
 
-          if (turmasProf && turmasProf.length > 0) {
-            const turmaIds = turmasProf.map(t => t.id);
+      if (selectedTurma) {
+        // Se turma selecionada, buscar alunos dessa turma
+        filtros.turma_id = selectedTurma;
 
-            // Se já tem turma selecionada, verificar se está na lista
-            if (selectedTurma && !turmaIds.includes(selectedTurma)) {
-              alert('A turma selecionada não pertence a este professor.');
+        if (selectedAluno) {
+          filtros.aluno_id = selectedAluno;
+        }
+
+        alunosEncontrados = await AlunosAPI.listar(filtros);
+      } else if (selectedAluno) {
+        // Se apenas aluno selecionado (sem turma), buscar este aluno
+        // mas validar se ele está em uma turma que cursa o módulo selecionado
+        filtros.aluno_id = selectedAluno;
+
+        const alunoData = await AlunosAPI.listar(filtros);
+
+        if (alunoData && alunoData.length > 0) {
+          const aluno = alunoData[0];
+
+          // Verificar se o aluno está em uma turma que cursa o módulo
+          if (aluno.turma_id) {
+            try {
+              const turmaAlunoRes = await TurmasAPI.buscarPorId(aluno.turma_id) as any;
+              const turmaAluno = turmaAlunoRes?.data || turmaAlunoRes;
+
+              if (turmaAluno && turmaAluno.modulo_atual_id === selectedModulo) {
+                alunosEncontrados = alunoData;
+              } else {
+                alert(`O aluno selecionado não está cursando o módulo "${modulos.find(m => m.id === selectedModulo)?.titulo || 'selecionado'}".`); setGenerating(false);
+                return;
+              }
+            } catch (err) {
+              console.error('Erro ao buscar turma do aluno:', err);
+              alert('Erro ao validar turma do aluno.');
               setGenerating(false);
               return;
             }
+          } else {
+            alert('O aluno selecionado não está matriculado em nenhuma turma.');
+            setGenerating(false);
+            return;
+          }
+        }
+      } else if (selectedPolo) {
+        // Se apenas polo selecionado, buscar turmas que cursam o módulo
+        try {
+          const turmasDoModuloRes = await TurmasAPI.listar({
+            modulo_atual_id: selectedModulo,
+            status: 'ativa',
+            polo_id: selectedPolo
+          }) as any;
+          const turmasDoModulo = turmasDoModuloRes?.data || turmasDoModuloRes || [];
 
-            // Se não tem turma específica, buscar alunos de todas as turmas do professor
-            if (!selectedTurma) {
+          if (Array.isArray(turmasDoModulo) && turmasDoModulo.length > 0) {
+            const turmaIds = turmasDoModulo.map(t => t.id);
+
+            // Buscar alunos matriculados nessas turmas
+            const alunosPromises = turmaIds.map(tId =>
+              AlunosAPI.listar({ ...filtros, turma_id: tId })
+            );
+            const results = await Promise.all(alunosPromises);
+            const todosAlunos = results.flat();
+            alunosEncontrados = Array.from(new Map(todosAlunos.map((a: any) => [a.id, a])).values());
+          } else {
+            alert('Nenhuma turma ativa encontrada cursando o módulo selecionado neste polo.');
+            setGenerating(false);
+            return;
+          }
+        } catch (err) {
+          console.error('Erro ao buscar turmas do polo:', err);
+          alert('Erro ao buscar turmas do polo.');
+          setGenerating(false);
+          return;
+        }
+      } else {
+        // Caso sem polo (usuário de polo específico)
+        if (selectedAluno) {
+          filtros.aluno_id = selectedAluno;
+          alunosEncontrados = await AlunosAPI.listar(filtros);
+        } else {
+          // Buscar turmas que cursam o módulo (sem filtro de polo)
+          try {
+            const turmasDoModuloRes = await TurmasAPI.listar({
+              modulo_atual_id: selectedModulo,
+              status: 'ativa'
+            }) as any;
+            const turmasDoModulo = turmasDoModuloRes?.data || turmasDoModuloRes || [];
+
+            if (Array.isArray(turmasDoModulo) && turmasDoModulo.length > 0) {
+              const turmaIds = turmasDoModulo.map(t => t.id);
               const alunosPromises = turmaIds.map(tId =>
                 AlunosAPI.listar({ ...filtros, turma_id: tId })
               );
               const results = await Promise.all(alunosPromises);
               const todosAlunos = results.flat();
-              const alunosUnicos = Array.from(new Map(todosAlunos.map(a => [a.id, a])).values());
-
-              if (alunosUnicos.length > 0) {
-                setPreviewAlunos(alunosUnicos);
-                setShowPreview(true);
-              } else {
-                alert('Nenhum aluno ativo encontrado para os filtros selecionados.');
-              }
+              alunosEncontrados = Array.from(new Map(todosAlunos.map((a: any) => [a.id, a])).values());
+            } else {
+              alert('Nenhuma turma ativa encontrada cursando o módulo selecionado.');
               setGenerating(false);
               return;
             }
-          } else {
-            alert('Este professor não possui turmas ativas.');
+          } catch (err) {
+            console.error('Erro ao buscar turmas:', err);
+            alert('Erro ao buscar turmas.');
             setGenerating(false);
             return;
           }
         }
+      }
 
-        // Validação: pelo menos um critério além do módulo (para admin global)
-        if (isAdminGlobal && !selectedPolo && !selectedTurma && !selectedNivel && !selectedProfessor) {
-          alert('Selecione ao menos um filtro (Polo, Turma, Nível ou Professor) além do Módulo.');
-          setGenerating(false);
-          return;
-        }
-
-        const alunosEncontrados = await AlunosAPI.listar(filtros);
-
-        if (Array.isArray(alunosEncontrados) && alunosEncontrados.length > 0) {
-          setPreviewAlunos(alunosEncontrados);
-          setShowPreview(true);
-        } else {
-          alert('Nenhum aluno ativo encontrado para os filtros selecionados.');
-        }
+      // Sempre exibir lista (mesmo para 1 aluno)
+      if (Array.isArray(alunosEncontrados) && alunosEncontrados.length > 0) {
+        setPreviewAlunos(alunosEncontrados);
+        setShowPreview(true);
+      } else {
+        alert('Nenhum aluno ativo encontrado para os filtros selecionados.');
       }
     } catch (error) {
       console.error('Erro ao consultar:', error);
@@ -359,7 +374,7 @@ const BoletimView: React.FC = () => {
     if (!selectedModulo) return false;
     if (selectedAluno) return true;
     // Para lote: precisa de pelo menos um critério (ou ser usuário de polo)
-    if (isAdminGlobal && !selectedPolo && !selectedTurma && !selectedNivel && !selectedProfessor) return false;
+    if (isAdminGlobal && !selectedPolo && !selectedTurma) return false;
     return true;
   };
 
@@ -371,7 +386,7 @@ const BoletimView: React.FC = () => {
           Gerador de Boletins
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           {isAdminGlobal && (
             <div>
               <label className="block text-xs font-bold text-gray-600 mb-1">
@@ -393,22 +408,6 @@ const BoletimView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">Nível</label>
-            <Select value={selectedNivel} onChange={val => setSelectedNivel(val)}>
-              <option value="">Todos os Níveis</option>
-              {niveis.map(n => <option key={n.id} value={n.id}>{n.nome}</option>)}
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">Professor(a)</label>
-            <Select value={selectedProfessor} onChange={val => setSelectedProfessor(val)}>
-              <option value="">Todos os Professores</option>
-              {professores.map(p => <option key={p.id} value={p.id}>{p.nome_completo}</option>)}
-            </Select>
-          </div>
-
-          <div>
             <label className="block text-xs font-bold text-gray-600 mb-1">Aluno</label>
             <Select value={selectedAluno} onChange={val => setSelectedAluno(val)}>
               <option value="">Todos os Alunos</option>
@@ -419,8 +418,17 @@ const BoletimView: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mt-4">
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">Módulo (Obrigatório)</label>
-            <Select value={selectedModulo} onChange={val => setSelectedModulo(val)}>
+            <label className="block text-xs font-bold text-gray-600 mb-1">
+              Módulo (Obrigatório)
+              {isAdminGlobal && !selectedPolo && (
+                <span className="text-red-500 text-xs ml-2">* Selecione um Polo primeiro</span>
+              )}
+            </label>
+            <Select
+              value={selectedModulo}
+              onChange={val => setSelectedModulo(val)}
+              disabled={isAdminGlobal && !selectedPolo}
+            >
               <option value="">Selecione o Módulo...</option>
               {modulos.map(m => <option key={m.id} value={m.id}>{m.numero} - {m.titulo}</option>)}
             </Select>
@@ -429,14 +437,14 @@ const BoletimView: React.FC = () => {
           <div className="flex justify-end">
             <Button onClick={handleConsultar} disabled={!canConsult() || generating} variant="primary">
               {generating && !showPreview ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-              {selectedAluno ? 'Visualizar Boletim' : 'Listar Alunos (Pré-visualização)'}
+              Listar Alunos
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* Preview Lista de Alunos (Modo Lote) */}
-      {showPreview && !selectedAluno && previewAlunos.length > 0 && (
+      {/* Preview Lista de Alunos (Modo Lote ou Individual) */}
+      {showPreview && previewAlunos.length > 0 && (
         <Card className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-gray-800">
@@ -476,103 +484,6 @@ const BoletimView: React.FC = () => {
             <Button onClick={handleGerarPDF} disabled={generating} variant="secondary" className="w-full md:w-auto">
               {generating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Download className="h-4 w-4 mr-2" />}
               {generating ? 'Processando PDF...' : `Confirmar e Gerar PDF (${previewAlunos.length} alunos)`}
-            </Button>
-          </div>
-        </Card>
-      )}
-
-      {/* Visualização Individual (Apenas se Aluno Selecionado) */}
-      {boletim && selectedAluno && (
-        <Card className="p-8 print:shadow-none print:border-none max-w-[21cm] mx-auto">
-          <div className="text-center mb-8 border-b-2 border-gray-800 pb-4">
-            <h2 className="text-2xl font-bold text-gray-900 uppercase">Boletim Escolar</h2>
-            <h3 className="text-lg text-gray-700 font-semibold">{boletim.aluno?.polo || 'IBUC System'}</h3>
-            <div className="mt-4 grid grid-cols-2 text-left text-sm gap-y-2">
-              <div><span className="font-bold">Aluno:</span> {boletim.aluno?.nome}</div>
-              <div><span className="font-bold">Turma:</span> {boletim.aluno?.turma || '-'}</div>
-              <div><span className="font-bold">Módulo:</span> {boletim.modulo?.numero} - {boletim.modulo?.titulo}</div>
-              <div><span className="font-bold">Nível:</span> {boletim.aluno?.nivel || '-'}</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">Desempenho Acadêmico</h3>
-              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Nota / Conceito:</span>
-                  <span className="font-bold text-lg text-blue-700">{boletim.resumo?.conceito || '-'} ({boletim.resumo?.media_geral?.toFixed(1)})</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Frequência:</span>
-                  <span className={`font-bold text-lg ${boletim.resumo?.frequencia_percentual >= 75 ? 'text-green-600' : 'text-red-600'}`}>
-                    {boletim.resumo?.frequencia_percentual}%
-                  </span>
-                </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  * Baseado em {boletim.resumo?.total_presencas} presenças de {boletim.resumo?.total_aulas} aulas/lições previstas.
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-3 border-b border-gray-200 pb-2">Recompensas (Gamification)</h3>
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-yellow-800 font-medium">Saldo de Drácmas:</span>
-                  <div className="flex items-center">
-                    <span className="font-bold text-2xl text-yellow-900 mr-1">{boletim.dracmas?.saldo || 0}</span>
-                    <span className="text-xl">🪙</span>
-                  </div>
-                </div>
-                <p className="text-xs text-yellow-700 italic">
-                  Moeda digital para troca por benefícios e materiais no IBUC Store.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold mb-3 uppercase">Detalhamento Modular</h3>
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Componente / Módulo</th>
-                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Nota</th>
-                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Faltas</th>
-                    <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Situação Final</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {boletim.disciplinas?.map((d: any, idx: number) => (
-                    <tr key={idx}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{d.nome}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center font-bold text-gray-900">{d.media}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">{d.faltas}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${d.status === 'APROVADO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                          {d.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {(!boletim.disciplinas || boletim.disciplinas.length === 0) && (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">Nenhum dado registrado.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-2 text-xs text-gray-500 text-right">Documento emitido em {new Date().toLocaleDateString()}</p>
-          </div>
-
-          <div className="mt-8 flex justify-end print:hidden">
-            <Button variant="outline" onClick={() => window.print()}>
-              <Download className="h-4 w-4 mr-2" />
-              Imprimir Boletim
             </Button>
           </div>
         </Card>

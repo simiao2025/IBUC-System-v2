@@ -22,12 +22,13 @@ export interface TurmaItem {
 }
 
 export const TurmasAPI = {
-  listar: (params?: { polo_id?: string; nivel_id?: string; professor_id?: string; status?: string; ano_letivo?: number }) => {
+  listar: (params?: { polo_id?: string; nivel_id?: string; professor_id?: string; status?: string; modulo_atual_id?: string; ano_letivo?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.polo_id) searchParams.append('polo_id', params.polo_id);
     if (params?.nivel_id) searchParams.append('nivel_id', params.nivel_id);
     if (params?.professor_id) searchParams.append('professor_id', params.professor_id);
     if (params?.status) searchParams.append('status', params.status);
+    if (params?.modulo_atual_id) searchParams.append('modulo_atual_id', params.modulo_atual_id);
     if (typeof params?.ano_letivo === 'number') searchParams.append('ano_letivo', String(params.ano_letivo));
 
     const query = searchParams.toString();
