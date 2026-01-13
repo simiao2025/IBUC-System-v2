@@ -783,13 +783,11 @@ export class PdfService {
     // Center the group of logos horizontally
     const startX = (width - totalLogosWidth) / 2;
     
-    // Position vertically - closer to signatures (which are around y=260)
-    // Signatures end around y=240. Let's put logos centered below that.
-    // Available space 0 to 240. Center is ~120.
-    const logosY = 80;
+    // Position vertically - closer to bottom border (0 is bottom)
+    const logosY = 40;
 
     page.drawImage(ibucImg, { x: startX, y: logosY, width: ibucW, height: logosH });
-    page.drawImage(churchImg, { x: startX + ibucW + gap, y: logosY, width: churchW, height: logosH });
+    page.drawImage(churchImg, { x: startX + ibucW + gap, y: logosY, width: churchW, height: logosH }); 
 
     const bodyLeft = 55;
     const bodyTop = 150;
@@ -825,15 +823,8 @@ export class PdfService {
     const nameTopY = cursorY - 2;
     drawTL(nomeAluno, nameX, nameTopY, fontName, fontBold);
 
-    const gapPad = 6;
-    const leftEnd = Math.max(lineX, nameX - gapPad);
-    const rightStart = Math.min(lineX + lineW, nameX + nameWidth + gapPad);
-    if (leftEnd > lineX) {
-      page.drawLine({ start: { x: lineX, y: lineY }, end: { x: leftEnd, y: lineY }, thickness: 1 });
-    }
-    if (rightStart < lineX + lineW) {
-      page.drawLine({ start: { x: rightStart, y: lineY }, end: { x: lineX + lineW, y: lineY }, thickness: 1 });
-    }
+    // Lines removed as per request
+    // const gapPad = 6; ...
 
     cursorY += lineHeight * 1.25;
 
@@ -854,13 +845,16 @@ export class PdfService {
       'Único Caminho.';
     drawTL(restante, bodyLeft, cursorY, fontBody, fontRegular, { maxWidth: bodyWidth, lineHeight });
 
-    const dataLine = `Palmas, ${dateStr}`;
-    const dataTopY = 300;
+    const dataLine = `Palmas - TO, ${dateStr}`;
+    // Position date 1 line below the last text line
+    const dataTopY = cursorY + lineHeight; 
+    
     const dataTextWidth = fontRegular.widthOfTextAtSize(dataLine, fontDate);
     const dataX = Math.max(0, width - bodyLeft - dataTextWidth);
     drawTL(dataLine, dataX, dataTopY, fontDate, fontRegular);
 
-    const assinaturaTopY = dataTopY + 35;
+    // Signatures 3 lines below date (approx 3 * 20 = 60)
+    const assinaturaTopY = dataTopY + 70;
     const blocoW = 175;
     const marginX = 55;
 
