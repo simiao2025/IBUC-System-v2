@@ -18,7 +18,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token');
 
     const isFormData = options.body instanceof FormData;
 

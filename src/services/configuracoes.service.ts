@@ -12,7 +12,9 @@ export const ConfiguracoesService = {
      */
     buscarTodasComoObjeto: async () => {
         try {
-            const data = await api.get<any[]>('/configuracoes');
+            const token = sessionStorage.getItem('auth_token');
+            const endpoint = token ? '/configuracoes' : '/configuracoes/publicas';
+            const data = await api.get<any[]>(endpoint);
             if (Array.isArray(data)) {
                 return data.reduce((acc: any, curr: any) => {
                     // Os valores no banco estão em JSONB, o ApiClient já faz o parse
@@ -22,6 +24,22 @@ export const ConfiguracoesService = {
             }
             return {};
         } catch (error) {
+            try {
+                const errMsg = (error as any)?.message || '';
+                if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('unauthorized')) {
+                    const dataPublica = await api.get<any[]>('/configuracoes/publicas');
+                    if (Array.isArray(dataPublica)) {
+                        return dataPublica.reduce((acc: any, curr: any) => {
+                            acc[curr.chave] = curr.valor;
+                            return acc;
+                        }, {});
+                    }
+                    return {};
+                }
+            } catch (fallbackError) {
+                console.error('Erro ao buscar configurações como objeto:', fallbackError);
+            }
+
             console.error('Erro ao buscar configurações como objeto:', error);
             return {};
         }

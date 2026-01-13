@@ -10,6 +10,7 @@ import AtestadoMatriculaView from '../../../components/reports/AtestadoMatricula
 import ListaChamadaView from '../../../components/reports/ListaChamadaView';
 import ConsolidadoFrequenciaView from '../../../components/reports/ConsolidadoFrequenciaView';
 import InadimplenciaReportView from '../../../components/reports/InadimplenciaReportView';
+import CertificadoView from '../../../components/reports/CertificadoView';
 import { 
   FileText, 
   GraduationCap, 
@@ -32,7 +33,8 @@ type ReportTab =
   | 'frequencia_consolidada' 
   | 'dracmas' 
   | 'financeiro' 
-  | 'estatisticas';
+  | 'estatisticas'
+  | 'certificado';
 
 const EducationalReportManagementPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ReportTab>('boletim');
@@ -54,6 +56,7 @@ const EducationalReportManagementPage: React.FC = () => {
       permission: canAccessModule('dracmas')
     },
     { id: 'estatisticas', label: 'Estatísticas Gerais', icon: BarChart2, color: 'text-purple-600' },
+    { id: 'certificado', label: 'Certificado do Aluno', icon: Award, color: 'text-red-600' },
   ];
 
   const filteredModules = reportModules.filter(m => m.permission === undefined || m.permission);
@@ -101,6 +104,7 @@ const EducationalReportManagementPage: React.FC = () => {
             {activeTab === 'frequencia_consolidada' && <ConsolidadoFrequenciaView />}
             {activeTab === 'financeiro' && <InadimplenciaReportView />}
             {activeTab === 'estatisticas' && <EstatisticasView />}
+            {activeTab === 'certificado' && <CertificadoView />}
           </div>
         </div>
       </div>

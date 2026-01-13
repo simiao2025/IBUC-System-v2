@@ -181,11 +181,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     const restoreSession = async () => {
-      const token = localStorage.getItem('auth_token');
-      const cachedUserRaw = localStorage.getItem('auth_user');
+      const token = sessionStorage.getItem('auth_token');
+      const cachedUserRaw = sessionStorage.getItem('auth_user');
 
       if (!token) {
-        localStorage.removeItem('auth_user');
+        sessionStorage.removeItem('auth_user');
         setCurrentUser(null);
         setAuthLoading(false);
         return;
@@ -213,15 +213,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (!response.ok) {
           // Token inválido/expirado/erro: limpar sessão
           console.warn('Sessão inválida ou expirada, limpando dados locais.');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('auth_user');
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('auth_user');
           setCurrentUser(null);
           setAuthLoading(false);
           return;
         }
 
         const user = await response.json();
-        localStorage.setItem('auth_user', JSON.stringify(user));
+        sessionStorage.setItem('auth_user', JSON.stringify(user));
         const isAdmin = isAdminRoleValue(user?.role);
 
         if (isAdmin) {
@@ -291,11 +291,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       const token = extractToken(rawPayload);
       if (token) {
-        localStorage.setItem('auth_token', token);
+        sessionStorage.setItem('auth_token', token);
       }
 
       const user = extractUserPayload(rawPayload);
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      sessionStorage.setItem('auth_user', JSON.stringify(user));
 
       const isAdmin = isAdminRoleValue(user?.role);
       if (isAdmin) {
@@ -332,8 +332,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('auth_user');
   };
 
   const hasAccessToAllPolos = (): boolean => {

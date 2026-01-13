@@ -33,9 +33,6 @@ import { ListaEsperaModule } from './lista-espera/lista-espera.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
     SupabaseModule,
     PolosModule,
     TurmasModule,

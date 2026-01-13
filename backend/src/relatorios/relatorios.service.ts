@@ -920,6 +920,12 @@ export class RelatoriosService {
       throw error;
     }
   }
+
+  async gerarCertificado(alunoId: string, nivelId: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
+    const result = await this.workers.gerarCertificado(alunoId, nivelId);
+    return { status: 'completed', result };
+  }
 }
 
 

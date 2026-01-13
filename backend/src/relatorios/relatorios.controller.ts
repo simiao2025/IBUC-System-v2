@@ -126,6 +126,15 @@ export class RelatoriosController {
   ) {
     return this.service.relatorioInadimplencia({ polo_id, data_referencia }, req?.user);
   }
+
+  @Get('certificado')
+  async gerarCertificado(
+    @Query('aluno_id') alunoId: string,
+    @Query('nivel_id') nivelId: string,
+    @Request() req
+  ) {
+    return this.service.gerarCertificado(alunoId, nivelId, req.user);
+  }
 }
 
 

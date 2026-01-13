@@ -5,6 +5,8 @@ import * as path from 'path';
 import { SupabaseService } from '../supabase/supabase.service';
 import * as QRCode from 'qrcode';
 import axios from 'axios';
+import * as crypto from 'crypto';
+import { PDFDocument as LibPDFDocument, StandardFonts } from 'pdf-lib';
 
 @Injectable()
 export class PdfService {
@@ -616,10 +618,281 @@ export class PdfService {
   }
 
   async gerarCertificado(alunoId: string, nivelId: string) {
-     // Lógica síncrona do certificado (copiada do processor)
-     const client = this.supabase.getAdminClient();
-     // ... (Implementação identica ao processor)
-     return { success: true, path: 'caminho/do/certificado' }; // Placeholder para economizar output da tool call, user não pediu certificado especificamente agora
+    const client = this.supabase.getAdminClient();
+
+    // 1. Fetch Data
+    const { data: aluno, error: alunoError } = await client
+      .from('alunos')
+      .select('nome, cpf')
+      .eq('id', alunoId)
+      .single();
+
+    const { data: nivel, error: nivelError } = await client
+      .from('niveis')
+      .select('nome, descricao')
+      .eq('id', nivelId)
+      .single();
+
+    if (alunoError || !aluno || nivelError || !nivel) {
+      throw new Error('Aluno ou Nível não encontrado para o certificado');
+    }
+
+    // 2. Generate PDF based on template PDF (high quality)
+    const fileName = `certificado_v2_${alunoId}_${nivelId}_${Date.now()}.pdf`;
+    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'certificados', fileName);
+    if (!fs.existsSync(path.dirname(filePath))) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    }
+
+    const templateCandidates = [
+      path.resolve(process.cwd(), 'certificado_template.pdf'),
+      path.resolve(process.cwd(), '..', 'certificado_template.pdf'),
+      path.resolve(process.cwd(), '..', '..', 'certificado_template.pdf'),
+      path.resolve(process.cwd(), '..', '..', '..', 'certificado_template.pdf'),
+      path.resolve(__dirname, '..', '..', '..', '..', 'certificado_template.pdf'),
+      path.resolve(__dirname, '..', '..', '..', '..', '..', 'certificado_template.pdf'),
+    ];
+
+    const templatePath = templateCandidates.find((p) => fs.existsSync(p));
+    if (!templatePath) {
+      throw new Error('Template do certificado não encontrado (certificado_template.pdf)');
+    }
+
+    console.log('[gerarCertificado] templatePath:', templatePath);
+
+    const templateBytes = fs.readFileSync(templatePath);
+    const pdfDoc = await LibPDFDocument.load(templateBytes);
+    const page = pdfDoc.getPages()[0];
+    if (!page) {
+      throw new Error('Template do certificado está vazio (sem páginas)');
+    }
+
+    const { width, height } = page.getSize();
+
+    const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+
+    const nomeAluno = (aluno.nome || '').toUpperCase();
+    const nivelNome = nivel.nome || '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    let moduloLabel = (nivel.descricao || nivelNome || '').trim();
+    try {
+      const { data: matriculaAtiva } = await client
+        .from('matriculas')
+        .select('modulo_atual_id')
+        .eq('aluno_id', alunoId)
+        .eq('status', 'ativa')
+        .limit(1)
+        .maybeSingle();
+
+      const moduloAtualId = (matriculaAtiva as any)?.modulo_atual_id;
+      if (moduloAtualId) {
+        const { data: modAtual } = await client
+          .from('modulos')
+          .select('numero, titulo')
+          .eq('id', moduloAtualId)
+          .limit(1)
+          .maybeSingle();
+
+        if ((modAtual as any)?.numero && (modAtual as any)?.titulo) {
+          moduloLabel = `Módulo ${(modAtual as any).numero} - ${(modAtual as any).titulo}`;
+        }
+      }
+
+      if (!moduloLabel) {
+        moduloLabel = (nivel.descricao || nivelNome || '').trim();
+      }
+
+      if (!moduloAtualId) {
+        const { data: hist } = await client
+          .from('aluno_historico_modulos')
+          .select('modulo_numero, ano_conclusao')
+          .eq('aluno_id', alunoId)
+          .order('ano_conclusao', { ascending: false })
+          .order('modulo_numero', { ascending: false })
+          .limit(1);
+
+        const last = (hist || [])[0] as any;
+        if (last?.modulo_numero) {
+          const { data: mod } = await client
+            .from('modulos')
+            .select('numero, titulo')
+            .eq('numero', last.modulo_numero)
+            .limit(1)
+            .maybeSingle();
+
+          if ((mod as any)?.numero && (mod as any)?.titulo) {
+            moduloLabel = `Módulo ${(mod as any).numero} - ${(mod as any).titulo}`;
+          } else {
+            moduloLabel = `Módulo ${last.modulo_numero}`;
+          }
+        }
+      }
+    } catch (e) {
+    }
+
+    const embedImage = async (bytes: Uint8Array) => {
+      try {
+        return await pdfDoc.embedPng(bytes);
+      } catch {
+        return await pdfDoc.embedJpg(bytes);
+      }
+    };
+
+    const ibucLogoCandidates = [
+      path.resolve(process.cwd(), 'public', 'icons', '3d', 'Logo-IBUC.png'),
+      path.resolve(process.cwd(), '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
+      path.resolve(process.cwd(), '..', '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
+      path.resolve(__dirname, '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
+      path.resolve(__dirname, '..', '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
+    ];
+
+    const churchLogoCandidates = [
+      path.resolve(process.cwd(), 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
+      path.resolve(process.cwd(), '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
+      path.resolve(process.cwd(), '..', '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
+      path.resolve(__dirname, '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
+      path.resolve(__dirname, '..', '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
+    ];
+
+    const ibucLogoPath = ibucLogoCandidates.find((p) => fs.existsSync(p));
+    const churchLogoPath = churchLogoCandidates.find((p) => fs.existsSync(p));
+
+    if (!ibucLogoPath) {
+      throw new Error("Logo do IBUC não encontrada em public/icons/3d/Logo-IBUC.png");
+    }
+    if (!churchLogoPath) {
+      throw new Error("Logo da igreja não encontrada em public/icons/3d/Logo-PRV-Texto-Azul.png");
+    }
+
+    const ibucLogoBytes = fs.readFileSync(ibucLogoPath);
+    const churchLogoBytes = fs.readFileSync(churchLogoPath);
+
+    const ibucImg = await embedImage(ibucLogoBytes);
+    const churchImg = await embedImage(churchLogoBytes);
+
+    const logosH = 55; // Height of logos
+    const ibucW = (ibucImg.width / ibucImg.height) * logosH;
+    const churchW = (churchImg.width / churchImg.height) * logosH;
+
+    const gap = 30; // Gap between logos
+    const totalLogosWidth = ibucW + gap + churchW;
+
+    // Center the group of logos horizontally
+    const startX = (width - totalLogosWidth) / 2;
+    
+    // Position vertically - closer to signatures (which are around y=260)
+    // Signatures end around y=240. Let's put logos centered below that.
+    // Available space 0 to 240. Center is ~120.
+    const logosY = 80;
+
+    page.drawImage(ibucImg, { x: startX, y: logosY, width: ibucW, height: logosH });
+    page.drawImage(churchImg, { x: startX + ibucW + gap, y: logosY, width: churchW, height: logosH });
+
+    const bodyLeft = 55;
+    const bodyTop = 150;
+    const bodyWidth = width - bodyLeft * 2;
+    const lineHeight = 18;
+
+    const drawTL = (text: string, topX: number, topY: number, size: number, font: any, options?: any) => {
+      page.drawText(text, {
+        x: topX,
+        y: height - topY - size,
+        size,
+        font,
+        ...(options || {}),
+      });
+    };
+
+    const fontBody = 14;
+    const fontName = 14;
+    const fontDate = 12;
+
+    let cursorY = bodyTop;
+
+    const prefix = 'Certificamos que';
+    const prefixWidth = fontRegular.widthOfTextAtSize(prefix, fontBody);
+    drawTL(prefix, bodyLeft, cursorY, fontBody, fontRegular);
+
+    const lineX = bodyLeft + prefixWidth + 10;
+    const lineW = Math.max(0, bodyLeft + bodyWidth - lineX);
+    const lineY = height - cursorY - (fontBody / 2);
+
+    const nameWidth = fontBold.widthOfTextAtSize(nomeAluno, fontName);
+    const nameX = Math.max(lineX, lineX + 25);
+    const nameTopY = cursorY - 2;
+    drawTL(nomeAluno, nameX, nameTopY, fontName, fontBold);
+
+    const gapPad = 6;
+    const leftEnd = Math.max(lineX, nameX - gapPad);
+    const rightStart = Math.min(lineX + lineW, nameX + nameWidth + gapPad);
+    if (leftEnd > lineX) {
+      page.drawLine({ start: { x: lineX, y: lineY }, end: { x: leftEnd, y: lineY }, thickness: 1 });
+    }
+    if (rightStart < lineX + lineW) {
+      page.drawLine({ start: { x: rightStart, y: lineY }, end: { x: lineX + lineW, y: lineY }, thickness: 1 });
+    }
+
+    cursorY += lineHeight * 1.25;
+
+    const preModulo = 'participou do ';
+    const posModulo = ' do Curso de Teologia';
+    const moduloTexto = moduloLabel;
+    const x0 = bodyLeft;
+    const preW = fontRegular.widthOfTextAtSize(preModulo, fontBody);
+    const moduloW = fontBold.widthOfTextAtSize(moduloTexto, fontBody);
+    drawTL(preModulo, x0, cursorY, fontBody, fontRegular);
+    drawTL(moduloTexto, x0 + preW, cursorY, fontBody, fontBold);
+    drawTL(posModulo, x0 + preW + moduloW, cursorY, fontBody, fontRegular);
+
+    cursorY += lineHeight;
+    const restante =
+      'Infantojuvenil, promovido pela Igreja Evangélica Assembleia de Deus\n' +
+      'Missão - Projeto Restaurando Vidas juntamente com o Instituto Bíblico\n' +
+      'Único Caminho.';
+    drawTL(restante, bodyLeft, cursorY, fontBody, fontRegular, { maxWidth: bodyWidth, lineHeight });
+
+    const dataLine = `Palmas, ${dateStr}`;
+    const dataTopY = 300;
+    const dataTextWidth = fontRegular.widthOfTextAtSize(dataLine, fontDate);
+    const dataX = Math.max(0, width - bodyLeft - dataTextWidth);
+    drawTL(dataLine, dataX, dataTopY, fontDate, fontRegular);
+
+    const assinaturaTopY = dataTopY + 35;
+    const blocoW = 175;
+    const marginX = 55;
+
+    const assX1 = marginX;
+    const assX2 = Math.max(marginX, (width - blocoW) / 2);
+    const assX3 = Math.max(marginX, width - marginX - blocoW);
+
+    const drawAssinatura = (x: number, nome: string, cargo: string) => {
+      const yLine = height - assinaturaTopY;
+      page.drawLine({ start: { x, y: yLine }, end: { x: x + blocoW, y: yLine }, thickness: 1 });
+
+      const nomeSize = 8;
+      const cargoSize = 8;
+      const nomeW = fontRegular.widthOfTextAtSize(nome, nomeSize);
+      const cargoW = fontRegular.widthOfTextAtSize(cargo, cargoSize);
+      drawTL(nome, x + Math.max(0, (blocoW - nomeW) / 2), assinaturaTopY + 5, nomeSize, fontRegular);
+      drawTL(cargo, x + Math.max(0, (blocoW - cargoW) / 2), assinaturaTopY + 17, cargoSize, fontRegular);
+    };
+
+    drawAssinatura(assX1, 'Pedro Newton', 'Diretor Geral do IBUC');
+    drawAssinatura(assX2, 'José Suimar Caetano Ferreira', 'Pr. Presidente');
+    drawAssinatura(assX3, 'Neuselice Caetano Vieira', 'Coordenadora Geral do IBUC');
+
+    const pdfBytesOut = await pdfDoc.save();
+    fs.writeFileSync(filePath, pdfBytesOut);
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const storagePath = `certificados/${alunoId}/${fileName}`;
+    await client.storage.from('documentos').upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
+
+    fs.unlinkSync(filePath);
+    return { success: true, path: storagePath };
   }
   
   async gerarHistorico(alunoId: string) {

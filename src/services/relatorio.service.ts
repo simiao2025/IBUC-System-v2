@@ -62,6 +62,7 @@ export const RelatoriosAPI = {
     });
     return api.get(`/relatorios/inadimplencia?${params.toString()}`);
   },
+  gerarCertificado: (alunoId: string, nivelId: string) => api.get(`/relatorios/certificado?aluno_id=${alunoId}&nivel_id=${nivelId}`),
 };
 
 export const LgpdAPI = {
@@ -121,6 +122,10 @@ export class RelatorioService {
 
   static async relatorioInadimplencia(filtros: any) {
     return RelatoriosAPI.relatorioInadimplencia(filtros);
+  }
+
+  static async gerarCertificado(alunoId: string, nivelId: string) {
+    return RelatoriosAPI.gerarCertificado(alunoId, nivelId);
   }
 }
 
