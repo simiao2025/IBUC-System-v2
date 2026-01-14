@@ -5,7 +5,7 @@
 
 // Enums
 export type StatusPolo = 'ativo' | 'inativo';
-export type RoleUsuario = 
+export type RoleUsuario =
   | 'super_admin'
   | 'admin_geral'
   | 'diretor_geral'
@@ -467,7 +467,8 @@ export interface Certificado {
   emitido_por: string;
   created_at: string;
   aluno?: { nome: string };
-  modulo?: { tit_modulo: string };
+  modulo?: { titulo: string };
+  turma?: { nome: string };
 }
 
 // 22. EVENTOS

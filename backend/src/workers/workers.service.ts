@@ -11,8 +11,8 @@ export class WorkersService {
     return this.pdfService.gerarTermoMatricula(matriculaId);
   }
 
-  async gerarBoletim(alunoId: string, periodo: string) {
-    return this.pdfService.gerarBoletim(alunoId, periodo);
+  async gerarBoletim(alunoId: string, periodo: string, moduloId?: string, turmaId?: string, bulletinId?: string): Promise<Buffer> {
+    return this.pdfService.gerarBoletim(alunoId, periodo, moduloId, turmaId, bulletinId);
   }
 
   async gerarHistorico(alunoId: string) {
@@ -27,11 +27,11 @@ export class WorkersService {
   async getJobStatus(jobId: string) {
     // Como agora é síncrono, não existem mais jobs para consultar.
     // O frontend deve ser atualizado para não chamar isso.
-    return { state: 'completed', progress: 100, result: null }; 
+    return { state: 'completed', progress: 100, result: null };
   }
 
-  async gerarCertificado(alunoId: string, nivelId: string) {
-    return this.pdfService.gerarCertificado(alunoId, nivelId);
+  async gerarCertificado(alunoId: string, nivelId: string, turmaId?: string) {
+    return this.pdfService.gerarCertificado(alunoId, nivelId, turmaId);
   }
 
   async gerarReciboPagamento(pagamentoId: string) {

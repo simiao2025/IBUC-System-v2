@@ -17,10 +17,12 @@ import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import { RelatorioService } from '../../services/relatorio.service';
 import { AlunosAPI } from '../../features/students/aluno.service';
+import { TurmasAPI as TurmasAuthAPI } from '../../features/classes/services/turma.service';
 import { TurmasAPI } from '../../services/turma.service';
 import { ModulosAPI } from '../../services/modulos.service';
 import { PolosAPI } from '../../services/polo.service';
-import { Loader2, FileText, Download, Building2, Layers } from 'lucide-react';
+import { BoletimAPI, Boletim, BoletimService } from '../../services/boletim.service';
+import { Loader2, FileText, Download, Building2, Layers, Calendar, ExternalLink, Award } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
 
@@ -41,6 +43,8 @@ const BoletimView: React.FC = () => {
   const [previewAlunos, setPreviewAlunos] = useState<any[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [boletinsEmitidos, setBoletinsEmitidos] = useState<Boletim[]>([]);
+  const [loadingBoletins, setLoadingBoletins] = useState(false);
 
   // 1. Carregar Polos (apenas se admin global)
   useEffect(() => {
@@ -125,16 +129,17 @@ const BoletimView: React.FC = () => {
     const loadTurmas = async () => {
       try {
         let dados = [];
-        if (selectedPolo) {
-          const res = await TurmasAPI.listar({ polo_id: selectedPolo, status: 'ativa' }) as any;
-          dados = res?.data || res || [];
-        } else if (isAdminGlobal) {
-          dados = [];
-        } else {
-          const res = await TurmasAPI.listar({ status: 'ativa' }) as any;
-          dados = res?.data || res || [];
-        }
-        setTurmas(Array.isArray(dados) ? dados.map((t: any) => ({ id: t.id, nome: t.nome })) : []);
+        const filters: any = { status: 'concluida' };
+        if (selectedPolo) filters.polo_id = selectedPolo;
+
+        const res = await TurmasAuthAPI.listar(filters) as any;
+        dados = res?.data || res || [];
+
+        setTurmas(Array.isArray(dados) ? dados.map((t: any) => ({
+          id: t.id,
+          nome: t.nome,
+          modulo_atual_id: t.modulo_atual_id
+        })) : []);
       } catch (err) {
         console.error('Erro ao listar turmas:', err);
         setTurmas([]);
@@ -153,13 +158,9 @@ const BoletimView: React.FC = () => {
 
       if (selectedTurma) {
         filtros.turma_id = selectedTurma;
-      } else if (selectedPolo) {
-        filtros.polo_id = selectedPolo;
       } else {
-        if (isAdminGlobal) {
-          setAlunos([]);
-          return;
-        }
+        setAlunos([]);
+        return;
       }
 
       try {
@@ -176,11 +177,61 @@ const BoletimView: React.FC = () => {
     setSelectedAluno('');
   }, [selectedTurma, selectedPolo, isAdminGlobal]);
 
-  // Limpar visualizações ao mudar filtros
+  // Limpar visualizações ao mudar filtros e carregar boletins se aluno mudar
   useEffect(() => {
     setPreviewAlunos([]);
     setShowPreview(false);
+    if (selectedAluno) {
+      carregarBoletins(selectedAluno);
+    } else {
+      setBoletinsEmitidos([]);
+    }
   }, [selectedPolo, selectedTurma, selectedAluno, selectedModulo]);
+
+  const carregarBoletins = async (id: string) => {
+    setLoadingBoletins(true);
+    try {
+      const data = await BoletimAPI.listar(id);
+      const lista = data || [];
+      setBoletinsEmitidos(lista);
+      return lista;
+    } catch (error) {
+      console.error('Erro ao carregar boletins:', error);
+      return [];
+    } finally {
+      setLoadingBoletins(false);
+    }
+  };
+
+  // Novo efeito para verificar existência e gerar se necessário
+  useEffect(() => {
+    const verificarEGerar = async () => {
+      if (!selectedAluno || !selectedModulo) return;
+
+      const lista = await carregarBoletins(selectedAluno);
+
+      // Verificar se já existe para o módulo selecionado
+      const jaExiste = lista.some((b: Boletim) => b.modulo_id === selectedModulo);
+
+      if (!jaExiste) {
+        const confirm = window.confirm('Nenhum boletim encontrado para este aluno neste módulo. Deseja gerar agora?');
+        if (confirm) {
+          try {
+            setGenerating(true);
+            await RelatorioService.gerarBoletim(selectedAluno, 'atual', selectedModulo, selectedTurma);
+            await carregarBoletins(selectedAluno); // Recarregar após gerar
+          } catch (err) {
+            console.error('Erro ao gerar boletim automático:', err);
+            alert('Erro ao gerar o boletim.');
+          } finally {
+            setGenerating(false);
+          }
+        }
+      }
+    };
+
+    verificarEGerar();
+  }, [selectedAluno, selectedModulo]);
 
   const handleConsultar = async () => {
     if (!selectedModulo) return;
@@ -345,20 +396,20 @@ const BoletimView: React.FC = () => {
 
       // Backend agora retorna direto: { status: 'completed', result: { success: true, path: ... } }
       const resultObj = res.data?.result || res?.result || res;
-      
+
       const path = resultObj?.path;
 
       if (path) {
         const { data } = supabase.storage.from('documentos').getPublicUrl(path);
 
         if (data?.publicUrl) {
-           window.open(data.publicUrl, '_blank');
+          window.open(data.publicUrl, '_blank');
         } else {
-           alert('Erro ao obter URL do arquivo.');
+          alert('Erro ao obter URL do arquivo.');
         }
       } else {
-         console.warn('Resposta sem path:', res);
-         alert('Erro: PDF não retornou caminho.');
+        console.warn('Resposta sem path:', res);
+        alert('Erro: PDF não retornou caminho.');
       }
     } catch (error) {
       console.error('Erro ao iniciar geração:', error);
@@ -399,7 +450,12 @@ const BoletimView: React.FC = () => {
 
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1">Turma</label>
-            <Select value={selectedTurma} onChange={val => setSelectedTurma(val)}>
+            <Select value={selectedTurma} onChange={val => {
+              setSelectedTurma(val);
+              const t = (turmas as any[]).find(x => x.id === val);
+              if (t?.modulo_atual_id) setSelectedModulo(t.modulo_atual_id);
+              else setSelectedModulo('');
+            }}>
               <option value="">Todas as Turmas</option>
               {turmas.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
             </Select>
@@ -414,32 +470,82 @@ const BoletimView: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mt-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">
-              Módulo (Obrigatório)
-              {isAdminGlobal && !selectedPolo && (
-                <span className="text-red-500 text-xs ml-2">* Selecione um Polo primeiro</span>
-              )}
-            </label>
-            <Select
-              value={selectedModulo}
-              onChange={val => setSelectedModulo(val)}
-              disabled={isAdminGlobal && !selectedPolo}
-            >
-              <option value="">Selecione o Módulo...</option>
-              {modulos.map(m => <option key={m.id} value={m.id}>{m.numero} - {m.titulo}</option>)}
-            </Select>
-          </div>
-
-          <div className="flex justify-end">
-            <Button onClick={handleConsultar} disabled={!canConsult() || generating} variant="primary">
-              {generating && !showPreview ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-              Listar Alunos
-            </Button>
-          </div>
+        <div className="flex justify-end mt-4">
+          <Button onClick={handleConsultar} disabled={!canConsult() || generating} variant="primary">
+            {generating && !showPreview ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+            Listar Alunos
+          </Button>
         </div>
       </Card>
+
+      {/* Listagem de Boletins Emitidos */}
+      {selectedAluno && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-teal-600" />
+              <h3 className="font-bold text-gray-900">Boletins Emitidos</h3>
+            </div>
+            {loadingBoletins && <Loader2 className="animate-spin h-4 w-4 text-gray-400" />}
+          </div>
+
+          {boletinsEmitidos.length === 0 && !loadingBoletins ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <p className="text-gray-500 text-sm">Nenhum boletim encontrado para este aluno.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Módulo</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geração</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {boletinsEmitidos.map((bol) => (
+                    <tr key={bol.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {bol.modulo ? `${bol.modulo.numero} - ${bol.modulo.titulo}` : '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {bol.turma?.nome || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                          {new Date(bol.generated_at).toLocaleDateString('pt-BR')}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const url = await BoletimService.visualizarPDF(bol.id);
+                              window.open(url, '_blank');
+                            } catch (err) {
+                              console.error('Erro ao abrir boletim:', err);
+                              alert('Não foi possível abrir o boletim.');
+                            }
+                          }}
+                          className="inline-flex items-center"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          Abrir
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Preview Lista de Alunos (Modo Lote ou Individual) */}
       {showPreview && previewAlunos.length > 0 && (

@@ -13,11 +13,40 @@ export class RelatoriosController {
 
   @Get('boletim')
   async gerarBoletim(
+    @Request() req,
     @Query('aluno_id') alunoId: string,
     @Query('periodo') periodo: string,
+    @Query('modulo_id') moduloId?: string,
+    @Query('turma_id') turmaId?: string,
+  ) {
+    return this.service.gerarBoletim(alunoId, periodo, moduloId, turmaId, req.user);
+  }
+
+  @Get('boletins')
+  async listarBoletins(
+    @Query('aluno_id') alunoId: string,
     @Request() req
   ) {
-    return this.service.gerarBoletim(alunoId, periodo, req.user);
+    return this.service.listarBoletins(alunoId, req.user);
+  }
+
+  @Get('boletim/:id/view')
+  async viewBoletim(@Param('id') id: string, @Res() res: any) {
+    try {
+      const buffer = await this.service.getBoletimBuffer(id);
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename=boletim-${id}.pdf`,
+        'Content-Length': buffer.length,
+      });
+      res.send(buffer);
+    } catch (error) {
+      console.error(`[RelatoriosController] Erro ao visualizar boletim ${id}:`, error);
+      res.status(500).json({
+        message: 'Erro ao carregar visualização do boletim',
+        error: error.message
+      });
+    }
   }
 
   @Get('boletim-dados')
@@ -92,8 +121,8 @@ export class RelatoriosController {
       console.log('DEBUG: relatorioListaAlunos called', { polo_id, turma_id, nivel_id, status, user: req?.user });
       return await this.service.relatorioListaAlunos({ polo_id, turma_id, nivel_id, status }, req?.user);
     } catch (error) {
-       console.error('DEBUG: Controller Error in relatorioListaAlunos:', error);
-       throw error;
+      console.error('DEBUG: Controller Error in relatorioListaAlunos:', error);
+      throw error;
     }
   }
 
@@ -146,11 +175,12 @@ export class RelatoriosController {
 
   @Get('certificado')
   async gerarCertificado(
+    @Request() req,
     @Query('aluno_id') alunoId: string,
     @Query('nivel_id') nivelId: string,
-    @Request() req
+    @Query('turma_id') turmaId?: string,
   ) {
-    return this.service.gerarCertificado(alunoId, nivelId, req.user);
+    return this.service.gerarCertificado(alunoId, nivelId, turmaId, req.user);
   }
 }
 

@@ -5,7 +5,14 @@
 import { api } from '../lib/api';
 
 export const RelatoriosAPI = {
-  gerarBoletim: (alunoId: string, periodo: string) => api.get(`/relatorios/boletim?aluno_id=${alunoId}&periodo=${periodo}`),
+  gerarBoletim: (alunoId: string, periodo: string, moduloId?: string, turmaId?: string) => {
+    const params = new URLSearchParams();
+    params.append('aluno_id', alunoId);
+    params.append('periodo', periodo);
+    if (moduloId) params.append('modulo_id', moduloId);
+    if (turmaId) params.append('turma_id', turmaId);
+    return api.get(`/relatorios/boletim?${params.toString()}`);
+  },
   getDadosBoletim: async (alunoId: string, moduloId: string) => {
     const res = await api.get(`/relatorios/boletim-dados?aluno_id=${alunoId}&modulo_id=${moduloId}`);
     return res;
@@ -78,8 +85,8 @@ export const LgpdAPI = {
 };
 
 export class RelatorioService {
-  static async gerarBoletim(alunoId: string, periodo: string) {
-    return RelatoriosAPI.gerarBoletim(alunoId, periodo);
+  static async gerarBoletim(alunoId: string, periodo: string, moduloId?: string, turmaId?: string) {
+    return RelatoriosAPI.gerarBoletim(alunoId, periodo, moduloId, turmaId);
   }
 
   static async getDadosBoletim(alunoId: string, moduloId: string) {

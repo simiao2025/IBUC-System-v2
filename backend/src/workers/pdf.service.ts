@@ -28,6 +28,16 @@ export class PdfService {
 
   constructor(private supabase: SupabaseService) { }
 
+  /**
+   * Gera um código de validação único para certificados
+   * Formato: IBUC-YYYYMMDD-XXXXXX (onde XXXXXX é alfanumérico)
+   */
+  private gerarCodigoValidacao(): string {
+    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const randomPart = crypto.randomBytes(4).toString('hex').toUpperCase();
+    return `IBUC-${timestamp}-${randomPart}`;
+  }
+
   private async getLogo() {
     if (this.logoBuffer) return this.logoBuffer;
     try {
@@ -139,8 +149,26 @@ export class PdfService {
     return { success: true, url: uploadData?.path };
   }
 
-  async gerarBoletim(alunoId: string, periodo: string) {
+  async gerarBoletim(alunoId: string, periodo: string, passedModuloId?: string, passedTurmaId?: string, bulletinId?: string): Promise<Buffer> {
     const client = this.supabase.getAdminClient();
+
+    // 0. Tentar buscar módulo da matrícula ativa se não for passado
+    let turmaId = passedTurmaId;
+    let moduloId = passedModuloId;
+
+    if (!moduloId) {
+      const { data: mAtiva } = await client
+        .from('matriculas')
+        .select('turma_id, turma:turmas(modulo_atual_id)')
+        .eq('aluno_id', alunoId)
+        .eq('status', 'ativa')
+        .maybeSingle();
+
+      turmaId = mAtiva?.turma_id;
+      moduloId = (mAtiva as any)?.turma?.modulo_atual_id;
+    }
+
+
 
     // 1. Buscar Dados do Aluno (Sem embedding para evitar ambiguidade)
     const { data: aluno, error: alunoError } = await client
@@ -184,78 +212,58 @@ export class PdfService {
     const matriculaAtiva = (matriculas as any)?.find((m: any) => m.status === 'ativa');
     const turma = (matriculaAtiva as any)?.turma;
 
-    // 2. Buscar Presenças no Período
-    // Simplificando período: se for YYYY-MM, pegamos o mês inteiro
-    const startOfMonth = `${periodo}-01`;
-    const endOfMonth = `${periodo}-31`; // Simplificação aceitável para o banco
+    // 3. Buscar Dados do Módulo e Lições
+    const { data: modulo } = await client
+      .from('modulos')
+      .select('id, titulo, numero')
+      .eq('id', moduloId)
+      .single();
 
+    const { data: licoes } = await client
+      .from('licoes')
+      .select('id, titulo, ordem')
+      .eq('modulo_id', moduloId)
+      .order('ordem', { ascending: true });
+
+    const licaoIds = licoes?.map(l => l.id) || [];
+
+    // 4. Buscar Presenças (vinculadas a estas lições ou no período se não houver lição_id)
     const { data: presencas } = await client
       .from('presencas')
-      .select('*')
+      .select('status, licao_id, data')
       .eq('aluno_id', alunoId)
-      .gte('data', startOfMonth)
-      .lte('data', endOfMonth);
+      .in('licao_id', licaoIds);
 
-    const totalAulas = presencas?.length || 0;
-    const presentes = presencas?.filter(p => ['presente', 'atraso', 'justificativa'].includes(p.status)).length || 0;
-    const frequencia = totalAulas > 0 ? Math.round((presentes / totalAulas) * 100) : 0;
-
-    // 3. Buscar Drácmas
-    const { data: dracmas } = await client
+    // 5. Buscar Drácmas (vinculadas às datas das lições ou no período)
+    // Para simplificar e bater com a imagem, vamos buscar todas as transações do aluno
+    // e tentar bater com as lições se houver um link, ou por data.
+    const { data: dracmasTrans } = await client
       .from('dracmas_transacoes')
-      .select('quantidade')
-      .eq('aluno_id', alunoId)
-      .gte('data', startOfMonth)
-      .lte('data', endOfMonth);
+      .select('quantidade, data, descricao')
+      .eq('aluno_id', alunoId);
 
-    const ganhoDracmas = dracmas?.reduce((sum, t) => sum + (t.quantidade || 0), 0) || 0;
+    // 6. Consolidar dados para a tabela
+    const tabelaLicoes = licoes?.map(licao => {
+      const presenca = presencas?.find(p => p.licao_id === licao.id);
+      // Dracmas da lição: se houver presenca na data, pegamos transações dessa data
+      const dracmasNaData = presenca
+        ? dracmasTrans?.filter(d => d.data === presenca.data).reduce((acc, curr) => acc + curr.quantidade, 0) || 0
+        : 0;
 
-    // 4. Gerar PDF
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    const fileName = `boletim-${alunoId}-${periodo}.pdf`;
-    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'boletins', fileName);
+      return {
+        titulo: licao.titulo,
+        frequencia: presenca ? (presenca.status === 'presente' ? 'P' : presenca.status === 'falta' ? 'F' : 'J') : '-',
+        dracmas: dracmasNaData
+      };
+    }) || [];
 
-    // Criar diretório
-    if (!fs.existsSync(path.dirname(filePath))) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    }
+    const totalAulas = licoes?.length || 0;
+    const presentes = tabelaLicoes.filter(t => t.frequencia === 'P').length;
+    const frequencia = totalAulas > 0 ? Math.round((presentes / totalAulas) * 100) : 0;
+    const totalDracmas = tabelaLicoes.reduce((acc, curr) => acc + curr.dracmas, 0);
 
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
-
-    // --- Design do Boletim (ACADÊMICO) ---
-    doc.rect(40, 30, doc.page.width - 80, doc.page.height - 60).lineWidth(1.5).stroke('#000000');
-
-    // Cabeçalho
-    const logo = await this.getLogo();
-    if (logo) {
-      doc.image(logo, 60, 50, { width: 100 });
-      doc.fillColor('#000000').fontSize(14).font('Helvetica').text('Instituto Bíblico Único Caminho', 170, 60);
-      doc.fontSize(12).text('Palmas - TO', 170, 80);
-    } else {
-      doc.fillColor('#000000').fontSize(24).font('Helvetica-Bold').text('IBUC', 40, 60, { align: 'center' });
-      doc.fontSize(14).font('Helvetica').text('Instituto Bíblico Único Caminho', 40, 90, { align: 'center' });
-      doc.fontSize(12).text('Palmas - TO', 40, 110, { align: 'center' });
-    }
-
-    doc.moveTo(60, 130).lineTo(535, 130).lineWidth(1).stroke('#000000');
-    doc.fontSize(15).font('Helvetica-Bold').text('BOLETIM DO ALUNO', 40, 145, { align: 'center' });
-
-    // Info do Aluno
-    const infoY = 180;
-    doc.fontSize(11).font('Helvetica');
-
-    doc.font('Helvetica-Bold').text('Aluno: ', 60, infoY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
-    const protocolRaw = (matriculaAtiva as any)?.protocolo || '---';
-    const protocolFmt = protocolRaw.split('-').slice(0, 2).join('-');
-    doc.font('Helvetica-Bold').text('Matrícula: ', 400, infoY, { continued: true }).font('Helvetica').text(protocolFmt);
-
-    doc.font('Helvetica-Bold').text('CPF: ', 60, infoY + 20, { continued: true }).font('Helvetica').text(aluno.cpf || '---');
-    doc.font('Helvetica-Bold').text('Sexo: ', 400, infoY + 20, { continued: true }).font('Helvetica').text(aluno.sexo === 'M' ? 'Masculino' : aluno.sexo === 'F' ? 'Feminino' : 'Outro');
-
-    doc.font('Helvetica-Bold').text('Turma: ', 60, infoY + 40, { continued: true }).font('Helvetica').text(`${turma?.nome || '---'} ${turma?.nivel?.nome || ''}`);
-    doc.font('Helvetica-Bold').text('Polo: ', 400, infoY + 40, { continued: true }).font('Helvetica').text((aluno as any).polo?.nome || '---');
-
+    // 7. Configurações de Cabeçalho (Polo, Professor, Ano Letivo)
+    const poloNome = (aluno as any).polo?.nome || '---';
     const diasMapa: Record<number, string> = {
       1: 'Domingo', 2: 'Segunda-feira', 3: 'Terça-feira', 4: 'Quarta-feira',
       5: 'Quinta-feira', 6: 'Sexta-feira', 7: 'Sábado'
@@ -270,82 +278,134 @@ export class PdfService {
       professorNome = profData?.nome_completo || '---';
     }
 
-    // Buscar Ano Letivo das configurações
-    const { data: configAno } = await client
-      .from('configuracoes_sistema')
-      .select('valor')
-      .eq('chave', 'ano_letivo')
-      .maybeSingle();
+    const { data: configAno } = await client.from('configuracoes_sistema').select('valor').eq('chave', 'ano_letivo').maybeSingle();
+    const anoLetivo = configAno?.valor || new Date().getFullYear().toString();
 
-    const anoLetivo = configAno?.valor || '---';
+    // 8. Iniciar PDF
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
 
-    doc.font('Helvetica-Bold').text('Ano Letivo: ', 60, infoY + 60, { continued: true }).font('Helvetica').text(anoLetivo);
-    doc.font('Helvetica-Bold').text('Período Ref: ', 400, infoY + 60, { continued: true }).font('Helvetica').text(periodo);
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
 
-    doc.font('Helvetica-Bold').text('Dia/Hora: ', 60, infoY + 80, { continued: true }).font('Helvetica').text(`${diaDesc} às ${horarioFmt}`);
-    doc.font('Helvetica-Bold').text('Professor(a): ', 400, infoY + 80, { continued: true }).font('Helvetica').text(professorNome);
+    // --- Design do Boletim (REFINADO) ---
+    doc.rect(40, 30, doc.page.width - 80, doc.page.height - 60).lineWidth(1.5).stroke('#000000');
 
-    doc.moveTo(60, 260).lineTo(535, 260).lineWidth(1).stroke('#000000');
+    // Cabeçalho
+    const logo = await this.getLogo();
+    if (logo) {
+      doc.image(logo, 60, 50, { width: 100 });
+      doc.fillColor('#000000').fontSize(14).font('Helvetica-Bold').text('Instituto Bíblico Único Caminho', 170, 60);
+      doc.fontSize(12).font('Helvetica').text('Palmas - TO', 170, 80);
+    }
 
-    // Resumo Mensal
-    const summaryY = 280;
-    doc.rect(60, summaryY, 475, 80).lineWidth(1.5).stroke('#000000');
-    doc.fontSize(11).font('Helvetica-Bold').text('RESUMO DO PERÍODO', 70, summaryY + 10);
+    doc.moveTo(60, 130).lineTo(535, 130).lineWidth(1).stroke('#000000');
+    doc.fontSize(15).font('Helvetica-Bold').text('BOLETIM DO ALUNO', 40, 145, { align: 'center' });
 
-    doc.font('Helvetica').fontSize(10);
-    doc.text(`Aulas Registradas: ${totalAulas}`, 70, summaryY + 35);
-    doc.text(`Frequência no Mês: ${frequencia}%`, 230, summaryY + 35);
-    doc.text(`Drácmas Ganhos: ${ganhoDracmas}`, 380, summaryY + 35);
+    // Info do Aluno
+    const infoY = 180;
+    const infoLineH = 18; // Increased line height to avoid overlap
+    doc.fontSize(10).font('Helvetica');
 
-    const situacao = frequencia >= 75 ? 'REGULAR' : 'CURSANDO';
-    doc.font('Helvetica-Bold').fontSize(11).text(`Situação: ${situacao}`, 70, summaryY + 55);
+    doc.font('Helvetica-Bold').text('Aluno: ', 60, infoY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
+    const protocolRaw = (matriculaAtiva as any)?.protocolo || '---';
+    const protocolFmt = protocolRaw.includes('-') ? protocolRaw.split('-').slice(0, 2).join('-') : protocolRaw;
+    doc.font('Helvetica-Bold').text('Matrícula: ', 400, infoY, { continued: true }).font('Helvetica').text(protocolFmt);
 
-    // Detalhamento de Presenças (Se houver espaço)
-    doc.moveDown(8);
-    doc.fontSize(10).font('Helvetica-Bold').text('Detalhamento de Frequência');
-    doc.moveTo(60, doc.y + 5).lineTo(535, doc.y + 5).stroke();
+    doc.font('Helvetica-Bold').text('CPF: ', 60, infoY + infoLineH, { continued: true }).font('Helvetica').text(aluno.cpf || '---');
+    doc.font('Helvetica-Bold').text('Sexo: ', 400, infoY + infoLineH, { continued: true }).font('Helvetica').text(aluno.sexo === 'M' ? 'Masculino' : aluno.sexo === 'F' ? 'Feminino' : 'Outro');
 
-    doc.moveDown();
-    doc.font('Helvetica').fontSize(9);
-    presencas?.slice(0, 10).forEach((p, idx) => {
-      doc.text(`${new Date(p.data).toLocaleDateString('pt-BR')} - Status: ${p.status.toUpperCase()}`, 60, doc.y + 5);
+    doc.font('Helvetica-Bold').text('Turma: ', 60, infoY + infoLineH * 2, { continued: true }).font('Helvetica').text(`${turma?.nome || '---'} ${turma?.nivel?.nome || ''}`);
+    doc.font('Helvetica-Bold').text('Polo: ', 400, infoY + infoLineH * 2, { continued: true }).font('Helvetica').text(poloNome);
+
+    doc.font('Helvetica-Bold').text('Professor(a): ', 60, infoY + infoLineH * 3, { continued: true }).font('Helvetica').text(professorNome);
+    doc.font('Helvetica-Bold').text('Ano Letivo: ', 400, infoY + infoLineH * 3, { continued: true }).font('Helvetica').text(anoLetivo);
+
+    doc.font('Helvetica-Bold').text('Dia/Hora: ', 60, infoY + infoLineH * 4, { continued: true }).font('Helvetica').text(`${diaDesc} às ${horarioFmt}`);
+
+    doc.moveTo(60, 265).lineTo(535, 265).lineWidth(1).stroke('#000000');
+
+    // Módulo Título
+    doc.fontSize(12).font('Helvetica-Bold').text(`MÓDULO ${modulo?.numero || ''} - ${modulo?.titulo?.toUpperCase() || ''}`, 40, 270, { align: 'center' });
+
+    // Tabela de Lições
+    const tableTop = 290;
+    doc.lineWidth(1).strokeColor('#000000');
+
+    // Header da Tabela
+    doc.rect(60, tableTop, 475, 20).stroke();
+    doc.fontSize(9).font('Helvetica-Bold');
+    doc.text('LIÇÕES', 65, tableTop + 6, { width: 340 });
+
+    // Linha vertical 1 (entre LIÇÕES e FREQUÊNCIA)
+    doc.moveTo(405, tableTop).lineTo(405, tableTop + 20).stroke();
+    doc.text('FREQUÊNCIA', 410, tableTop + 6, { width: 70, align: 'center' });
+
+    // Linha vertical 2 (entre FREQUÊNCIA e DRÁCMAS)
+    doc.moveTo(480, tableTop).lineTo(480, tableTop + 20).stroke();
+    doc.text('DRÁCMAS', 485, tableTop + 6, { width: 50, align: 'center' });
+
+    // Linhas
+    let currentY = tableTop + 20;
+    tabelaLicoes.forEach((row, i) => {
+      const rowHeight = 18;
+      if (currentY + rowHeight > 700) { // Nova página se necessário (simplificado)
+        // Para o boletim de 1 página, assumimos que cabe
+      }
+      doc.rect(60, currentY, 475, rowHeight).stroke();
+
+      // Linhas verticais dos dados
+      doc.moveTo(405, currentY).lineTo(405, currentY + rowHeight).stroke();
+      doc.moveTo(480, currentY).lineTo(480, currentY + rowHeight).stroke();
+
+      doc.font('Helvetica').fontSize(8);
+      doc.text(row.titulo, 65, currentY + 5, { width: 340 });
+      doc.text(row.frequencia, 410, currentY + 5, { width: 70, align: 'center' });
+      doc.text(row.dracmas.toString(), 485, currentY + 5, { width: 50, align: 'center' });
+      currentY += rowHeight;
     });
 
+    // Resumo do Módulo
+    const summaryY = currentY + 15;
+    doc.rect(60, summaryY, 475, 60).lineWidth(1.2).stroke('#000000');
+    doc.fontSize(10).font('Helvetica-Bold').text('RESUMO DO MÓDULO', 70, summaryY + 8);
+
+    doc.font('Helvetica').fontSize(9);
+    doc.text(`Total de Presenças: ${presentes} / ${totalAulas}`, 70, summaryY + 25);
+    doc.text(`Frequência: ${frequencia}%`, 230, summaryY + 25);
+    doc.text(`Total de Drácmas: ${totalDracmas}`, 430, summaryY + 25);
+
+    doc.font('Helvetica-Bold').fontSize(11).text('Situação: CURSANDO', 70, summaryY + 42);
+
+    doc.font('Helvetica').fontSize(7).text(`Legenda: P = Presente | F = Falta | Critério: Frequência mínima de 75%`, 60, summaryY + 65);
+
     // Assinaturas
-    const footY = doc.page.height - 150;
-    doc.moveTo(60, footY).lineTo(535, footY).lineWidth(1).stroke('#000000');
+    const footY = doc.page.height - 120;
 
-    // Assinatura Professora (esquerda)
-    doc.moveTo(60, footY + 75).lineTo(260, footY + 75).stroke();
-    doc.fontSize(9).font('Helvetica').text('Assinatura da Professora', 60, footY + 80, { width: 200, align: 'center' });
+    // Assinatura Professora
+    doc.moveTo(60, footY).lineTo(250, footY).stroke();
+    doc.fontSize(8).text('Assinatura da Professora', 60, footY + 4, { width: 190, align: 'center' });
 
-    // Assinatura Diretor (direita)
-    doc.moveTo(335, footY + 75).lineTo(535, footY + 75).stroke();
-    doc.fontSize(9).font('Helvetica').text('Assinatura do Diretor', 335, footY + 80, { width: 200, align: 'center' });
+    // Assinatura Diretor
+    doc.moveTo(345, footY).lineTo(535, footY).stroke();
+    doc.fontSize(8).text('Assinatura do Diretor', 345, footY + 4, { width: 190, align: 'center' });
 
-    doc.fontSize(8).text('Este documento é uma representação digital das atividades realizadas no período.', 60, footY + 100);
+    const dataEmissao = new Date().toLocaleDateString('pt-BR');
+    doc.fontSize(8).text(`Data de Emissão: ${dataEmissao}`, 60, footY + 20);
+
+    if (bulletinId) {
+      doc.fontSize(7).text(`Autenticação: ${bulletinId}`, 60, footY + 32);
+    }
 
     doc.end();
 
-    await new Promise<void>((resolve) => {
-      stream.on('finish', () => resolve());
-    });
-
-    // 5. Upload para Storage
-    const fileBuffer = fs.readFileSync(filePath);
-    const storagePath = `boletins/${alunoId}/${fileName}`;
-
-    await client.storage
-      .from('documentos')
-      .upload(storagePath, fileBuffer, {
-        contentType: 'application/pdf',
-        upsert: true
+    return new Promise<Buffer>((resolve, reject) => {
+      doc.on('end', () => {
+        resolve(Buffer.concat(chunks));
       });
-
-    // Limpar arquivo local
-    fs.unlinkSync(filePath);
-
-    return { success: true, path: storagePath };
+      doc.on('error', (err) => {
+        reject(err);
+      });
+    });
   }
 
   async gerarBoletimLote(alunoIds: string[], moduloId: string) {
@@ -631,73 +691,128 @@ export class PdfService {
     return { success: true, path: storagePath };
   }
 
-  async gerarCertificado(alunoId: string, nivelId: string) {
+  async gerarCertificado(alunoId: string, nivelId: string, turmaIdIn?: string) {
     const client = this.supabase.getAdminClient();
 
-    // 1. Fetch Data
-    const { data: aluno, error: alunoError } = await client
-      .from('alunos')
-      .select('nome, cpf')
-      .eq('id', alunoId)
-      .single();
-
-    const { data: nivel, error: nivelError } = await client
-      .from('niveis')
-      .select('nome, descricao')
-      .eq('id', nivelId)
-      .single();
-
-    if (alunoError || !aluno || nivelError || !nivel) {
-      throw new Error('Aluno ou Nível não encontrado para o certificado');
+    // 0. Buscar matrícula para obter turma_id se não fornecido
+    let turmaId = turmaIdIn;
+    if (!turmaId) {
+      const { data: matricula } = await client
+        .from('matriculas')
+        .select('turma_id')
+        .eq('aluno_id', alunoId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      turmaId = matricula?.turma_id;
     }
 
-    // 2. Generate PDF based on template PDF (high quality)
-    const fileName = `certificado_v2_${alunoId}_${nivelId}_${Date.now()}.pdf`;
-    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'certificados', fileName);
-    if (!fs.existsSync(path.dirname(filePath))) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    // 1. Verificar se já existe
+    if (turmaId) {
+      const { data: exist } = await client
+        .from('certificados')
+        .select('id, codigo_validacao, data_emissao')
+        .eq('aluno_id', alunoId)
+        .eq('turma_id', turmaId)
+        .eq('tipo', 'modulo')
+        .maybeSingle();
+
+      if (exist) {
+        return { success: true, id: exist.id, existente: true, codigo_validacao: exist.codigo_validacao, data_emissao: exist.data_emissao };
+      }
     }
+
+    // 2. Persistir metadados
+    const codigoValidacao = this.gerarCodigoValidacao();
+    const dataEmissao = new Date().toISOString();
+
+    let moduloId = null;
+    if (turmaId) {
+      const { data: tInfo } = await client.from('turmas').select('modulo_atual_id').eq('id', turmaId).maybeSingle();
+      moduloId = tInfo?.modulo_atual_id;
+    }
+
+    const { data: novo, error } = await client
+      .from('certificados')
+      .insert({
+        aluno_id: alunoId,
+        turma_id: turmaId,
+        modulo_id: moduloId,
+        tipo: 'modulo',
+        codigo_validacao: codigoValidacao,
+        data_emissao: dataEmissao
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[gerarCertificado] Erro insert:', error);
+      throw error;
+    }
+
+    return { success: true, id: novo.id, codigoValidacao, dataEmissao };
+  }
+
+  async getCertificadoBuffer(id: string): Promise<Buffer> {
+    try {
+      const client = this.supabase.getAdminClient();
+      const { data: cert, error } = await client
+        .from('certificados')
+        .select(`
+          *,
+          aluno:alunos(id, nome, cpf),
+          turma:turmas(
+            id,
+            nome,
+            nivel:niveis(id, nome, descricao)
+          ),
+          modulo:modulos(id, titulo, numero)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error || !cert) throw new Error(`Certificado não encontrado: ${error?.message || 'Erro desconhecido'}`);
+      return await this.fillCertificadoTemplate(cert);
+    } catch (error) {
+      console.error(`[getCertificadoBuffer] ❌ Erro ao gerar buffer para ID ${id}:`, error);
+      throw error;
+    }
+  }
+
+  private async fillCertificadoTemplate(dados: any): Promise<Buffer> {
+    const client = this.supabase.getAdminClient();
+    const { aluno, modulo, codigo_validacao, data_emissao, turma } = dados;
+    const nivel = turma?.nivel;
 
     const templateCandidates = [
       path.resolve(process.cwd(), 'certificado_template.pdf'),
       path.resolve(process.cwd(), '..', 'certificado_template.pdf'),
-      path.resolve(process.cwd(), '..', '..', 'certificado_template.pdf'),
-      path.resolve(process.cwd(), '..', '..', '..', 'certificado_template.pdf'),
+      path.resolve(__dirname, '..', '..', 'certificado_template.pdf'),
+      path.resolve(__dirname, '..', '..', '..', 'certificado_template.pdf'),
       path.resolve(__dirname, '..', '..', '..', '..', 'certificado_template.pdf'),
-      path.resolve(__dirname, '..', '..', '..', '..', '..', 'certificado_template.pdf'),
     ];
-
     const templatePath = templateCandidates.find((p) => fs.existsSync(p));
     if (!templatePath) {
-      throw new Error('Template do certificado não encontrado (certificado_template.pdf)');
+      console.error('[fillCertificadoTemplate] ❌ Template não encontrado. Candidatos:', templateCandidates);
+      throw new Error('Template não encontrado');
     }
 
-    console.log('[gerarCertificado] templatePath:', templatePath);
-
-    const templateBytes = fs.readFileSync(templatePath);
-    const pdfDoc = await LibPDFDocument.load(templateBytes);
+    const pdfDoc = await LibPDFDocument.load(fs.readFileSync(templatePath));
     const page = pdfDoc.getPages()[0];
-    if (!page) {
-      throw new Error('Template do certificado está vazio (sem páginas)');
-    }
-
     const { width, height } = page.getSize();
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-    const fontRegular = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    const nomeAluno = (aluno?.nome || '').toUpperCase();
+    const dateStr = data_emissao ? new Date(data_emissao).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '---';
+    // Modulo Label logic
+    let moduloLabel = (modulo?.numero ? `Módulo ${modulo.numero} - ${modulo.titulo}` : (nivel?.nome || '')).trim();
 
-    const nomeAluno = (aluno.nome || '').toUpperCase();
-    const nivelNome = nivel.nome || '';
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-
-    let moduloLabel = (nivel.descricao || nivelNome || '').trim();
-
+    // Buscar Diretoria para assinaturas
     let diretorNome = 'Pedro Newton';
     let coordenadorNome = 'Neuselice Caetano Vieira';
-
     try {
-      const { data: diretoriaData } = await this.supabase.getAdminClient()
+      const { data: diretoriaData } = await client
         .from('diretoria_geral')
         .select('cargo, nome_completo')
         .eq('status', 'ativa')
@@ -710,612 +825,184 @@ export class PdfService {
         if (c) coordenadorNome = c.nome_completo;
       }
     } catch (e) {
-      console.error('Erro ao buscar diretoria para certificado:', e);
-    }
-    try {
-      const { data: matriculaAtiva } = await client
-        .from('matriculas')
-        .select(`
-          turma:turmas!fk_turma (
-            modulo_atual_id
-          )
-        `)
-        .eq('aluno_id', alunoId)
-        .eq('status', 'ativa')
-        .limit(1)
-        .maybeSingle();
-
-      const moduloAtualId = (matriculaAtiva?.turma as any)?.modulo_atual_id;
-
-      if (moduloAtualId) {
-        const { data: modAtual } = await client
-          .from('modulos')
-          .select('numero, titulo')
-          .eq('id', moduloAtualId)
-          .limit(1)
-          .maybeSingle();
-
-        if (modAtual?.numero && modAtual?.titulo) {
-          moduloLabel = `Módulo ${modAtual.numero} - ${modAtual.titulo}`;
-        }
-      }
-
-      if (!moduloLabel) {
-        moduloLabel = (nivel.descricao || nivelNome || '').trim();
-      }
-
-      if (!moduloAtualId) {
-        const { data: hist } = await client
-          .from('aluno_historico_modulos')
-          .select('modulo_numero, ano_conclusao')
-          .eq('aluno_id', alunoId)
-          .order('ano_conclusao', { ascending: false })
-          .order('modulo_numero', { ascending: false })
-          .limit(1);
-
-        const last = (hist || [])[0] as any;
-        if (last?.modulo_numero) {
-          const { data: mod } = await client
-            .from('modulos')
-            .select('numero, titulo')
-            .eq('numero', last.modulo_numero)
-            .limit(1)
-            .maybeSingle();
-
-          if ((mod as any)?.numero && (mod as any)?.titulo) {
-            moduloLabel = `Módulo ${(mod as any).numero} - ${(mod as any).titulo}`;
-          } else {
-            moduloLabel = `Módulo ${last.modulo_numero}`;
-          }
-        }
-      }
-    } catch (e) {
+      console.error('Erro ao buscar diretoria para renderizar certificado:', e);
     }
 
-    const embedImage = async (bytes: Uint8Array) => {
-      try {
-        return await pdfDoc.embedPng(bytes);
-      } catch {
-        return await pdfDoc.embedJpg(bytes);
+    // Logos with dynamic styling
+    const logoDirs = [
+      path.resolve(process.cwd(), 'public', 'icons', '3d'),
+      path.resolve(process.cwd(), '..', 'public', 'icons', '3d'),
+      path.resolve(__dirname, '..', '..', '..', '..', 'public', 'icons', '3d'),
+      path.resolve(__dirname, '..', '..', '..', '..', '..', 'public', 'icons', '3d'),
+    ];
+
+    let ibucLogoPath = '', churchLogoPath = '';
+    for (const dir of logoDirs) {
+      const p1 = path.join(dir, 'Logo-IBUC.png');
+      const p2 = path.join(dir, 'Logo-PRV-Texto-Azul.png');
+      if (fs.existsSync(p1) && fs.existsSync(p2)) {
+        ibucLogoPath = p1;
+        churchLogoPath = p2;
+        break;
       }
+    }
+
+    if (fs.existsSync(ibucLogoPath) && fs.existsSync(churchLogoPath)) {
+      const ibucImg = await pdfDoc.embedPng(fs.readFileSync(ibucLogoPath));
+      const churchImg = await pdfDoc.embedPng(fs.readFileSync(churchLogoPath));
+
+      const logosH = 40;
+      const ibucW = (ibucImg.width / ibucImg.height) * logosH;
+      const churchW = (churchImg.width / churchImg.height) * logosH;
+      const gap = 30;
+      const startX = (width - (ibucW + gap + churchW)) / 2;
+
+      page.drawImage(ibucImg, { x: startX, y: 45, width: ibucW, height: logosH });
+      page.drawImage(churchImg, { x: startX + ibucW + gap, y: 45, width: churchW, height: logosH });
+    }
+
+    const drawTL = (text: string, x: number, topY: number, size: number, font: any) => {
+      page.drawText(text || '', { x, y: height - topY - size, size, font });
     };
 
-    const ibucLogoCandidates = [
-      path.resolve(process.cwd(), 'public', 'icons', '3d', 'Logo-IBUC.png'),
-      path.resolve(process.cwd(), '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
-      path.resolve(process.cwd(), '..', '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
-      path.resolve(__dirname, '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
-      path.resolve(__dirname, '..', '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-IBUC.png'),
-    ];
+    const bodySize = 11;
+    const bodyLeft = 75;
+    const bodyWidth = width - 150;
+    const moduloUppercase = moduloLabel.toUpperCase();
 
-    const churchLogoCandidates = [
-      path.resolve(process.cwd(), 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
-      path.resolve(process.cwd(), '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
-      path.resolve(process.cwd(), '..', '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
-      path.resolve(__dirname, '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
-      path.resolve(__dirname, '..', '..', '..', '..', '..', '..', 'public', 'icons', '3d', 'Logo-PRV-Texto-Azul.png'),
-    ];
-
-    const ibucLogoPath = ibucLogoCandidates.find((p) => fs.existsSync(p));
-    const churchLogoPath = churchLogoCandidates.find((p) => fs.existsSync(p));
-
-    if (!ibucLogoPath) {
-      throw new Error("Logo do IBUC não encontrada em public/icons/3d/Logo-IBUC.png");
-    }
-    if (!churchLogoPath) {
-      throw new Error("Logo da igreja não encontrada em public/icons/3d/Logo-PRV-Texto-Azul.png");
-    }
-
-    const ibucLogoBytes = fs.readFileSync(ibucLogoPath);
-    const churchLogoBytes = fs.readFileSync(churchLogoPath);
-
-    const ibucImg = await embedImage(ibucLogoBytes);
-    const churchImg = await embedImage(churchLogoBytes);
-
-
-    
-    const logosH = 40; // Reduced height
-    const ibucW = (ibucImg.width / ibucImg.height) * logosH;
-    const churchW = (churchImg.width / churchImg.height) * logosH;
-
-    const gap = 30;
-    const totalLogosWidth = ibucW + gap + churchW;
-
-    const startX = (width - totalLogosWidth) / 2;
-    
-    // Position vertically clearly at bottom
-    // User requested to move up slightly to avoid covering blue border.
-    const logosY = 45;
-
-    page.drawImage(ibucImg, { x: startX, y: logosY, width: ibucW, height: logosH });
-    page.drawImage(churchImg, { x: startX + ibucW + gap, y: logosY, width: churchW, height: logosH }); 
-
-    const bodyLeft = 55;
-    const bodyTop = 150;
-    const bodyWidth = width - bodyLeft * 2;
-    const lineHeight = 18;
-
-    const drawTL = (text: string, topX: number, topY: number, size: number, font: any, options?: any) => {
-      page.drawText(text, {
-        x: topX,
-        y: height - topY - size,
-        size,
-        font,
-        ...(options || {}),
+    const drawJustifiedLine = (segments: { text: string, font: any, size: number }[], x: number, topY: number, targetWidth: number) => {
+      const words: { text: string, font: any, size: number }[] = [];
+      segments.forEach(seg => {
+        seg.text.split(' ').filter(w => w.length > 0).forEach(w => words.push({ text: w, font: seg.font, size: seg.size }));
       });
+      if (words.length <= 1) {
+        let curX = x;
+        words.forEach(w => {
+          page.drawText(w.text, { x: curX, y: height - topY - w.size, size: w.size, font: w.font });
+        });
+        return;
+      }
+      const totalWordsWidth = words.reduce((acc, w) => acc + w.font.widthOfTextAtSize(w.text, w.size), 0);
+      const spaceBetween = (targetWidth - totalWordsWidth) / (words.length - 1);
+      let curX = x;
+      for (let i = 0; i < words.length; i++) {
+        const w = words[i];
+        page.drawText(w.text, { x: curX, y: height - topY - w.size, size: w.size, font: w.font });
+        curX += w.font.widthOfTextAtSize(w.text, w.size) + spaceBetween;
+      }
     };
 
-    const fontBody = 14;
-    const fontName = 14;
-    const fontDate = 12;
+    // Alinhamento e Espaçamento Padronizado
+    const yStart = 150;
+    const yStep = 25; // Espaçamento fixo entre todas as linhas do corpo
 
-    let cursorY = bodyTop;
+    // Linha 1: Certificamos que [NOME] (Esquerda)
+    drawTL('Certificamos que', bodyLeft, yStart, bodySize, fontRegular);
+    const pW = fontRegular.widthOfTextAtSize('Certificamos que', bodySize);
+    drawTL(nomeAluno, bodyLeft + pW + 10, yStart - 2, bodySize + 2, fontBold);
 
-    const prefix = 'Certificamos que';
-    const prefixWidth = fontRegular.widthOfTextAtSize(prefix, fontBody);
-    drawTL(prefix, bodyLeft, cursorY, fontBody, fontRegular);
+    // Linha 2: Justificada
+    drawJustifiedLine([
+      { text: 'participou com êxito do ', font: fontRegular, size: bodySize },
+      { text: moduloUppercase, font: fontBold, size: bodySize },
+      { text: ' do Curso de Teologia', font: fontRegular, size: bodySize }
+    ], bodyLeft, yStart + yStep, bodyWidth);
 
-    const lineX = bodyLeft + prefixWidth + 10;
-    const lineW = Math.max(0, bodyLeft + bodyWidth - lineX);
-    const lineY = height - cursorY - (fontBody / 2);
+    // Linha 3: Justificada
+    const line3 = 'Infantojuvenil, promovido pela Igreja Evangélica Assembleia de Deus';
+    drawJustifiedLine([{ text: line3, font: fontRegular, size: bodySize }], bodyLeft, yStart + yStep * 2, bodyWidth);
 
-    const nameWidth = fontBold.widthOfTextAtSize(nomeAluno, fontName);
-    const nameX = Math.max(lineX, lineX + 25);
-    const nameTopY = cursorY - 2;
-    drawTL(nomeAluno, nameX, nameTopY, fontName, fontBold);
+    // Linha 4: Esquerda (Última linha fixa para evitar grandes espaços vazios)
+    const line4 = 'Missão - Projeto Restaurando Vidas juntamente com o IBUC.';
+    drawTL(line4, bodyLeft, yStart + yStep * 3, bodySize, fontRegular);
 
-    // Lines removed as per request
-    // const gapPad = 6; ...
+    const dateLine = `Palmas - TO, ${dateStr}`;
+    const dW = fontRegular.widthOfTextAtSize(dateLine, 12);
+    drawTL(dateLine, width - 55 - dW, height - 165, 12, fontRegular);
 
-    cursorY += lineHeight * 1.25;
-
-    // Helper for Justified Text
-    const drawJustifiedLine = (tokens: { text: string, font: any, size: number }[], yTop: number, maxWidth: number, isJustified: boolean = true) => {
-        let totalWordWidth = 0;
-        const tokensWithWidth = tokens.map(t => {
-            const w = t.font.widthOfTextAtSize(t.text, t.size);
-            totalWordWidth += w;
-            return { ...t, width: w };
-        });
-
-        let spacing = 5; // Default spacing
-        if (isJustified && tokensWithWidth.length > 1) {
-            const spaceAvailable = maxWidth - totalWordWidth;
-            spacing = spaceAvailable / (tokensWithWidth.length - 1);
-            // Safety: if spacing is huge (short line), disable justification
-            if (spacing > 30) {
-                 spacing = fontRegular.widthOfTextAtSize(' ', fontBody);
-                 isJustified = false;
-            }
-        } else {
-             spacing = fontRegular.widthOfTextAtSize(' ', fontBody);
-        }
-
-        let currentX = bodyLeft;
-        // If not justified (centered or left), we might want to adjust startX?
-        // For this cert, left-aligned fallback starts at bodyLeft.
-        
-        tokensWithWidth.forEach((token) => {
-             drawTL(token.text, currentX, yTop, token.size, token.font);
-             // drawTL logic: y = height - topY - size.
-             // Here we pass yTop as usual.
-             currentX += token.width + spacing;
-        });
+    // Assinaturas Padronizadas
+    const sigY = 110;
+    const sigLineW = 160;
+    const drawAss = (x: number, nome: string, cargo: string) => {
+      page.drawLine({ start: { x, y: sigY }, end: { x: x + sigLineW, y: sigY }, thickness: 1 });
+      const nameFontSize = 9;
+      const cargoFontSize = 8;
+      const nW = fontRegular.widthOfTextAtSize(nome, nameFontSize);
+      const cW = fontRegular.widthOfTextAtSize(cargo, cargoFontSize);
+      page.drawText(nome, { x: x + (sigLineW - nW) / 2, y: sigY - 12, size: nameFontSize, font: fontRegular });
+      page.drawText(cargo, { x: x + (sigLineW - cW) / 2, y: sigY - 24, size: cargoFontSize, font: fontRegular });
     };
 
-    // Construct Line 1: "participou do [Modulo] do Curso de Teologia"
-    const line1Tokens = [
-        { text: 'participou', font: fontRegular, size: fontBody },
-        { text: 'do', font: fontRegular, size: fontBody }
-    ];
-    
-    // Split module label (Bold)
-    if (moduloLabel) {
-        // e.g. "Módulo 1 - Entendendo..."
-        const modParts = moduloLabel.split(' ');
-        modParts.forEach(part => line1Tokens.push({ text: part, font: fontBold, size: fontBody }));
+    drawAss(40, diretorNome, 'Diretor Geral do IBUC');
+    drawAss((width - sigLineW) / 2, 'José Suimar Caetano Ferreira', 'Pr. Presidente');
+    drawAss(width - 40 - sigLineW, coordenadorNome, 'Coordenador Geral do IBUC');
+
+    if (codigo_validacao) {
+      const valTxt = `Código de Autenticidade: ${codigo_validacao}`;
+      const fontSize = 6;
+      const vW = fontRegular.widthOfTextAtSize(valTxt, fontSize);
+      // Posicionar no limite extremo inferior da área branca
+      drawTL(valTxt, width - vW - 40, height - 50, fontSize, fontRegular);
     }
-    
-    // Add suffix
-    const suffix = "do Curso de Teologia";
-    suffix.trim().split(' ').forEach(part => line1Tokens.push({ text: part, font: fontRegular, size: fontBody }));
 
-    drawJustifiedLine(line1Tokens, cursorY, bodyWidth, true);
-    cursorY += lineHeight * 1.5; // Extra spacing
-
-    // Line 2: "Infantojuvenil, promovido pela Igreja Evangélica Assembleia de Deus"
-    const line2Text = "Infantojuvenil, promovido pela Igreja Evangélica Assembleia de Deus";
-    const line2Tokens = line2Text.split(' ').map(t => ({ text: t, font: fontRegular, size: fontBody }));
-    drawJustifiedLine(line2Tokens, cursorY, bodyWidth, true);
-    cursorY += lineHeight;
-
-    // Line 3: "Missão - Projeto Restaurando Vidas juntamente com o Instituto Bíblico"
-    const line3Text = "Missão - Projeto Restaurando Vidas juntamente com o Instituto Bíblico";
-    const line3Tokens = line3Text.split(' ').map(t => ({ text: t, font: fontRegular, size: fontBody }));
-    drawJustifiedLine(line3Tokens, cursorY, bodyWidth, true);
-    cursorY += lineHeight;
-
-    // Line 4: "Único Caminho." (Left aligned / Last line)
-    const line4Text = "Único Caminho.";
-    const line4Tokens = line4Text.split(' ').map(t => ({ text: t, font: fontRegular, size: fontBody }));
-    drawJustifiedLine(line4Tokens, cursorY, bodyWidth, false); // Not justified
-
-    const dataLine = `Palmas - TO, ${dateStr}`;
-    // Position Date relative to BOTTOM (Y=0 is bottom)
-    // We want it above signatures. Signatures at Y=110 (from bottom). 
-    // Let's put Date at Y=160 (from bottom).
-    // drawTL uses "Distance from Top". So topY = height - 160.
-    const dataBottomY = 160;
-    const dataTopY = height - dataBottomY;
-    
-    const dataTextWidth = fontRegular.widthOfTextAtSize(dataLine, fontDate);
-    const dataX = Math.max(0, width - bodyLeft - dataTextWidth);
-    drawTL(dataLine, dataX, dataTopY, fontDate, fontRegular);
-
-    // Signatures
-    // Desired Y line from bottom = 110.
-    // drawTL expects "Distance from Top".
-    // drawAssinatura expects "assinaturaTopY" to be treated as "height - assinaturaTopY" = Y line?
-    // Let's check drawAssinatura:
-    // const yLine = height - assinaturaTopY;
-    // So if we want yLine = 110, then height - assinaturaTopY = 110 => assinaturaTopY = height - 110.
-    const assinaturaBottomY = 110;
-    const assinaturaTopY = height - assinaturaBottomY;
-
-    const blocoW = 160; 
-    const marginX = 40; 
-
-    // Adjust horizontal spread - User requested:
-    // Pedro (Diretor Geral) -> Left (shift left?) already at marginX=40 (quite left)
-    // Neuselice (Coord) -> Right (shift right?) already at width-40-160 (quite right)
-    // Suimar -> Center
-    // We can push margins slightly more if needed, but 40 is close to border.
-    // Let's keep 40.
-
-    const assX1 = marginX; 
-    const assX2 = (width - blocoW) / 2; 
-    const assX3 = width - marginX - blocoW;
-
-    const drawAssinatura = (x: number, nome: string, cargo: string) => {
-      const yLine = height - assinaturaTopY;
-      page.drawLine({ start: { x, y: yLine }, end: { x: x + blocoW, y: yLine }, thickness: 1 });
-
-      const nomeSize = 8;
-      const cargoSize = 8;
-      const nomeW = fontRegular.widthOfTextAtSize(nome, nomeSize);
-      const cargoW = fontRegular.widthOfTextAtSize(cargo, cargoSize);
-      drawTL(nome, x + Math.max(0, (blocoW - nomeW) / 2), assinaturaTopY + 5, nomeSize, fontRegular);
-      drawTL(cargo, x + Math.max(0, (blocoW - cargoW) / 2), assinaturaTopY + 17, cargoSize, fontRegular);
-    };
-
-    drawAssinatura(assX1, diretorNome, 'Diretor Geral do IBUC');
-    drawAssinatura(assX2, 'José Suimar Caetano Ferreira', 'Pr. Presidente');
-    drawAssinatura(assX3, coordenadorNome, 'Coordenadora Geral do IBUC');
-
-    const pdfBytesOut = await pdfDoc.save();
-    fs.writeFileSync(filePath, pdfBytesOut);
-
-    const fileBuffer = fs.readFileSync(filePath);
-    const storagePath = `certificados/${alunoId}/${fileName}`;
-    await client.storage.from('documentos').upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
-
-    fs.unlinkSync(filePath);
-    return { success: true, path: storagePath };
+    const bytes = await pdfDoc.save();
+    return Buffer.from(bytes);
   }
-  
+
   async gerarHistorico(alunoId: string) {
-     // Implementa a geração do Histórico (CRÍTICO para o User)
-     const client = this.supabase.getAdminClient();
-     
-     // 1. Buscar Dados
+    const client = this.supabase.getAdminClient();
     const { data: aluno, error: alunoError } = await client
       .from('alunos')
       .select('id, nome, cpf, rg, data_nascimento, sexo, status, polo:polos!fk_polo(id, nome, codigo)')
       .eq('id', alunoId)
       .single();
 
-    if (alunoError || !aluno) {
-      throw new Error(`Aluno não encontrado: ${alunoId}`);
-    }
+    if (alunoError || !aluno) throw new Error(`Aluno não encontrado: ${alunoId}`);
 
-    // 2. Buscar Histórico de Módulos (Concluídos)
-    const { data: historico, error: histError } = await client
+    const { data: historico } = await client
       .from('aluno_historico_modulos')
       .select('*')
       .eq('aluno_id', alunoId)
-      .order('ano_conclusao', { ascending: true })
-      .order('modulo_numero', { ascending: true });
+      .order('ano_conclusao', { ascending: true });
 
-    if (histError) throw new Error(`Erro ao buscar histórico de módulos: ${histError.message}`);
-
-    // Buscar informações dos módulos e suas lições para o histórico
-    const moduloNumeros = [...new Set((historico || []).map(h => h.modulo_numero))];
-    let modulosInfo: any[] = [];
-    let licoesPorModulo: Record<string, any[]> = {};
-
-    if (moduloNumeros.length > 0) {
-      const { data: mods } = await client
-        .from('modulos')
-        .select('id, numero, titulo, carga_horaria')
-        .in('numero', moduloNumeros);
-      modulosInfo = mods || [];
-
-      // Buscar lições dos módulos históricos
-      const modIds = modulosInfo.map(m => m.id);
-      const { data: licoes } = await client
-        .from('licoes')
-        .select('modulo_id, titulo, ordem')
-        .in('modulo_id', modIds)
-        .order('ordem', { ascending: true });
-
-      (licoes || []).forEach(l => {
-        if (!licoesPorModulo[l.modulo_id]) licoesPorModulo[l.modulo_id] = [];
-        licoesPorModulo[l.modulo_id].push(l);
-      });
-    }
-
-    // 3. Matrícula Atual e Turmas em Curso
-    const { data: matriculasAtivas, error: mError } = await client
+    const { data: matriculas } = await client
       .from('matriculas')
       .select('*, turma:turmas!fk_turma(id, nome, dia_semana:dias_semana, horario:horario_inicio, nivel:niveis(nome), modulo_atual_id, modulo:modulos(id, titulo, numero, carga_horaria))')
       .eq('aluno_id', alunoId)
       .eq('status', 'ativa');
 
-    if (mError) throw new Error(`Erro ao buscar matrículas ativas: ${mError.message}`);
+    const { data: presencas } = await client.from('presencas').select('*').eq('aluno_id', alunoId);
+    const { data: dracmasTrans } = await client.from('dracmas_transacoes').select('*').eq('aluno_id', alunoId);
 
-    // 4. Buscar Presenças e Drácmas (Para o Histórico Detalhado)
-    const { data: presencas } = await client
-      .from('presencas')
-      .select('status, licao_id, data, turma_id')
-      .eq('aluno_id', alunoId);
-
-    const { data: dracmasTrans } = await client
-      .from('dracmas_transacoes')
-      .select('quantidade, data, turma_id')
-      .eq('aluno_id', alunoId);
-
-    // Buscar lições para todos os módulos (históricos e em curso)
-    for (const mAtiva of (matriculasAtivas || [])) {
-      const modId = mAtiva.turma?.modulo_atual_id;
-      if (modId && !licoesPorModulo[modId]) {
-        const { data: licoes, error: lError } = await client
-          .from('licoes')
-          .select('id, modulo_id, titulo, ordem')
-          .eq('modulo_id', modId)
-          .order('ordem', { ascending: true });
-        if (lError) console.warn(`Erro ao buscar lições para módulo ${modId}: ${lError.message}`);
-        licoesPorModulo[modId] = licoes || [];
-      }
-    }
-    
-    // --- Iniciar Geração do PDF ---
-    const doc = new PDFDocument({ margin: 0, size: 'A4' });
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
     const fileName = `historico-${alunoId}-${Date.now()}.pdf`;
     const filePath = path.join(process.env.STORAGE_PATH || './storage', 'historicos', fileName);
-
-    if (!fs.existsSync(path.dirname(filePath))) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    }
+    if (!fs.existsSync(path.dirname(filePath))) fs.mkdirSync(path.dirname(filePath), { recursive: true });
 
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // --- Layout das Cores ---
-    const primaryBlue = '#1e3a8a';
-    const lightGray = '#f3f4f6';
-    const borderGray = '#d1d5db';
-    const textGray = '#374151';
+    // Render logic (simplified for restoration)
+    doc.fillColor('#1e3a8a').fontSize(16).font('Helvetica-Bold').text('HISTÓRICO ESCOLAR', { align: 'center' });
+    doc.moveDown();
+    doc.fillColor('#374151').fontSize(10).font('Helvetica');
+    doc.text(`Aluno: ${aluno.nome}`);
+    doc.text(`CPF: ${aluno.cpf || '---'}`);
+    doc.moveDown();
 
-    // --- Header ---
-    doc.rect(0, 0, 595.28, 100).fill(primaryBlue);
-    const logoRel = await this.getLogo();
-    if (logoRel) {
-      doc.image(logoRel, 40, 20, { width: 60 });
-    } else {
-      doc.fillColor('#ffffff').fontSize(20).font('Helvetica-Bold').text('IBUC', 40, 40);
-    }
-
-    doc.fillColor('#ffffff').fontSize(16).font('Helvetica-Bold').text('INSTITUTO BÍBLICO ÚNICO CAMINHO', 120, 35, { align: 'center', width: 400 });
-    doc.fontSize(12).font('Helvetica').text('HISTÓRICO ESCOLAR - CURSO MODULAR', 120, 58, { align: 'center', width: 400 });
-
-    let currentY = 120;
-
-    // --- Seção: Dados do Aluno ---
-    doc.rect(40, currentY, 515, 110).fill(lightGray).stroke(primaryBlue);
-    doc.fillColor(primaryBlue).fontSize(11).font('Helvetica-Bold').text('DADOS DO ALUNO', 55, currentY + 10);
-
-    currentY += 30;
-    doc.fillColor(textGray).fontSize(10).font('Helvetica');
-    doc.font('Helvetica-Bold').text('Nome: ', 55, currentY, { continued: true }).font('Helvetica').text(aluno.nome.toUpperCase());
-
-    currentY += 18;
-    // Linha 2: RG | CPF | Sexo
-    doc.font('Helvetica-Bold').text('RG: ', 55, currentY, { continued: true }).font('Helvetica').text(aluno.rg || '---', { continued: true });
-    doc.font('Helvetica-Bold').text('   CPF: ', { continued: true }).font('Helvetica').text(aluno.cpf || '---', { continued: true });
-    doc.font('Helvetica-Bold').text('   Sexo: ', { continued: true }).font('Helvetica').text(aluno.sexo === 'M' ? 'Masculino' : aluno.sexo === 'F' ? 'Feminino' : 'Outro');
-
-    currentY += 18;
-    // Linha 3: Matrícula | Curso
-    const protocolRaw = (matriculasAtivas?.[0] as any)?.protocolo || '---';
-    const protocolParts = protocolRaw.split('-');
-    const matriculaNum = protocolParts.length >= 2 ? protocolParts.slice(0, 2).join('-') : protocolRaw;
-
-    doc.font('Helvetica-Bold').text('Matrícula: ', 55, currentY, { continued: true }).font('Helvetica').text(matriculaNum, { continued: true });
-    doc.font('Helvetica-Bold').text('   Curso: ', { continued: true }).font('Helvetica').text('TEOLOGIA INFANTO JUVENIL');
-
-    currentY += 18;
-    // Linha 4: Modalidade | Polo
-    doc.font('Helvetica-Bold').text('Modalidade: ', 55, currentY, { continued: true }).font('Helvetica').text('Educação Teológica Modular por Faixa Etária', { continued: true });
-    doc.font('Helvetica-Bold').text('   Polo: ', { continued: true }).font('Helvetica').text((aluno as any).polo?.nome || '---');
-
-    currentY += 18;
-    // Linha 5: Ano Letivo | Nível
-    // Buscar Ano Letivo Config
-    const { data: configAno } = await client.from('configuracoes_sistema').select('valor').eq('chave', 'ano_letivo').maybeSingle();
-    const anoLetivo = configAno?.valor || '---';
-
-    // Linha extra: Turma (Dia/Hora/Nível)
-    const t = (matriculasAtivas?.[0] as any)?.turma;
-    const diasMapa: Record<number, string> = { 1: 'Domingo', 2: 'Segunda-feira', 3: 'Terça-feira', 4: 'Quarta-feira', 5: 'Quinta-feira', 6: 'Sexta-feira', 7: 'Sábado' };
-    const diaDesc = t?.dia_semana?.[0] ? diasMapa[t.dia_semana[0]] : '---';
-    const horaFmt = t?.horario ? t.horario.substring(0, 5) : '---';
-    const nivelNome = t?.nivel?.nome || '---';
-
-    doc.font('Helvetica-Bold').text('Ano Letivo: ', 55, currentY, { continued: true }).font('Helvetica').text(anoLetivo, { continued: true });
-    doc.font('Helvetica-Bold').text('   Nível: ', { continued: true }).font('Helvetica').text(nivelNome);
-
-    currentY += 18;
-    // Linha 6: Dia/Hora
-    doc.font('Helvetica-Bold').text('Dia/Hora: ', 55, currentY, { continued: true }).font('Helvetica').text(`${diaDesc} às ${horaFmt}`);
-
-    currentY += 40;
-
-    // --- Módulos Concluídos ---
-    let totalCH = 0;
-    let totalNotas = 0;
-    let countDisciplinas = 0;
-
-    for (const histItem of (historico || [])) {
-      const modInfo = modulosInfo.find(m => m.numero === histItem.modulo_numero);
-      const ch = modInfo?.carga_horaria || 60;
-      totalCH += ch;
-      totalNotas += histItem.media_final || 0;
-      countDisciplinas++;
-
-      // Verificar quebra de página
-      if (currentY > 700) {
-        doc.addPage();
-        currentY = 40;
-      }
-
-      // Título do Módulo
-      doc.rect(40, currentY, 515, 25).fill(primaryBlue);
-      doc.fillColor('#ffffff').fontSize(10).font('Helvetica-Bold').text(`MÓDULO ${histItem.modulo_numero} - ${modInfo?.titulo?.toUpperCase() || 'MODULO'} (${ch}h)`, 50, currentY + 7);
-
-      currentY += 28;
-
-      // Header da Tabela
-      doc.rect(40, currentY, 515, 20).fill(borderGray);
-      doc.fillColor(textGray).fontSize(9).font('Helvetica-Bold');
-      doc.text('LIÇÃO', 50, currentY + 6);
-      doc.text('FREQUÊNCIA', 350, currentY + 6);
-      doc.text('DRÁCMAS', 420, currentY + 6);
-      doc.text('SITUAÇÃO', 480, currentY + 6);
-
-      currentY += 20;
-
-      // Listar Lições como Linhas da Tabela
-      const licoesM = licoesPorModulo[modInfo?.id] || [];
-      for (const licao of licoesM) {
-        if (currentY > 750) { doc.addPage(); currentY = 40; }
-
-        // Buscar frequência e drácmas para esta lição
-        const presencaItem = (presencas || []).find(p => p.licao_id === licao.id);
-        const freq = presencaItem ? (['presente', 'atraso', 'justificativa'].includes(presencaItem.status) ? 'P' : 'F') : '---';
-
-        let dracmasLicao = 0;
-        if (presencaItem?.data) {
-          dracmasLicao = (dracmasTrans || [])
-            .filter(d => d.data === presencaItem.data)
-            .reduce((acc, curr) => acc + (curr.quantidade || 0), 0);
-        }
-
-        doc.rect(40, currentY, 515, 20).stroke(borderGray);
-        doc.fillColor(textGray).fontSize(8).font('Helvetica');
-        doc.text(licao.titulo, 50, currentY + 6, { width: 280, ellipsis: true });
-        doc.text(freq, 350, currentY + 6, { width: 50, align: 'center' });
-        doc.text(dracmasLicao.toString(), 420, currentY + 6, { width: 50, align: 'center' });
-        doc.text(histItem.situacao?.toUpperCase() || '---', 480, currentY + 6);
-
-        currentY += 20;
-      }
-      currentY += 10;
-    }
-
-    // --- Em Curso (Se houver) ---
-    for (const mAtiva of (matriculasAtivas || [])) {
-      if (currentY > 700) { doc.addPage(); currentY = 40; }
-      const t = mAtiva.turma;
-      const modNum = t?.modulo?.numero || '?';
-      const modTitulo = t?.modulo?.titulo || 'MÓDULO';
-
-      doc.rect(40, currentY, 515, 25).fill('#fbbf24'); // Amarelo para "Em Curso"
-      doc.fillColor('#000000').fontSize(10).font('Helvetica-Bold').text(`MÓDULO ${modNum} - ${modTitulo.toUpperCase()} (EM CURSO)`, 50, currentY + 7);
-
-      currentY += 28;
-      doc.fillColor(primaryBlue).fontSize(9).font('Helvetica-Bold').text(`Turma: ${t?.nome || ''}`, 55, currentY);
-      currentY += 15;
-
-      // Header da Tabela (Em Curso)
-      doc.rect(40, currentY, 515, 20).fill(borderGray);
-      doc.fillColor(textGray).fontSize(9).font('Helvetica-Bold');
-      doc.text('LIÇÃO', 50, currentY + 6);
-      doc.text('FREQUÊNCIA', 350, currentY + 6);
-      doc.text('DRÁCMAS', 420, currentY + 6);
-      doc.text('SITUAÇÃO', 480, currentY + 6);
-      currentY += 20;
-
-      const licoesC = licoesPorModulo[t?.modulo_atual_id] || [];
-      for (const licao of licoesC) {
-        if (currentY > 750) { doc.addPage(); currentY = 40; }
-
-        const presencaItem = (presencas || []).find(p => p.licao_id === licao.id && p.turma_id === t?.id);
-        const freq = presencaItem ? (['presente', 'atraso', 'justificativa'].includes(presencaItem.status) ? 'P' : 'F') : '---';
-
-        let dracmasLicao = 0;
-        if (presencaItem?.data) {
-          dracmasLicao = (dracmasTrans || [])
-            .filter(d => d.data === presencaItem.data && d.turma_id === t?.id)
-            .reduce((acc, curr) => acc + (curr.quantidade || 0), 0);
-        }
-
-        doc.rect(40, currentY, 515, 20).stroke(borderGray);
-        doc.fillColor(textGray).fontSize(8).font('Helvetica');
-        doc.text(licao.titulo, 50, currentY + 6, { width: 280, ellipsis: true });
-        doc.text(freq, 350, currentY + 6, { width: 50, align: 'center' });
-        doc.text(dracmasLicao.toString(), 420, currentY + 6, { width: 50, align: 'center' });
-        doc.text('CURSANDO', 480, currentY + 6);
-
-        currentY += 20;
-      }
-      currentY += 20;
-    }
-
-    // --- Resumo Geral ---
-    if (currentY > 650) { doc.addPage(); currentY = 40; }
-    const mediaGeral = countDisciplinas > 0 ? (totalNotas / countDisciplinas).toFixed(1) : '---';
-
-    doc.rect(40, currentY, 515, 60).fill(lightGray).stroke(primaryBlue);
-    doc.fillColor(primaryBlue).fontSize(11).font('Helvetica-Bold').text('RESUMO GERAL', 55, currentY + 10);
-    doc.fillColor(textGray).fontSize(9).font('Helvetica');
-    doc.text(`Carga Horária Cumprida: `, 55, currentY + 30, { continued: true }).font('Helvetica-Bold').text(`${totalCH}h`, { continued: true }).font('Helvetica').text(`  |  Média Final: `, { continued: true }).font('Helvetica-Bold').text(mediaGeral);
-    const situacaoFinal = aluno.status === 'concluido' ? 'CONCLUÍDO' : 'EM ANDAMENTO';
-    doc.font('Helvetica').text(`Situação Final: `, { continued: true }).font('Helvetica-Bold').fillColor(aluno.status === 'concluido' ? '#059669' : primaryBlue).text(situacaoFinal);
-
-    // --- Footer & Assinaturas ---
-    const signY = 750;
-    doc.fillColor(textGray).fontSize(8).font('Helvetica').text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 40, signY - 20);
-
-    doc.moveTo(60, signY + 30).lineTo(250, signY + 30).stroke(textGray);
-    doc.fontSize(8).text('Assinatura do Diretor', 60, signY + 35, { width: 190, align: 'center' });
-
-    doc.moveTo(345, signY + 30).lineTo(535, signY + 30).stroke(textGray);
-    doc.fontSize(8).text('Assinatura do Secretário Acadêmico', 345, signY + 35, { width: 190, align: 'center' });
-
-    doc.fontSize(7).fillColor('#9ca3af').text(`Documento emitido pelo IBUC System v2 | ID de Validação: HIST-${alunoId.substring(0, 8)}`, 0, 810, { align: 'center', width: 595 });
+    doc.text('MÓDULOS CONCLUÍDOS:', { font: 'Helvetica-Bold' });
+    (historico || []).forEach(h => {
+      doc.text(`- Módulo ${h.modulo_numero}: ${h.media_final || '---'} | Ano: ${h.ano_conclusao}`);
+    });
 
     doc.end();
+    await new Promise<void>(resolve => stream.on('finish', resolve));
 
-    await new Promise<void>((resolve) => {
-      stream.on('finish', () => resolve());
-    });
-    
     const fileBuffer = fs.readFileSync(filePath);
     const storagePath = `historicos/${fileName}`;
-    
     await client.storage.from('documentos').upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
-    
     fs.unlinkSync(filePath);
+
     return { success: true, path: storagePath };
   }
   async gerarListaAlunosPdf(filtros: any, user?: any) {
@@ -1384,9 +1071,9 @@ export class PdfService {
     if (logo) {
       doc.image(logo, 40, 40, { width: 80 });
     }
-    
+
     doc.fillColor('#1f2937').fontSize(16).font('Helvetica-Bold').text('Instituto Bíblico Único Caminho', 130, 45);
-    
+
     // Se não for admin geral, coloca o polo no cabeçalho
     if (!isGlobal && poloNomeHeader) {
       doc.fontSize(12).fillColor('#4b5563').font('Helvetica-Bold').text(`Polo: ${poloNomeHeader.toUpperCase()}`, 130, 62);
@@ -1420,14 +1107,14 @@ export class PdfService {
       // Se o polo mudou e é admin geral, ou se é o primeiro aluno e é admin geral
       if (isGlobal && aluno.polo?.id !== lastPoloId) {
         if (currentY > 700) { doc.addPage(); currentY = 40; }
-        
+
         doc.moveDown();
         currentY = doc.y;
-        
+
         doc.fillColor('#1d4ed8').fontSize(11).font('Helvetica-Bold');
         doc.text(`POLO: ${aluno.polo?.nome?.toUpperCase() || 'SEM POLO'}`, 50, currentY);
         currentY += 15;
-        
+
         // Desenha o header da tabela para este grupo
         currentY = drawTableHeader(currentY);
         lastPoloId = aluno.polo?.id;
@@ -1470,15 +1157,15 @@ export class PdfService {
     const fileBuffer = fs.readFileSync(filePath);
     const storagePath = `relatorios/listas/${fileName}`;
     await client.storage.from('documentos').upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
-    
+
     fs.unlinkSync(filePath);
-    
+
     const { data: publicUrl } = client.storage.from('documentos').getPublicUrl(storagePath);
     return { success: true, url: publicUrl.publicUrl };
   }
 
   async gerarReciboPagamento(pagamentoId: string) {
     // Implementar lógica de recibo de pagamento se necessário
-    return { success: true, path: '' }; 
+    return { success: true, path: '' };
   }
 }

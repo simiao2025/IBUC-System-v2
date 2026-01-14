@@ -1,10 +1,14 @@
 
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { PdfService } from '../workers/pdf.service';
 
 @Injectable()
 export class CertificadosService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly pdfService: PdfService
+  ) { }
 
   async contarTotal() {
     const { count, error } = await this.supabase
@@ -24,7 +28,7 @@ export class CertificadosService {
     let query = this.supabase
       .getAdminClient()
       .from('certificados')
-      .select('*, aluno:alunos(nome), modulo:modulos(titulo)');
+      .select('*, aluno:alunos(nome), modulo:modulos(titulo), turma:turmas(nome)');
 
     if (alunoId) {
       query = query.eq('aluno_id', alunoId);
@@ -67,5 +71,9 @@ export class CertificadosService {
 
     if (error) throw new BadRequestException(error.message);
     return data;
+  }
+
+  async getCertificadoBuffer(id: string): Promise<Buffer> {
+    return this.pdfService.getCertificadoBuffer(id);
   }
 }

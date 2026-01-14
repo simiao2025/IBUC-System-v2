@@ -61,10 +61,74 @@ export class RelatoriosService {
     };
   }
 
-  async gerarBoletim(alunoId: string, periodo: string, user?: CurrentUser) {
+  async gerarBoletim(alunoId: string, periodo: string, moduloId?: string, turmaId?: string, user?: CurrentUser) {
     await this.validarAcessoAoAluno(alunoId, user);
-    const result = await this.workers.gerarBoletim(alunoId, periodo);
-    return { status: 'completed', result };
+    const client = this.supabase.getAdminClient();
+
+    // Persistir metadados no Banco de Dados
+    const { data, error } = await client
+      .from('boletins')
+      .upsert({
+        aluno_id: alunoId,
+        modulo_id: moduloId,
+        turma_id: turmaId,
+        periodo: periodo,
+        generated_at: new Date().toISOString()
+      }, { onConflict: 'aluno_id, modulo_id' })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[RelatoriosService.gerarBoletim] Error persisting metadata:', error);
+      throw error;
+    }
+
+    return { success: true, id: data.id };
+  }
+
+  async listarBoletins(alunoId: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('boletins')
+      .select(`
+        id, aluno_id, modulo_id, pdf_url, generated_at, periodo, situacao, nota_final,
+        aluno:alunos!fk_aluno(nome),
+        modulo:modulos(titulo, numero),
+        turma:turmas(nome)
+      `)
+      .eq('aluno_id', alunoId)
+      .order('generated_at', { ascending: false });
+
+    if (error) {
+      console.error('[listarBoletins] Database Error:', error);
+      throw error;
+    }
+    return data;
+  }
+
+  async getBoletimBuffer(id: string) {
+    const client = this.supabase.getAdminClient();
+
+    // 1. Buscar metadados do boletim (aluno, modulo, turma, periodo)
+    const { data: boletim, error } = await client
+      .from('boletins')
+      .select('aluno_id, modulo_id, turma_id, periodo')
+      .eq('id', id)
+      .single();
+
+    if (error || !boletim) {
+      throw new Error('Metadados do boletim não encontrados');
+    }
+
+    // 2. Gerar PDF dinamicamente
+    return this.workers.gerarBoletim(
+      boletim.aluno_id,
+      boletim.periodo,
+      boletim.modulo_id,
+      boletim.turma_id,
+      id // Pass the bulletin ID for the authentication code
+    );
   }
 
   async getDadosBoletim(alunoId: string, moduloId: string, user?: CurrentUser) {
@@ -381,7 +445,7 @@ export class RelatoriosService {
         ...(historico || []).flatMap(h => {
           const mInfo = modulosInfo.find(m => m.numero === h.modulo_numero);
           const licoesM = mInfo ? (licoesPorModulo[mInfo.id] || []) : [];
-          
+
           if (licoesM.length === 0) {
             return [{
               data_aula: h.created_at,
@@ -422,7 +486,7 @@ export class RelatoriosService {
               const dracmaL = presenca ? (dracmasTransacoes || [])
                 .filter(d => d.data === presenca.data)
                 .reduce((sum, d) => sum + (d.quantidade || 0), 0) : 0;
-              
+
               return {
                 data_aula: presenca?.data || null,
                 nome: l.titulo,
@@ -922,9 +986,9 @@ export class RelatoriosService {
     }
   }
 
-  async gerarCertificado(alunoId: string, nivelId: string, user?: CurrentUser) {
+  async gerarCertificado(alunoId: string, nivelId: string, turmaId?: string, user?: CurrentUser) {
     await this.validarAcessoAoAluno(alunoId, user);
-    const result = await this.workers.gerarCertificado(alunoId, nivelId);
+    const result = await this.workers.gerarCertificado(alunoId, nivelId, turmaId);
     return { status: 'completed', result };
   }
 }

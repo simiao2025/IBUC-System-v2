@@ -4,6 +4,7 @@ import PDFDocument = require('pdfkit');
 import * as fs from 'fs';
 import * as path from 'path';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { PdfService } from '../pdf.service';
 import * as QRCode from 'qrcode';
 import axios from 'axios';
 
@@ -22,7 +23,10 @@ export class PdfProcessor {
     }
   }
 
-  constructor(private supabase: SupabaseService) { }
+  constructor(
+    private supabase: SupabaseService,
+    private pdfService: PdfService
+  ) { }
 
   @Process('termo-matricula')
   async handleTermoMatricula(job: Job<{ matriculaId: string }>) {
@@ -629,104 +633,21 @@ export class PdfProcessor {
   @Process('certificado')
   async handleCertificado(job: Job<{ alunoId: string; nivelId: string }>) {
     const { alunoId, nivelId } = job.data;
-    const client = this.supabase.getAdminClient();
+    console.log(`[PdfProcessor] Iniciando processamento de certificado para aluno ${alunoId}, nivel ${nivelId}`);
 
-    // 1. Buscar Dados
-    const { data: aluno } = await client
-      .from('alunos')
-      .select('nome, cpf')
-      .eq('id', alunoId)
-      .single();
+    try {
+      // Delegar para o PdfService que já possui a lógica de:
+      // 1. Verificação de existência
+      // 2. Geração com template pdf-lib (melhor qualidade)
+      // 3. Persistência na tabela 'certificados'
+      // 4. Upload para o Storage
+      const result = await this.pdfService.gerarCertificado(alunoId, nivelId);
 
-    const { data: nivel } = await client
-      .from('niveis')
-      .select('nome')
-      .eq('id', nivelId)
-      .single();
-
-    if (!aluno || !nivel) {
-      throw new Error('Dados insuficientes para gerar certificado');
+      return result;
+    } catch (error) {
+      console.error(`[PdfProcessor] Erro ao processar certificado:`, error);
+      throw error;
     }
-
-    // 2. Gerar PDF (Paisagem)
-    const doc = new PDFDocument({
-      layout: 'landscape',
-      margin: 0,
-      size: 'A4'
-    });
-
-    const fileName = `certificado-${alunoId}-${nivelId}.pdf`;
-    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'certificados', fileName);
-
-    if (!fs.existsSync(path.dirname(filePath))) {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    }
-
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
-
-    // --- Design do Certificado ---
-    // Moldura Elegante
-    doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).lineWidth(5).stroke('#1e293b');
-    doc.rect(30, 30, doc.page.width - 60, doc.page.height - 60).lineWidth(1).stroke('#94a3b8');
-
-    // Fundo Sutil (Marca d'água simulada)
-    doc.fillColor('#f8fafc').rect(31, 31, doc.page.width - 62, doc.page.height - 62).fill();
-
-    // Cabeçalho
-    doc.fillColor('#1e293b').fontSize(40).font('Helvetica-Bold').text('CERTIFICADO', 0, 100, { align: 'center' });
-    doc.fontSize(16).font('Helvetica').text('DE CONCLUSÃO DE NÍVEL', 0, 150, { align: 'center' });
-
-    doc.moveDown(2);
-    doc.fontSize(14).text('O Instituto Bíblico da Última Colheita confere a:', { align: 'center' });
-
-    doc.moveDown();
-    doc.fontSize(28).font('Helvetica-Bold').fillColor('#0369a1').text(aluno.nome.toUpperCase(), { align: 'center' });
-
-    doc.moveDown();
-    doc.fillColor('#1e293b').fontSize(14).font('Helvetica').text(`Pela conclusão com êxito dos requisitos acadêmicos do:`, { align: 'center' });
-
-    doc.moveDown(0.5);
-    doc.fontSize(20).font('Helvetica-Bold').text(nivel.nome.toUpperCase(), { align: 'center' });
-
-    doc.moveDown(2);
-    const dateStr = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
-    doc.fontSize(12).font('Helvetica').text(`Palmas, Tocantins, ${dateStr}`, { align: 'center' });
-
-    // Assinaturas
-    const signatureY = 480;
-    doc.lineCap('butt').moveTo(150, signatureY).lineTo(350, signatureY).lineWidth(1).stroke('#1e293b');
-    doc.fontSize(10).text('COORDENAÇÃO GERAL', 150, signatureY + 10, { width: 200, align: 'center' });
-
-    doc.moveTo(490, signatureY).lineTo(690, signatureY).stroke('#1e293b');
-    doc.text('DIRETORIA EXECUTIVA', 490, signatureY + 10, { width: 200, align: 'center' });
-
-    // Selo de Autenticidade QR
-    const authCode = `CERT-${alunoId.substring(0, 8)}-${nivelId.substring(0, 8)}`;
-    const qrBuffer = await QRCode.toBuffer(`https://ibuc.com.br/validar/${authCode}`);
-    doc.image(qrBuffer, 380, 440, { width: 80 });
-    doc.fontSize(8).text(`Código de Autenticidade: ${authCode}`, 0, 530, { align: 'center' });
-
-    doc.end();
-
-    await new Promise<void>((resolve) => {
-      stream.on('finish', () => resolve());
-    });
-
-    // 3. Upload
-    const fileBuffer = fs.readFileSync(filePath);
-    const storagePath = `certificados/${alunoId}/${fileName}`;
-
-    await client.storage
-      .from('documentos')
-      .upload(storagePath, fileBuffer, {
-        contentType: 'application/pdf',
-        upsert: true
-      });
-
-    fs.unlinkSync(filePath);
-
-    return { success: true, path: storagePath };
   }
 
   @Process('recibo-pagamento')

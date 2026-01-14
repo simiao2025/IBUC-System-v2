@@ -1,5 +1,5 @@
 // Cliente API para comunicação com o backend NestJS
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 class ApiClient {
   private baseUrl: string;
@@ -42,11 +42,11 @@ class ApiClient {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
       const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      
+
       if (this.onError) {
         this.onError(error);
       }
-      
+
       throw error;
     }
 
