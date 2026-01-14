@@ -42,7 +42,16 @@ export class RelatoriosService {
   }
 
   private forcePoloScope(filtros: any, user?: CurrentUser) {
-    if (!user || PoloScopeUtil.isGlobal(user)) return filtros;
+    const GLOBAL_ROLES = [
+      'super_admin',
+      'admin_geral',
+      'diretor_geral',
+      'coordenador_geral',
+      'secretario_geral',
+      'tesoureiro_geral',
+    ];
+
+    if (!user || GLOBAL_ROLES.includes(user.role)) return filtros;
 
     // Se o usuário não é global, forçamos o polo_id dele
     // e removemos qualquer polo_id que ele tenha tentado passar manualmente
@@ -649,8 +658,8 @@ export class RelatoriosService {
     nivel_id?: string;
     status?: string;
   }, user?: CurrentUser) {
-    const scopeFiltros = this.forcePoloScope(filtros, user);
     try {
+      const scopeFiltros = this.forcePoloScope(filtros, user);
       const client = this.supabase.getAdminClient();
 
       let query = client
@@ -659,44 +668,36 @@ export class RelatoriosService {
           id,
           nome,
           cpf,
-          whatsapp,
+          whatsapp:telefone_responsavel,
           data_nascimento,
-          status,
-          polo:polos!fk_polo(id, nome),
-          matriculas:matriculas!fk_aluno(
-            id,
-            status,
-            turma:turmas!fk_turma(id, nome, nivel_id)
-          )
+          status
         `);
 
       if (scopeFiltros.polo_id) query = query.eq('polo_id', scopeFiltros.polo_id);
+      if (filtros.turma_id) query = query.eq('turma_id', filtros.turma_id);
+      if (filtros.nivel_id) query = query.eq('nivel_atual_id', filtros.nivel_id);
       if (filtros.status) query = query.eq('status', filtros.status);
 
       const { data, error } = await query.order('nome');
 
       if (error) throw error;
 
-      // Filtrar por turma ou nível no nível da aplicação se houver joins complexos
-      // Mas para simplificar, se filtrar por turma_id, vamos olhar as matriculas.
-      let result = data;
-
-      if (filtros.turma_id || filtros.nivel_id) {
-        result = data.filter((aluno: any) => {
-          const hasMatchingMatricula = aluno.matriculas?.some((m: any) => {
-            const matchTurma = !filtros.turma_id || m.turma?.id === filtros.turma_id;
-            const matchNivel = !filtros.nivel_id || m.turma?.nivel_id === filtros.nivel_id;
-            return m.status === 'ativa' && matchTurma && matchNivel;
-          });
-          return hasMatchingMatricula;
-        });
-      }
-
-      return result;
+      return data;
     } catch (error) {
-      console.error('Erro ao gerar lista de alunos:', error);
+      console.error('CRITICAL ERROR in relatorioListaAlunos:', JSON.stringify(error, null, 2));
+      console.error('Stack:', error);
       throw error;
     }
+  }
+
+  async gerarListaAlunosPdf(filtros: {
+    polo_id?: string;
+    turma_id?: string;
+    nivel_id?: string;
+    status?: string;
+  }, user?: CurrentUser) {
+    const scopeFiltros = this.forcePoloScope(filtros, user);
+    return await this.workers.gerarListaAlunosPdf(scopeFiltros, user);
   }
 
   async relatorioAtestadoMatricula(alunoId: string, user?: CurrentUser) {

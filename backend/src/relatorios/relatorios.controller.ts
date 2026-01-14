@@ -88,7 +88,24 @@ export class RelatoriosController {
     @Query('status') status?: string,
     @Request() req?: any
   ) {
-    return this.service.relatorioListaAlunos({ polo_id, turma_id, nivel_id, status }, req?.user);
+    try {
+      console.log('DEBUG: relatorioListaAlunos called', { polo_id, turma_id, nivel_id, status, user: req?.user });
+      return await this.service.relatorioListaAlunos({ polo_id, turma_id, nivel_id, status }, req?.user);
+    } catch (error) {
+       console.error('DEBUG: Controller Error in relatorioListaAlunos:', error);
+       throw error;
+    }
+  }
+
+  @Get('lista-alunos-pdf')
+  async gerarListaAlunosPdf(
+    @Query('polo_id') polo_id?: string,
+    @Query('turma_id') turma_id?: string,
+    @Query('nivel_id') nivel_id?: string,
+    @Query('status') status?: string,
+    @Request() req?: any
+  ) {
+    return this.service.gerarListaAlunosPdf({ polo_id, turma_id, nivel_id, status }, req?.user);
   }
 
   @Get('atestado-matricula')

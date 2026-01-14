@@ -44,6 +44,8 @@ const ListaAlunosView: React.FC = () => {
     loadOpcoes();
   }, [filtros.polo_id]);
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const handleFetch = async () => {
     setLoading(true);
     try {
@@ -54,6 +56,23 @@ const ListaAlunosView: React.FC = () => {
       alert('Erro ao carregar lista.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await RelatorioService.gerarListaAlunosPdf(filtros);
+      if (res.url) {
+        window.open(res.url, '_blank');
+      } else {
+        throw new Error('URL do PDF não retornada');
+      }
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -130,7 +149,12 @@ const ListaAlunosView: React.FC = () => {
               </p>
             </div>
             <div className="print:hidden">
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handlePdf}
+                loading={pdfLoading}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Imprimir / PDF
               </Button>

@@ -42,6 +42,10 @@ export class WorkersService {
     // Implementar no PdfService se necessário, ou deixar vazio se não usado
     console.warn('Gerar relatorio financeiro not implemented in PDF Service yet');
   }
+
+  async gerarListaAlunosPdf(filtros: any, user?: any) {
+    return this.pdfService.gerarListaAlunosPdf(filtros, user);
+  }
 }
 
 

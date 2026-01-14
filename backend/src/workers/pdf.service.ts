@@ -1,3 +1,16 @@
+/*
+ * ------------------------------------------------------------------
+ * 🔒 ARQUIVO BLINDADO / SHIELDED FILE 🔒
+ * ------------------------------------------------------------------
+ * ESTE ARQUIVO CONTÉM LÓGICA CRÍTICA DE GERAÇÃO DE RELATÓRIOS.
+ * (Certificado, Histórico, Boletim)
+ *
+ * NÃO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÇÃO APROVADO
+ * E UMA ANÁLISE DE IMPACTO PRÉVIA (/impact-analysis).
+ *
+ * QUALQUER ALTERAÇÃO DEVE SER ESTRITAMENTE NECESSÁRIA E VALIDADA.
+ * ------------------------------------------------------------------
+ */
 import { Injectable } from '@nestjs/common';
 import PDFDocument = require('pdfkit');
 import * as fs from 'fs';
@@ -7,6 +20,7 @@ import * as QRCode from 'qrcode';
 import axios from 'axios';
 import * as crypto from 'crypto';
 import { PDFDocument as LibPDFDocument, StandardFonts } from 'pdf-lib';
+import { PoloScopeUtil } from '../auth/utils/polo-scope.util';
 
 @Injectable()
 export class PdfService {
@@ -678,16 +692,41 @@ export class PdfService {
     const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
     let moduloLabel = (nivel.descricao || nivelNome || '').trim();
+
+    let diretorNome = 'Pedro Newton';
+    let coordenadorNome = 'Neuselice Caetano Vieira';
+
+    try {
+      const { data: diretoriaData } = await this.supabase.getAdminClient()
+        .from('diretoria_geral')
+        .select('cargo, nome_completo')
+        .eq('status', 'ativa')
+        .in('cargo', ['diretor', 'coordenador']);
+
+      if (diretoriaData) {
+        const d = diretoriaData.find(x => x.cargo === 'diretor');
+        const c = diretoriaData.find(x => x.cargo === 'coordenador');
+        if (d) diretorNome = d.nome_completo;
+        if (c) coordenadorNome = c.nome_completo;
+      }
+    } catch (e) {
+      console.error('Erro ao buscar diretoria para certificado:', e);
+    }
     try {
       const { data: matriculaAtiva } = await client
         .from('matriculas')
-        .select('modulo_atual_id')
+        .select(`
+          turma:turmas!fk_turma (
+            modulo_atual_id
+          )
+        `)
         .eq('aluno_id', alunoId)
         .eq('status', 'ativa')
         .limit(1)
         .maybeSingle();
 
-      const moduloAtualId = (matriculaAtiva as any)?.modulo_atual_id;
+      const moduloAtualId = (matriculaAtiva?.turma as any)?.modulo_atual_id;
+
       if (moduloAtualId) {
         const { data: modAtual } = await client
           .from('modulos')
@@ -696,8 +735,8 @@ export class PdfService {
           .limit(1)
           .maybeSingle();
 
-        if ((modAtual as any)?.numero && (modAtual as any)?.titulo) {
-          moduloLabel = `Módulo ${(modAtual as any).numero} - ${(modAtual as any).titulo}`;
+        if (modAtual?.numero && modAtual?.titulo) {
+          moduloLabel = `Módulo ${modAtual.numero} - ${modAtual.titulo}`;
         }
       }
 
@@ -773,18 +812,20 @@ export class PdfService {
     const ibucImg = await embedImage(ibucLogoBytes);
     const churchImg = await embedImage(churchLogoBytes);
 
-    const logosH = 55; // Height of logos
+
+    
+    const logosH = 40; // Reduced height
     const ibucW = (ibucImg.width / ibucImg.height) * logosH;
     const churchW = (churchImg.width / churchImg.height) * logosH;
 
-    const gap = 30; // Gap between logos
+    const gap = 30;
     const totalLogosWidth = ibucW + gap + churchW;
 
-    // Center the group of logos horizontally
     const startX = (width - totalLogosWidth) / 2;
     
-    // Position vertically - closer to bottom border (0 is bottom)
-    const logosY = 40;
+    // Position vertically clearly at bottom
+    // User requested to move up slightly to avoid covering blue border.
+    const logosY = 45;
 
     page.drawImage(ibucImg, { x: startX, y: logosY, width: ibucW, height: logosH });
     page.drawImage(churchImg, { x: startX + ibucW + gap, y: logosY, width: churchW, height: logosH }); 
@@ -828,39 +869,112 @@ export class PdfService {
 
     cursorY += lineHeight * 1.25;
 
-    const preModulo = 'participou do ';
-    const posModulo = ' do Curso de Teologia';
-    const moduloTexto = moduloLabel;
-    const x0 = bodyLeft;
-    const preW = fontRegular.widthOfTextAtSize(preModulo, fontBody);
-    const moduloW = fontBold.widthOfTextAtSize(moduloTexto, fontBody);
-    drawTL(preModulo, x0, cursorY, fontBody, fontRegular);
-    drawTL(moduloTexto, x0 + preW, cursorY, fontBody, fontBold);
-    drawTL(posModulo, x0 + preW + moduloW, cursorY, fontBody, fontRegular);
+    // Helper for Justified Text
+    const drawJustifiedLine = (tokens: { text: string, font: any, size: number }[], yTop: number, maxWidth: number, isJustified: boolean = true) => {
+        let totalWordWidth = 0;
+        const tokensWithWidth = tokens.map(t => {
+            const w = t.font.widthOfTextAtSize(t.text, t.size);
+            totalWordWidth += w;
+            return { ...t, width: w };
+        });
 
+        let spacing = 5; // Default spacing
+        if (isJustified && tokensWithWidth.length > 1) {
+            const spaceAvailable = maxWidth - totalWordWidth;
+            spacing = spaceAvailable / (tokensWithWidth.length - 1);
+            // Safety: if spacing is huge (short line), disable justification
+            if (spacing > 30) {
+                 spacing = fontRegular.widthOfTextAtSize(' ', fontBody);
+                 isJustified = false;
+            }
+        } else {
+             spacing = fontRegular.widthOfTextAtSize(' ', fontBody);
+        }
+
+        let currentX = bodyLeft;
+        // If not justified (centered or left), we might want to adjust startX?
+        // For this cert, left-aligned fallback starts at bodyLeft.
+        
+        tokensWithWidth.forEach((token) => {
+             drawTL(token.text, currentX, yTop, token.size, token.font);
+             // drawTL logic: y = height - topY - size.
+             // Here we pass yTop as usual.
+             currentX += token.width + spacing;
+        });
+    };
+
+    // Construct Line 1: "participou do [Modulo] do Curso de Teologia"
+    const line1Tokens = [
+        { text: 'participou', font: fontRegular, size: fontBody },
+        { text: 'do', font: fontRegular, size: fontBody }
+    ];
+    
+    // Split module label (Bold)
+    if (moduloLabel) {
+        // e.g. "Módulo 1 - Entendendo..."
+        const modParts = moduloLabel.split(' ');
+        modParts.forEach(part => line1Tokens.push({ text: part, font: fontBold, size: fontBody }));
+    }
+    
+    // Add suffix
+    const suffix = "do Curso de Teologia";
+    suffix.trim().split(' ').forEach(part => line1Tokens.push({ text: part, font: fontRegular, size: fontBody }));
+
+    drawJustifiedLine(line1Tokens, cursorY, bodyWidth, true);
+    cursorY += lineHeight * 1.5; // Extra spacing
+
+    // Line 2: "Infantojuvenil, promovido pela Igreja Evangélica Assembleia de Deus"
+    const line2Text = "Infantojuvenil, promovido pela Igreja Evangélica Assembleia de Deus";
+    const line2Tokens = line2Text.split(' ').map(t => ({ text: t, font: fontRegular, size: fontBody }));
+    drawJustifiedLine(line2Tokens, cursorY, bodyWidth, true);
     cursorY += lineHeight;
-    const restante =
-      'Infantojuvenil, promovido pela Igreja Evangélica Assembleia de Deus\n' +
-      'Missão - Projeto Restaurando Vidas juntamente com o Instituto Bíblico\n' +
-      'Único Caminho.';
-    drawTL(restante, bodyLeft, cursorY, fontBody, fontRegular, { maxWidth: bodyWidth, lineHeight });
+
+    // Line 3: "Missão - Projeto Restaurando Vidas juntamente com o Instituto Bíblico"
+    const line3Text = "Missão - Projeto Restaurando Vidas juntamente com o Instituto Bíblico";
+    const line3Tokens = line3Text.split(' ').map(t => ({ text: t, font: fontRegular, size: fontBody }));
+    drawJustifiedLine(line3Tokens, cursorY, bodyWidth, true);
+    cursorY += lineHeight;
+
+    // Line 4: "Único Caminho." (Left aligned / Last line)
+    const line4Text = "Único Caminho.";
+    const line4Tokens = line4Text.split(' ').map(t => ({ text: t, font: fontRegular, size: fontBody }));
+    drawJustifiedLine(line4Tokens, cursorY, bodyWidth, false); // Not justified
 
     const dataLine = `Palmas - TO, ${dateStr}`;
-    // Position date 1 line below the last text line
-    const dataTopY = cursorY + lineHeight; 
+    // Position Date relative to BOTTOM (Y=0 is bottom)
+    // We want it above signatures. Signatures at Y=110 (from bottom). 
+    // Let's put Date at Y=160 (from bottom).
+    // drawTL uses "Distance from Top". So topY = height - 160.
+    const dataBottomY = 160;
+    const dataTopY = height - dataBottomY;
     
     const dataTextWidth = fontRegular.widthOfTextAtSize(dataLine, fontDate);
     const dataX = Math.max(0, width - bodyLeft - dataTextWidth);
     drawTL(dataLine, dataX, dataTopY, fontDate, fontRegular);
 
-    // Signatures 3 lines below date (approx 3 * 20 = 60)
-    const assinaturaTopY = dataTopY + 70;
-    const blocoW = 175;
-    const marginX = 55;
+    // Signatures
+    // Desired Y line from bottom = 110.
+    // drawTL expects "Distance from Top".
+    // drawAssinatura expects "assinaturaTopY" to be treated as "height - assinaturaTopY" = Y line?
+    // Let's check drawAssinatura:
+    // const yLine = height - assinaturaTopY;
+    // So if we want yLine = 110, then height - assinaturaTopY = 110 => assinaturaTopY = height - 110.
+    const assinaturaBottomY = 110;
+    const assinaturaTopY = height - assinaturaBottomY;
 
-    const assX1 = marginX;
-    const assX2 = Math.max(marginX, (width - blocoW) / 2);
-    const assX3 = Math.max(marginX, width - marginX - blocoW);
+    const blocoW = 160; 
+    const marginX = 40; 
+
+    // Adjust horizontal spread - User requested:
+    // Pedro (Diretor Geral) -> Left (shift left?) already at marginX=40 (quite left)
+    // Neuselice (Coord) -> Right (shift right?) already at width-40-160 (quite right)
+    // Suimar -> Center
+    // We can push margins slightly more if needed, but 40 is close to border.
+    // Let's keep 40.
+
+    const assX1 = marginX; 
+    const assX2 = (width - blocoW) / 2; 
+    const assX3 = width - marginX - blocoW;
 
     const drawAssinatura = (x: number, nome: string, cargo: string) => {
       const yLine = height - assinaturaTopY;
@@ -874,9 +988,9 @@ export class PdfService {
       drawTL(cargo, x + Math.max(0, (blocoW - cargoW) / 2), assinaturaTopY + 17, cargoSize, fontRegular);
     };
 
-    drawAssinatura(assX1, 'Pedro Newton', 'Diretor Geral do IBUC');
+    drawAssinatura(assX1, diretorNome, 'Diretor Geral do IBUC');
     drawAssinatura(assX2, 'José Suimar Caetano Ferreira', 'Pr. Presidente');
-    drawAssinatura(assX3, 'Neuselice Caetano Vieira', 'Coordenadora Geral do IBUC');
+    drawAssinatura(assX3, coordenadorNome, 'Coordenadora Geral do IBUC');
 
     const pdfBytesOut = await pdfDoc.save();
     fs.writeFileSync(filePath, pdfBytesOut);
@@ -1204,6 +1318,165 @@ export class PdfService {
     fs.unlinkSync(filePath);
     return { success: true, path: storagePath };
   }
+  async gerarListaAlunosPdf(filtros: any, user?: any) {
+    const client = this.supabase.getAdminClient();
+    const isGlobal = user && PoloScopeUtil.isGlobal(user);
+
+    // 0. Buscar Nome do Polo se houver ID (para o cabeçalho do admin de polo)
+    let poloNomeHeader = '';
+    if (filtros.polo_id) {
+      try {
+        const { data: poloData } = await client.from('polos').select('nome').eq('id', filtros.polo_id).single();
+        if (poloData) poloNomeHeader = poloData.nome;
+      } catch (e) {
+        console.error('Erro ao buscar nome do polo:', e);
+      }
+    }
+
+    // 1. Buscar Alunos
+    let query = client
+      .from('alunos')
+      .select(`
+        id,
+        nome,
+        cpf,
+        whatsapp:telefone_responsavel,
+        data_nascimento,
+        status,
+        polo:polos!fk_polo(id, nome),
+        turma:turmas!fk_turma(nome)
+      `);
+
+    if (filtros.polo_id) query = query.eq('polo_id', filtros.polo_id);
+    if (filtros.turma_id) query = query.eq('turma_id', filtros.turma_id);
+    if (filtros.nivel_id) query = query.eq('nivel_atual_id', filtros.nivel_id);
+    if (filtros.status) query = query.eq('status', filtros.status);
+
+    const { data: alunosData, error } = await query.order('nome');
+    if (error) throw error;
+
+    // Se for admin geral, ordenar por Polo primeiro para o agrupamento
+    let alunos = [...(alunosData || [])];
+    if (isGlobal) {
+      alunos.sort((a: any, b: any) => {
+        const poloA = a.polo?.nome || '';
+        const poloB = b.polo?.nome || '';
+        if (poloA !== poloB) return poloA.localeCompare(poloB);
+        return (a.nome || '').localeCompare(b.nome || '');
+      });
+    }
+
+    // 2. Configurar PDF
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const fileName = `lista-alunos-${Date.now()}.pdf`;
+    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'relatorios', fileName);
+
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // Cabeçalho Principal
+    const logo = await this.getLogo();
+    if (logo) {
+      doc.image(logo, 40, 40, { width: 80 });
+    }
+    
+    doc.fillColor('#1f2937').fontSize(16).font('Helvetica-Bold').text('Instituto Bíblico Único Caminho', 130, 45);
+    
+    // Se não for admin geral, coloca o polo no cabeçalho
+    if (!isGlobal && poloNomeHeader) {
+      doc.fontSize(12).fillColor('#4b5563').font('Helvetica-Bold').text(`Polo: ${poloNomeHeader.toUpperCase()}`, 130, 62);
+      doc.fontSize(10).font('Helvetica').text('Relatório de Alunos', 130, 77);
+      doc.fontSize(8).text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 130, 90);
+    } else {
+      doc.fontSize(10).font('Helvetica').text('Relatório de Alunos', 130, 65);
+      doc.fontSize(8).text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 130, 80);
+    }
+
+    // Linha Decorativa
+    doc.moveTo(40, 105).lineTo(555, 105).lineWidth(1).stroke('#e5e7eb');
+
+    let currentY = 120;
+    let lastPoloId = '';
+
+    // Header da Tabela (Função para reaproveitar em novas páginas ou grupos se necessário)
+    const drawTableHeader = (y: number) => {
+      doc.rect(40, y, 515, 20).fill('#f3f4f6');
+      doc.fillColor('#374151').fontSize(9).font('Helvetica-Bold');
+      doc.text('NOME', 50, y + 7);
+      doc.text('TURMA', 230, y + 7);
+      doc.text('WHATSAPP', 320, y + 7);
+      doc.text('NASCIMENTO', 430, y + 7);
+      doc.text('STATUS', 510, y + 7);
+      return y + 20;
+    };
+
+    // Caso o admin seja geral, vamos agrupar
+    alunos.forEach((aluno: any, index: number) => {
+      // Se o polo mudou e é admin geral, ou se é o primeiro aluno e é admin geral
+      if (isGlobal && aluno.polo?.id !== lastPoloId) {
+        if (currentY > 700) { doc.addPage(); currentY = 40; }
+        
+        doc.moveDown();
+        currentY = doc.y;
+        
+        doc.fillColor('#1d4ed8').fontSize(11).font('Helvetica-Bold');
+        doc.text(`POLO: ${aluno.polo?.nome?.toUpperCase() || 'SEM POLO'}`, 50, currentY);
+        currentY += 15;
+        
+        // Desenha o header da tabela para este grupo
+        currentY = drawTableHeader(currentY);
+        lastPoloId = aluno.polo?.id;
+      } else if (index === 0 && !isGlobal) {
+        // Para admin de polo, desenha o header apenas uma vez no topo
+        currentY = drawTableHeader(currentY);
+      }
+
+      if (currentY > 750) {
+        doc.addPage();
+        currentY = 40;
+        currentY = drawTableHeader(currentY);
+      }
+
+      // Zebra striping
+      if (index % 2 === 1) {
+        doc.rect(40, currentY, 515, 20).fill('#f9fafb');
+      }
+
+      doc.fillColor('#4b5563').font('Helvetica').fontSize(8);
+      doc.text((aluno.nome || '').toUpperCase(), 50, currentY + 6, { width: 175, ellipsis: true });
+      doc.text((aluno.turma?.nome || 'SEM TURMA').toUpperCase(), 230, currentY + 6, { width: 85, ellipsis: true });
+      doc.text(aluno.whatsapp || '---', 320, currentY + 6, { width: 100 });
+      doc.text(aluno.data_nascimento ? new Date(aluno.data_nascimento).toLocaleDateString('pt-BR') : '---', 430, currentY + 6, { width: 75 });
+      doc.text((aluno.status || '').toUpperCase(), 510, currentY + 6, { width: 40 });
+
+      currentY += 20;
+      doc.moveTo(40, currentY).lineTo(555, currentY).lineWidth(0.5).stroke('#f3f4f6');
+    });
+
+    // Rodapé
+    doc.fontSize(8).fillColor('#9ca3af').text(`Total de alunos: ${alunos.length}`, 40, doc.page.height - 50);
+
+    doc.end();
+
+    await new Promise<void>((resolve) => {
+      stream.on('finish', () => resolve());
+    });
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const storagePath = `relatorios/listas/${fileName}`;
+    await client.storage.from('documentos').upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
+    
+    fs.unlinkSync(filePath);
+    
+    const { data: publicUrl } = client.storage.from('documentos').getPublicUrl(storagePath);
+    return { success: true, url: publicUrl.publicUrl };
+  }
+
   async gerarReciboPagamento(pagamentoId: string) {
     // Implementar lógica de recibo de pagamento se necessário
     return { success: true, path: '' }; 

@@ -1,3 +1,16 @@
+/*
+ * ------------------------------------------------------------------
+ * 🔒 ARQUIVO BLINDADO / SHIELDED FILE 🔒
+ * ------------------------------------------------------------------
+ * ESTE ARQUIVO CONTÉM LÓGICA CRÍTICA DE GERAÇÃO DE RELATÓRIOS.
+ * (Certificado, Histórico, Boletim)
+ *
+ * NÃO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÇÃO APROVADO
+ * E UMA ANÁLISE DE IMPACTO PRÉVIA (/impact-analysis).
+ *
+ * QUALQUER ALTERAÇÃO DEVE SER ESTRITAMENTE NECESSÁRIA E VALIDADA.
+ * ------------------------------------------------------------------
+ */
 import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Select from '../../components/ui/Select';
