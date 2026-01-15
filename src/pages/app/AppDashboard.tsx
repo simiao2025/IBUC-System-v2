@@ -100,7 +100,7 @@ const AppDashboard: React.FC = () => {
     {
       title: 'Drácmas',
       description: 'Saldo total de Drácmas',
-      href: '/app/financeiro',
+      href: '/app/frequencia',
       iconName: 'certificado',
       fallbackIcon: Award,
       metaValue: dracmasLoading ? 'Carregando...' : dracmasSaldo === null ? '—' : String(dracmasSaldo),

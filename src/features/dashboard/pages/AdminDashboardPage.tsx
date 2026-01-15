@@ -20,7 +20,8 @@ import {
   ClipboardList,
   Building2,
   FileCheck,
-  Clock
+  Clock,
+  ShoppingCart
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
@@ -188,12 +189,21 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Financeiro',
-      description: 'Gestão financeira',
+      description: 'Gestão financeira e faturas',
       href: '/admin/financeiro',
       iconName: 'financeiro',
       fallbackIcon: DollarSign,
       color: 'bg-yellow-600 hover:bg-yellow-700',
-      permission: canAccessModule('dracmas') // Using dracmas for financial as per AdminModuleKey
+      permission: canAccessModule('dracmas')
+    },
+    {
+      title: 'Pedidos de Materiais',
+      description: 'Gestão de material didático e cobranças unificadas',
+      href: '/admin/financeiro/pedidos-materiais',
+      iconName: 'pre_matricula',
+      fallbackIcon: ShoppingCart,
+      color: 'bg-red-600 hover:bg-red-700',
+      permission: ['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral'].includes(currentUser?.adminUser?.role || '')
     },
     {
       title: 'Relatórios',

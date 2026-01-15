@@ -11,7 +11,8 @@ import { UserService } from '../../services/userService';
 import { ConfiguracoesService } from '../../services/configuracoes.service';
 import { useApp } from '../../context/AppContext';
 import PageHeader from '../../components/ui/PageHeader';
-import { Lock } from 'lucide-react';
+import { Lock, Users, UserPlus, Eye } from 'lucide-react';
+
 import { ModuleTransitionWizard } from './ModuleTransitionWizard';
 import { BatchClosureModal } from './BatchClosureModal';
 
@@ -65,14 +66,15 @@ export const ClassManagement: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [transitionTurma, setTransitionTurma] = useState<{ id: string; nome: string } | null>(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [viewingTurma, setViewingTurma] = useState<TurmaItem | null>(null);
   const [globalConfigs, setGlobalConfigs] = useState<any>({});
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId || '';
 
 
-  // Roles allowed to perform batch closure
-  const canBatchClose = ['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral'].includes(currentUser?.adminUser?.role || '');
+  // Roles allowed to perform batch closure (Strictly Director General)
+  const canBatchClose = ['diretor_geral'].includes(currentUser?.adminUser?.role || '');
 
   useEffect(() => {
     if (isPoloScoped && userPoloId) {
@@ -262,6 +264,45 @@ export const ClassManagement: React.FC = () => {
     }
   };
 
+  const handleTrazerAlunos = (t: TurmaItem) => {
+    // Busca o módulo atual da turma
+    const currentModule = modulos.find(m => m.id === t.modulo_atual_id);
+    
+    if (!currentModule) {
+      showFeedback('error', 'Erro', 'A turma não possui um módulo atual definido.');
+      return;
+    }
+
+    const previousNum = (currentModule.numero || 1) - 1;
+
+    if (previousNum < 1) {
+      showFeedback('warning', 'Atenção', `O módulo atual é o ${currentModule.numero}. Não há módulo anterior para migrar.`);
+      return;
+    }
+
+    showConfirm(
+      'Migrar Alunos',
+      `Deseja buscar alunos APROVADOS no Módulo ${previousNum} (do mesmo Polo e Nível) e vinculá-los a esta turma (${t.nome})?`,
+      async () => {
+        setSaving(true);
+        try {
+          const resp: any = await TurmasAPI.trazerAlunos(t.id, previousNum);
+          if (resp.total_migrado === 0) {
+            showFeedback('info', 'Aviso', resp.message);
+          } else {
+            showFeedback('success', 'Sucesso', resp.message);
+          }
+          await carregarTurmas();
+        } catch (e: any) {
+          console.error('Erro ao trazer alunos:', e);
+          showFeedback('error', 'Erro', e?.message || 'Falha ao migrar alunos.');
+        } finally {
+          setSaving(false);
+        }
+      }
+    );
+  };
+
   const handleDelete = (id: string) => {
     showConfirm(
       'Excluir Turma',
@@ -295,7 +336,7 @@ export const ClassManagement: React.FC = () => {
       <PageHeader
         title="Gerenciar Turmas"
         subtitle="Cadastro e gestão de turmas e níveis"
-        actionLabel={canBatchClose ? "Encerrar Ciclo" : undefined}
+        actionLabel={canBatchClose ? "Encerrar Módulo" : undefined}
         actionIcon={canBatchClose ? <Lock className="h-4 w-4 mr-2" /> : undefined}
         onAction={canBatchClose ? () => setShowBatchModal(true) : undefined}
       />
@@ -535,13 +576,41 @@ export const ClassManagement: React.FC = () => {
                     <td className="px-4 py-2 capitalize">{t.status || 'ativa'}</td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => startEdit(t)}>
-                          Editar
-                        </Button>
+                        {t.status === 'concluida' ? (
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => setViewingTurma(t)} 
+                            title="Visualizar Detalhes"
+                            className="bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Visualizar
+                          </Button>
+                        ) : (
+                          <>
+                            <Button type="button" variant="outline" onClick={() => startEdit(t)} title="Editar Turma">
+                              Editar
+                            </Button>
 
-                        <Button type="button" variant="outline" onClick={() => handleDelete(t.id)}>
-                          Excluir
-                        </Button>
+                            {t.status === 'ativa' && (
+                              <Button 
+                                type="button" 
+                                variant="primary" 
+                                size="sm"
+                                onClick={() => handleTrazerAlunos(t)}
+                                title="Trazer alunos aprovados do módulo anterior"
+                              >
+                                <UserPlus className="h-4 w-4 mr-1" />
+                                Trazer Alunos
+                              </Button>
+                            )}
+
+                            <Button type="button" variant="outline" onClick={() => handleDelete(t.id)} title="Excluir Turma">
+                              Excluir
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -570,6 +639,71 @@ export const ClassManagement: React.FC = () => {
           </div>
         )
       }
+
+      {/* Modal de Visualização (Somente Leitura) */}
+      {viewingTurma && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-2xl w-full p-0 overflow-hidden">
+            <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                <Eye className="h-5 w-5 mr-2 text-gray-500" />
+                Detalhes da Turma Concluída
+              </h3>
+              <button 
+                onClick={() => setViewingTurma(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nome da Turma</label>
+                  <p className="text-gray-900 font-medium">{viewingTurma.nome}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                  <span className="inline-flex px-2 py-1 text-xs font-semibold leading-5 text-gray-800 bg-gray-100 rounded-full capitalize">
+                    {viewingTurma.status}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Polo</label>
+                  <p className="text-gray-900">{polosById.get(viewingTurma.polo_id) || viewingTurma.polo_id}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nível</label>
+                  <p className="text-gray-900">{niveisById.get(viewingTurma.nivel_id) || viewingTurma.nivel_id}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Professor</label>
+                  <p className="text-gray-900">{viewingTurma.professor_id ? (professoresById.get(String(viewingTurma.professor_id)) || '—') : '—'}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Módulo Encerrado</label>
+                  <p className="text-gray-900">{viewingTurma.modulo_atual_id ? (modulosById.get(viewingTurma.modulo_atual_id) || '—') : '—'}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Ano Letivo</label>
+                  <p className="text-gray-900">{viewingTurma.ano_letivo}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Turno</label>
+                  <p className="text-gray-900 capitalize">{viewingTurma.turno}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end">
+              <Button onClick={() => setViewingTurma(null)}>
+                Fechar
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {
         showBatchModal && (

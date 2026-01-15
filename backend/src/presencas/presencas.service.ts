@@ -36,7 +36,7 @@ export class PresencasService {
     let query = this.supabase
       .getAdminClient()
       .from('presencas')
-      .select('*')
+      .select('*, licoes(titulo)')
       .eq('aluno_id', alunoId)
       .order('data');
 

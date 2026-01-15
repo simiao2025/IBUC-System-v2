@@ -176,7 +176,7 @@ export const BatchClosureModal: React.FC<BatchClosureModalProps> = ({
             <Card className="max-w-4xl w-full max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center p-6 border-b">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900">Encerrar Ciclo - Validação em Lote</h2>
+                        <h2 className="text-xl font-bold text-gray-900">Encerrar Módulo - Validação em Lote</h2>
                         <p className="text-sm text-gray-500">
                             Analisando {activeTurmas.length} turmas ativas para encerramento de módulo.
                         </p>

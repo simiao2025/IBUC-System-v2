@@ -27,6 +27,8 @@ import { ModulosModule } from './modulos/modulos.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { ListaEsperaModule } from './lista-espera/lista-espera.module';
+import { MateriaisModule } from './materiais/materiais.module';
+import { PedidosMateriaisModule } from './pedidos-materiais/pedidos-materiais.module';
 
 @Module({
   imports: [
@@ -58,6 +60,8 @@ import { ListaEsperaModule } from './lista-espera/lista-espera.module';
     AuthModule,
     ConfiguracoesModule,
     ListaEsperaModule,
+    MateriaisModule,
+    PedidosMateriaisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -19,11 +19,27 @@ export class DracmasService {
       throw new Error('Lista de transações vazia');
     }
 
+    // 1. Remove transações anteriores deste tipo para esta turma e data (evita duplicidade ao reenviar)
+    // Se o tipo for 'AJUSTE', talvez devêssemos ter cuidado, mas como o frontend reenvia o estado atual da tela,
+    // o comportamento correto é substituir.
+    // O ideal seria filtrar também pelo 'tipo' para não apagar outros lançamentos do mesmo dia.
+    // Assumindo que o 'tipo' venha preenchido (ex: 'presenca', 'assiduidade').
+    
+    if (tipo) {
+       await this.supabase
+        .getAdminClient()
+        .from('dracmas_transacoes')
+        .delete()
+        .eq('turma_id', turma_id)
+        .eq('data', data)
+        .eq('tipo', tipo);
+    }
+
     const rows = transacoes.map(t => ({
       aluno_id: t.aluno_id,
       turma_id,
       quantidade: t.quantidade,
-      tipo: t.tipo || tipo, // Usa o tipo específico da transação ou o do lote
+      tipo: t.tipo || tipo, 
       descricao,
       data,
       registrado_por,

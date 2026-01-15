@@ -113,12 +113,16 @@ const AdminFrequencia: React.FC = () => {
         const accessLevel = (currentUser as any)?.adminUser?.accessLevel as string | undefined;
         const poloId = (currentUser as any)?.adminUser?.poloId as string | undefined;
 
-        const params: any = {};
+        if (isGlobalAdmin && !filterPoloId) {
+          setTurmas([]);
+          return;
+        }
+
+        const params: any = { status: 'ativa' }; // Filtra apenas turmas ativas para todos
         if (isProfessor) {
           params.professor_id = adminUser?.id;
-          params.status = 'ativa';
         } else if (isGlobalAdmin) {
-          if (filterPoloId) params.polo_id = filterPoloId;
+          params.polo_id = filterPoloId;
         } else if (accessLevel === 'polo_especifico' && poloId) {
           params.polo_id = poloId;
         }

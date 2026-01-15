@@ -87,7 +87,7 @@ const Home: React.FC = () => {
             </div>
 
             <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto leading-relaxed">
-              Formamos crianças e jovens nos caminhos do Senhor através do ensino bíblico de qualidade,
+              Formamos crianças e adolescentes nos caminhos do Senhor através do ensino bíblico de qualidade,
               desenvolvendo valores cristãos e preparando uma nova geração para servir a Deus.
             </p>
 
@@ -168,7 +168,7 @@ const Home: React.FC = () => {
             Nossa Missão
           </h2>
           <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-            Proporcionar educação cristã de qualidade para crianças e jovens, fundamentada nos
+            Proporcionar educação cristã de qualidade para crianças e adolescentes, fundamentada nos
             valores bíblicos, promovendo o desenvolvimento integral do ser humano e formando
             cidadãos comprometidos com os princípios do Reino de Deus.
           </p>

@@ -14,8 +14,10 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TurmasService } from './turmas.service';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 @ApiTags('Turmas')
 @Controller('turmas')
@@ -77,6 +79,7 @@ export class TurmasController {
   }
 
   @Post(':id/close-module')
+  @Roles('diretor_geral', 'super_admin')
   @ApiOperation({ summary: 'Encerrar módulo e avançar aprovados' })
   async encerrarModulo(
     @Param('id') id: string,
@@ -84,6 +87,15 @@ export class TurmasController {
     @Body('valor_cents') valor_cents?: number,
   ) {
     return this.service.encerrarModulo(id, alunos_confirmados, valor_cents);
+  }
+
+  @Post(':id/trazer-alunos')
+  @ApiOperation({ summary: 'Migrar alunos aprovados do módulo anterior para esta nova turma' })
+  async trazerAlunos(
+    @Param('id') id: string,
+    @Body('modulo_anterior_numero') moduloAnteriorNumero: number,
+  ) {
+    return this.service.trazerAlunos(id, moduloAnteriorNumero);
   }
 
   @Get(':id/occupancy')

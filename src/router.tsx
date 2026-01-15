@@ -31,6 +31,7 @@ const DracmasByClassManagement = lazy(() => import('./features/finance/DracmasBy
 const DracmasByStudentManagement = lazy(() => import('./features/students/DracmasByStudentManagement'));
 const MatriculaDocumentManagement = lazy(() => import('./features/enrollments/MatriculaDocumentManagement'));
 const EventManagement = lazy(() => import('./features/events/EventManagement'));
+const MaterialOrderManagement = lazy(() => import('./features/materials/MaterialOrderManagement'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -157,6 +158,10 @@ export const router = createBrowserRouter([
   {
     path: '/admin/financeiro',
     element: <ProtectedRoute requireAdmin>{withSuspense(<FinanceiroManagement />)}</ProtectedRoute>
+  },
+  {
+    path: '/admin/financeiro/pedidos-materiais',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<MaterialOrderManagement />)}</ProtectedRoute>
   },
   {
     path: '/admin/polos',

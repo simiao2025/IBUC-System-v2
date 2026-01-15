@@ -3,6 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { ModulosService } from '../modulos/modulos.service';
 import { PresencasService } from '../presencas/presencas.service';
 import { MensalidadesService } from '../mensalidades/mensalidades.service';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 
 @Injectable()
 export class TurmasService {
@@ -11,6 +12,7 @@ export class TurmasService {
     private modulosService: ModulosService,
     private presencasService: PresencasService,
     private mensalidadesService: MensalidadesService,
+    private notificacoesService: NotificacoesService,
   ) { }
 
   private async validarPoloAtivo(poloId: string) {
@@ -397,7 +399,7 @@ export class TurmasService {
       const { error: histError } = await this.supabase
         .getAdminClient()
         .from('aluno_historico_modulos')
-        .insert(registrosHistorico);
+        .upsert(registrosHistorico, { onConflict: 'aluno_id, modulo_numero' });
 
       if (histError) throw new Error(`Erro ao salvar histórico: ${histError.message}`);
     }
@@ -433,18 +435,66 @@ export class TurmasService {
       .maybeSingle();
 
 
-    // 3. Avança a turma para o próximo módulo ou conclui a turma
-    if (proximoModulo) {
-      await this.atualizarTurma(turmaId, { modulo_atual_id: proximoModulo.id });
-    } else {
-      // Se não tem próximo módulo, a turma é concluída
-      await this.atualizarTurma(turmaId, { status: 'concluida', modulo_atual_id: null });
+    // 3. Finaliza a turma atual (Modelo de Transição Discreta)
+    await this.atualizarTurma(turmaId, { status: 'concluida' });
+
+    // 4. Notifica Secretários do Polo (Falha não deve impedir o sucesso da operação)
+    try {
+      await this.notificacoesService.enviarNotificacaoEncerramentoModulo(
+        turma.polo_id,
+        moduloAtual?.titulo || `Módulo ${moduloAtual?.numero}`
+      );
+    } catch (notifError) {
+      console.error('Erro ao enviar notificação de encerramento:', notifError);
+      // Não lança erro para não reverter o encerramento
     }
 
     return {
-      message: 'Módulo encerrado com sucesso e cobranças geradas',
-      proximo_modulo_id: proximoModulo?.id,
+      message: 'Módulo encerrado com sucesso. Os secretários foram notificados para criar as novas turmas.',
       alunos_processados: alunosConfirmados.length
+    };
+  }
+
+  /**
+   * Migra alunos aprovados de um módulo anterior para uma nova turma.
+   * Observa: Polo, Nível e Aprovação no Módulo Anterior.
+   */
+  async trazerAlunos(turmaId: string, moduloAnteriorNumero: number) {
+    const novaTurma = await this.buscarTurmaPorId(turmaId);
+    const client = this.supabase.getAdminClient();
+
+    // 1. Buscar alunos aprovados no módulo anterior que pertençam ao mesmo Polo e Nível
+    const { data: aprovados, error: searchError } = await client
+      .from('aluno_historico_modulos')
+      .select(`
+        aluno_id,
+        aluno:alunos!inner(id, polo_id, nivel_atual_id)
+      `)
+      .eq('modulo_numero', moduloAnteriorNumero)
+      .eq('situacao', 'aprovado')
+      .eq('aluno.polo_id', novaTurma.polo_id)
+      .eq('aluno.nivel_atual_id', novaTurma.nivel_id);
+
+    if (searchError) throw new BadRequestException(searchError.message);
+
+    if (!aprovados || aprovados.length === 0) {
+      return { message: 'Nenhum aluno aprovado encontrado para os critérios (Polo/Nível/Módulo Anterior)', total_migrado: 0 };
+    }
+
+    const alunoIds = aprovados.map(a => a.aluno_id);
+
+    // 2. Atualizar a turma_id dos alunos para a nova turma
+    const { error: updateError } = await client
+      .from('alunos')
+      .update({ turma_id: turmaId })
+      .in('id', alunoIds);
+
+    if (updateError) throw new BadRequestException(updateError.message);
+
+    return {
+      message: `${alunoIds.length} alunos migrados com sucesso para a turma ${novaTurma.nome}`,
+      total_migrado: alunoIds.length,
+      alunos: alunoIds
     };
   }
 }

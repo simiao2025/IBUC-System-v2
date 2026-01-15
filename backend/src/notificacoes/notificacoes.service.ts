@@ -180,6 +180,34 @@ export class NotificacoesService {
       `,
     });
   }
+
+  async enviarNotificacaoEncerramentoModulo(poloId: string, moduloTitulo: string) {
+    // 1. Buscar todos os secretários vinculados ao polo
+    const { data: secretarios } = await this.supabase
+      .getAdminClient()
+      .from('usuarios')
+      .select('email, nome_completo')
+      .eq('polo_id', poloId)
+      .in('role', ['secretario_polo', 'secretario_geral', 'diretor_polo']);
+
+    if (!secretarios || secretarios.length === 0) return;
+
+    const emails = secretarios.map(s => s.email);
+
+    // 2. Enviar email coletivo ou individual
+    await this.transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: emails,
+      subject: `Notificação: Módulo ${moduloTitulo} Encerrado - IBUC System`,
+      html: `
+        <h2>Módulo Encerrado pela Diretoria Geral</h2>
+        <p>Olá, informamos que o módulo <strong>${moduloTitulo}</strong> foi encerrado no seu polo.</p>
+        <p><strong>Ação Necessária:</strong> Acesse o sistema para criar as novas turmas e realizar a migração dos alunos aprovados (Enturmação).</p>
+        <p>Após a enturmação, lembre-se de configurar o Pedido de Material para gerar as cobranças.</p>
+        <p>Atenciosamente,<br>Diretoria Geral - IBUC</p>
+      `,
+    });
+  }
 }
 
 

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, FileText, Settings } from 'lucide-react';
+import { FileText, Settings, Package } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
 import Select from '../../components/ui/Select';
-import Input from '../../components/ui/Input';
 import { FinanceiroService } from './financeiro.service';
 import { TurmasAPI } from '../../services/turma.service';
 import { useApp } from '../../context/AppContext';
 import AccessControl from '../../components/AccessControl';
+import MaterialOrderManagement from '../materials/MaterialOrderManagement'; // Importação do componente
 
-type ActiveTab = 'controle' | 'gerar' | 'config';
+type ActiveTab = 'controle' | 'materiais' | 'config';
 
 const AdminFinanceiro: React.FC = () => {
   const { currentUser } = useApp();
@@ -25,11 +25,6 @@ const AdminFinanceiro: React.FC = () => {
   const [filtroTurma, setFiltroTurma] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('');
 
-  // Form Gerar Cobranças
-  const [formTurma, setFormTurma] = useState('');
-  const [formTitulo, setFormTitulo] = useState('');
-  const [formValor, setFormValor] = useState('');
-  const [formVencimento, setFormVencimento] = useState('');
 
   useEffect(() => {
     carregarTurmas();
@@ -73,36 +68,6 @@ const AdminFinanceiro: React.FC = () => {
     }
   };
 
-  const handleGerarCobrancas = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const valorCents = Math.round(parseFloat(formValor) * 100);
-      
-      const result = await FinanceiroService.gerarCobrancasLote({
-        turma_id: formTurma,
-        titulo: formTitulo,
-        valor_cents: valorCents,
-        vencimento: formVencimento,
-      });
-
-      alert(`✓ ${result.total_gerado} cobranças geradas com sucesso!`);
-      
-      // Limpar form
-      setFormTurma('');
-      setFormTitulo('');
-      setFormValor('');
-      setFormVencimento('');
-      
-      // Recarregar lista
-      await carregarCobrancas();
-      setActiveTab('controle');
-    } catch (error: any) {
-      alert('Erro ao gerar cobranças: ' + (error.message || 'Erro desconhecido'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleConfirmarPagamento = async (id: string) => {
     if (!confirm('Confirmar o pagamento desta cobrança?')) return;
@@ -152,15 +117,15 @@ const AdminFinanceiro: React.FC = () => {
                 Controle de Caixa
               </button>
               <button
-                onClick={() => setActiveTab('gerar')}
+                onClick={() => setActiveTab('materiais')}
                 className={`px-6 py-3 text-sm font-medium border-b-2 ${
-                  activeTab === 'gerar'
+                  activeTab === 'materiais'
                     ? 'border-red-500 text-red-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <DollarSign className="inline w-4 h-4 mr-2" />
-                Gerar Cobranças
+                <Package className="inline w-4 h-4 mr-2" />
+                Pedido de Material
               </button>
               <button
                 onClick={() => setActiveTab('config')}
@@ -284,56 +249,10 @@ const AdminFinanceiro: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'gerar' && (
+
+        {activeTab === 'materiais' && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Gerar Cobranças em Lote</h2>
-            
-            <form onSubmit={handleGerarCobrancas} className="space-y-4 max-w-2xl">
-              <Select
-                label="Turma"
-                value={formTurma}
-                onChange={val => setFormTurma(val)}
-                required
-              >
-                <option value="">Selecione a turma</option>
-                {turmas.map(t => (
-                  <option key={t.id} value={t.id}>{t.nome}</option>
-                ))}
-              </Select>
-
-              <Input
-                label="Título da Cobrança"
-                placeholder="Ex: Módulo 1, Taxa de Matrícula"
-                value={formTitulo}
-                onChange={e => setFormTitulo(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Valor (R$)"
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="50.00"
-                value={formValor}
-                onChange={e => setFormValor(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Data de Vencimento"
-                type="date"
-                value={formVencimento}
-                onChange={e => setFormVencimento(e.target.value)}
-                required
-              />
-
-              <div className="pt-4">
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Gerando...' : 'Gerar para Toda a Turma'}
-                </Button>
-              </div>
-            </form>
+            <MaterialOrderManagement />
           </div>
         )}
 
@@ -349,9 +268,9 @@ const AdminFinanceiro: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
-  </AccessControl>
-);
+      </div>
+    </AccessControl>
+  );
 };
 
 export default AdminFinanceiro;

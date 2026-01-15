@@ -41,6 +41,8 @@ export const TurmasAPI = {
   previewTransicao: (id: string) => api.get<any[]>(`/turmas/${id}/preview-transition`),
   encerrarModulo: (id: string, data: { alunos_confirmados: string[]; valor_cents?: number }) =>
     api.post(`/turmas/${id}/close-module`, data),
+  trazerAlunos: (id: string, moduloAnteriorNumero: number) =>
+    api.post(`/turmas/${id}/trazer-alunos`, { modulo_anterior_numero: moduloAnteriorNumero }),
   getOccupancy: (id: string) => api.get<{ count: number }>(`/turmas/${id}/occupancy`),
 };
 
@@ -80,6 +82,10 @@ export class TurmaService {
 
   static async encerrarModulo(id: string, data: { alunos_confirmados: string[]; valor_cents?: number }) {
     return TurmasAPI.encerrarModulo(id, data);
+  }
+
+  static async traerAlunos(id: string, moduloAnteriorNumero: number) {
+    return TurmasAPI.trazerAlunos(id, moduloAnteriorNumero);
   }
 
   static async getOccupancy(id: string) {

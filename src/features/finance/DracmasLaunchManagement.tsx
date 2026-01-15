@@ -35,8 +35,13 @@ const DracmasLaunchManagement: React.FC = () => {
     const carregarDadosIniciais = async () => {
       try {
         // Carregar Turmas
-        const params = currentUser?.id ? { professor_id: currentUser.id } : undefined;
-        const listaTurmas = (await TurmasAPI.listar(params as any)) as any[];
+        // Carregar Turmas (Apenas Ativas)
+        const params: any = { status: 'ativa' };
+        if (currentUser?.adminUser?.role === 'professor') {
+           params.professor_id = currentUser.id;
+        }
+        
+        const listaTurmas = (await TurmasAPI.listar(params)) as any[];
         setTurmas((Array.isArray(listaTurmas) ? listaTurmas : []).map(t => ({ id: t.id, nome: t.nome })));
 
         // Carregar Critérios
