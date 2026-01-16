@@ -17,9 +17,10 @@ const AppFrequencia: React.FC = () => {
   const [transacoesDracmas, setTransacoesDracmas] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [presencas, setPresencas] = useState<Presenca[]>([]);
-  
+  const [historico, setHistorico] = useState<any[]>([]);
+
   // Novos estados para filtro
-  const [turmasDisponiveis, setTurmasDisponiveis] = useState<{id: string, label: string}[]>([]);
+  const [turmasDisponiveis, setTurmasDisponiveis] = useState<{ id: string, label: string }[]>([]);
   const [filtroTurmaId, setFiltroTurmaId] = useState<string>('');
 
   useEffect(() => {
@@ -34,65 +35,90 @@ const AppFrequencia: React.FC = () => {
       setError(null);
       try {
         // Carrega (1) Presenças, (2) Dados Aluno (turma atual), (3) Histórico, (4) Drácmas
-        const [presencasData, alunoResp, , dracmasResp] = await Promise.all([
-           PresencaService.porAluno(currentUser.studentId).catch(console.error),
-           AlunosAPI.buscarPorId(currentUser.studentId).then(r => r.data).catch(() => null),
-           AlunosAPI.buscarHistorico(currentUser.studentId).then(r => r.data).catch(() => []),
-           DracmasAPI.porAluno(currentUser.studentId).catch(() => ({ transacoes: [] }))
+        const [presencasData, alunoResp, historicoResp, dracmasResp] = await Promise.all([
+          PresencaService.porAluno(currentUser.studentId).catch(console.error),
+          AlunosAPI.buscarPorId(currentUser.studentId).catch(() => null),
+          AlunosAPI.buscarHistorico(currentUser.studentId).catch(() => []),
+          DracmasAPI.porAluno(currentUser.studentId).catch(() => ({ transacoes: [] }))
         ]);
 
-        // Processar Presenças
-        const listaPresencas = (presencasData as any)?.registros 
-          ? (presencasData as any).registros 
+        // 1. Processar Presenças
+        const listaPresencas = (presencasData as any)?.registros
+          ? (presencasData as any).registros
           : (Array.isArray(presencasData) ? presencasData : []);
         setPresencas(listaPresencas as Presenca[]);
+        setHistorico(Array.isArray(historicoResp) ? historicoResp : []);
 
-        // Processar Drácmas
+        // 2. Processar Drácmas (Transações + Resgates)
         const listaDracmas = (dracmasResp as any)?.transacoes || [];
         setTransacoesDracmas(Array.isArray(listaDracmas) ? listaDracmas : []);
 
-        // MONTAR LISTA DE TURMAS UNIFICADA
+        // 3. Identificar TODOS os IDs de turmas relevantes
+        const relevantTurmaIds = new Set<string>();
+
+        // (A) Turma Atual (Prioridade)
+        let currentTurmaId = '';
+        if (alunoResp && alunoResp.turma_id) {
+          currentTurmaId = alunoResp.turma_id;
+          relevantTurmaIds.add(currentTurmaId);
+        }
+
+        // (B) Turmas das Presenças
+        listaPresencas.forEach((p: any) => {
+          if (p.turma_id) relevantTurmaIds.add(p.turma_id);
+        });
+
+        // (C) Turmas das Drácmas (Ativas e Resgatadas)
+        listaDracmas.forEach((d: any) => {
+          if (d.turma_id) relevantTurmaIds.add(d.turma_id);
+        });
+
+        // 4. Buscar detalhes de TODAS as turmas identificadas para obter o Título do Módulo
         const turmasMap = new Map<string, string>();
 
-        // (A) Turma Atual
-        if (alunoResp && alunoResp.turma_atual_id) {
-           try {
-              const t = await TurmasAPI.buscarPorId(alunoResp.turma_atual_id).then(res => res.data);
-              if (t) {
-                 const label = t.modulos?.titulo || t.nome;
-                 turmasMap.set(t.id, label);
+        await Promise.all(
+          Array.from(relevantTurmaIds).map(async (turmaId) => {
+            try {
+              // Busca a turma (agora o backend traz 'modulos')
+              const t: any = await TurmasAPI.buscarPorId(turmaId);
+
+              let label = t.nome; // Fallback: Nome da Turma
+
+              // Se tiver módulo vinculado, usa o título do módulo
+              if (t.modulos && t.modulos.titulo) {
+                label = t.modulos.titulo;
+              } else if (t.modulo_atual_id) {
+                // Caso a relação não venha expandida por algum motivo, mas tem o ID
+                label = `Módulo ${t.modulo_atual_id} (Verificar)`;
               }
-           } catch {}
-        }
 
-        // (B) IDs das Presenças
-        const presencaTurmaIds = Array.from(new Set(listaPresencas.map((p: any) => p.turma_id).filter(Boolean)));
-        
-        // (C) IDs das Drácmas
-        const dracmasTurmaIds = Array.from(new Set(listaDracmas.map((d: any) => d.turma_id).filter(Boolean)));
-        
-        // Buscar nomes faltantes
-        const allIds = new Set([...presencaTurmaIds, ...dracmasTurmaIds]);
-        const idsToFetch = Array.from(allIds).filter(id => !turmasMap.has(id as string));
+              turmasMap.set(turmaId, label);
+            } catch (err) {
+              console.error(`Erro ao buscar turma ${turmaId}`, err);
+              turmasMap.set(turmaId, `Turma Arquivada/Removida (${turmaId.slice(0, 8)})`);
+            }
+          })
+        );
 
-        if (idsToFetch.length > 0) {
-           await Promise.all(idsToFetch.map(async (id) => {
-              try {
-                  const t: any = await TurmasAPI.buscarPorId(id as string).then(res => (res as any).data || res);
-                  const label = t.modulos?.titulo || t.nome || `Turma ${id}`;
-                  turmasMap.set(id as string, label);
-              } catch {
-                  turmasMap.set(id as string, `Turma ${id}`);
-              }
-           }));
-        }
+        // 5. Histórico sem ID de Turma (Fallback para módulos antigos migrados sem vínculo de turma)
+        // Se houver histórico com 'modulo_info' que NÃO corresponde a nenhuma turma mapeada (pelo nome/numero?), adicionamos como opção virtual?
+        // Por simplificação e segurança, vamos focar apenas nas turmas com ID real por enquanto, 
+        // pois o filtro e drácmas dependem do ID. 
+        // Se o usuário reclama de "módulo já cursado", provavelmente ele tem ID nas dracmas_resgate.
 
-        const options = Array.from(turmasMap.entries()).map(([id, label]) => ({ id, label }));
+        const options = Array.from(turmasMap.entries())
+          .map(([id, label]) => ({ id, label }))
+          .sort((a, b) => a.label.localeCompare(b.label)); // Ordenar alfabeticamente ou por lógica de data se possível
+
         setTurmasDisponiveis(options);
 
-        // Auto-selecionar turma atual se existir
-        if (!filtroTurmaId && alunoResp?.turma_atual_id && turmasMap.has(alunoResp.turma_atual_id)) {
-            setFiltroTurmaId(alunoResp.turma_atual_id);
+        // Auto-selecionar
+        if (!filtroTurmaId) {
+          if (alunoResp?.turma_id && turmasMap.has(alunoResp.turma_id)) {
+            setFiltroTurmaId(alunoResp.turma_id);
+          } else if (options.length > 0) {
+            setFiltroTurmaId(options[0].id);
+          }
         }
 
       } catch (e: unknown) {
@@ -117,12 +143,31 @@ const AppFrequencia: React.FC = () => {
     return transacoesDracmas.filter(d => d.turma_id === filtroTurmaId);
   }, [transacoesDracmas, filtroTurmaId]);
 
+  const registroHistoricoAtual = useMemo(() => {
+    if (!filtroTurmaId) return null;
+    return historico.find(h => h.turma_id === filtroTurmaId);
+  }, [historico, filtroTurmaId]);
+
   const resumo = useMemo(() => {
     const total = dadosFiltrados.length;
-    const presentes = dadosFiltrados.filter(p => p.status === 'presente').length;
-    const percentual = total > 0 ? Math.round((presentes / total) * 100) : 0;
-    return { total, presentes, percentual };
-  }, [dadosFiltrados]);
+    // Se temos registros detalhados (presencas), usamos eles
+    if (total > 0) {
+      const presentes = dadosFiltrados.filter(p => p.status === 'presente').length;
+      const percentual = total > 0 ? Math.round((presentes / total) * 100) : 0;
+      return { total, presentes, percentual };
+    }
+
+    // Fallback: Se não tem registros mas tem histórico (módulo passado), usa o resumo do histórico
+    if (registroHistoricoAtual) {
+      return {
+        total: registroHistoricoAtual.total_aulas || 0,
+        presentes: registroHistoricoAtual.total_presencas || 0,
+        percentual: registroHistoricoAtual.frequencia || 0
+      };
+    }
+
+    return { total: 0, presentes: 0, percentual: 0 };
+  }, [dadosFiltrados, registroHistoricoAtual]);
 
   const saldoDracmasModulo = useMemo(() => {
     return dracmasFiltradas.reduce((acc, curr) => acc + (curr.quantidade || 0), 0);
@@ -149,8 +194,8 @@ const AppFrequencia: React.FC = () => {
       {/* Seletor de Módulo */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Módulo</label>
-        <Select 
-          value={filtroTurmaId} 
+        <Select
+          value={filtroTurmaId}
           onChange={(val) => setFiltroTurmaId(val)}
           className="max-w-md"
         >
@@ -181,7 +226,13 @@ const AppFrequencia: React.FC = () => {
         {loading ? (
           <p className="text-sm text-gray-600">Carregando frequência...</p>
         ) : dadosFiltrados.length === 0 ? (
-          <p className="text-sm text-gray-600">Nenhum registro de presença encontrado.</p>
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-600 mb-2">
+              {registroHistoricoAtual
+                ? "Detalhes diários arquivados. Visualize o resumo acima."
+                : "Nenhum registro de presença encontrado."}
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -196,7 +247,7 @@ const AppFrequencia: React.FC = () => {
               <tbody className="divide-y divide-gray-100">
                 {dadosFiltrados
                   .slice()
-                  .sort((a, b) => String(b.data).localeCompare(String(a.data)))
+                  .sort((a, b) => String(a.data).localeCompare(String(b.data)))
                   .map((p) => {
                     const dataFmt = p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—';
                     const badge =
@@ -227,41 +278,41 @@ const AppFrequencia: React.FC = () => {
 
       <Card className="p-4 border-l-4 border-yellow-500">
         <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-gray-800">Extrato de Drácmas {filtroTurmaId ? '(Módulo Selecionado)' : '(Total)'}</h3>
-            <div className="text-right">
-                <p className="text-xs text-gray-500 uppercase font-bold">Saldo</p>
-                <p className="text-2xl font-black text-yellow-600">{saldoDracmasModulo}</p>
-            </div>
+          <h3 className="text-lg font-bold text-gray-800">Extrato de Drácmas {filtroTurmaId ? '(Módulo Selecionado)' : '(Total)'}</h3>
+          <div className="text-right">
+            <p className="text-xs text-gray-500 uppercase font-bold">Saldo</p>
+            <p className="text-2xl font-black text-yellow-600">{saldoDracmasModulo}</p>
+          </div>
         </div>
 
         {loading ? (
-            <p className="text-sm text-gray-600">Carregando drácmas...</p>
+          <p className="text-sm text-gray-600">Carregando drácmas...</p>
         ) : dracmasFiltradas.length === 0 ? (
-            <p className="text-sm text-gray-600">Nenhuma drácma registrada neste período.</p>
+          <p className="text-sm text-gray-600">Nenhuma drácma registrada neste período.</p>
         ) : (
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-4 py-2 text-left font-medium text-gray-700">Data</th>
-                            <th className="px-4 py-2 text-left font-medium text-gray-700">Descrição</th>
-                            <th className="px-4 py-2 text-right font-medium text-gray-700">Qtd</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {dracmasFiltradas
-                            .slice()
-                            .sort((a, b) => String(b.data).localeCompare(String(a.data)))
-                            .map((d, idx) => (
-                                <tr key={idx}>
-                                    <td className="px-4 py-2">{d.data ? new Date(d.data).toLocaleDateString('pt-BR') : '—'}</td>
-                                    <td className="px-4 py-2 text-gray-700">{d.descricao || d.tipo}</td>
-                                    <td className="px-4 py-2 text-right font-bold text-yellow-700">+{d.quantidade}</td>
-                                </tr>
-                            ))}
-                    </tbody>
-                </table>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Data</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Descrição</th>
+                  <th className="px-4 py-2 text-right font-medium text-gray-700">Qtd</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {dracmasFiltradas
+                  .slice()
+                  .sort((a, b) => String(a.data).localeCompare(String(b.data)))
+                  .map((d, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2">{d.data ? new Date(d.data).toLocaleDateString('pt-BR') : '—'}</td>
+                      <td className="px-4 py-2 text-gray-700">{d.descricao || d.tipo}</td>
+                      <td className="px-4 py-2 text-right font-bold text-yellow-700">+{d.quantidade}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>

@@ -67,4 +67,8 @@ export class DracmasController {
   ) {
     return this.service.atualizarCriterio(id, body);
   }
+  @Post('resgatar')
+  async resgatar(@Body() body: { turma_id: string; aluno_id?: string; resgatado_por: string }) {
+    return this.service.resgatar(body);
+  }
 }

@@ -53,27 +53,21 @@ export class ModulosController {
   @Get('modulos')
   @ApiOperation({ summary: 'Listar módulos' })
   @ApiBearerAuth()
-  async listarModulos(@Headers('authorization') authorization?: string) {
-    await this.assertAdmin(authorization);
+  async listarModulos() {
     return this.service.listarModulos();
   }
 
   @Get('modulos/ativo')
   @ApiOperation({ summary: 'Obter o módulo do ciclo ativo' })
   @ApiBearerAuth()
-  async buscarCicloAtivo(@Headers('authorization') authorization?: string) {
-    await this.assertAdmin(authorization);
+  async buscarCicloAtivo() {
     return this.service.buscarCicloAtivo();
   }
 
   @Get('modulos/:id')
   @ApiOperation({ summary: 'Buscar módulo por ID' })
   @ApiBearerAuth()
-  async buscarModuloPorId(
-    @Headers('authorization') authorization: string | undefined,
-    @Param('id') id: string,
-  ) {
-    await this.assertAdmin(authorization);
+  async buscarModuloPorId(@Param('id') id: string) {
     return this.service.buscarModuloPorId(id);
   }
 
@@ -116,22 +110,14 @@ export class ModulosController {
   @Get('licoes')
   @ApiOperation({ summary: 'Listar lições (filtro opcional por módulo)' })
   @ApiBearerAuth()
-  async listarLicoes(
-    @Headers('authorization') authorization: string | undefined,
-    @Query('modulo_id') moduloId?: string,
-  ) {
-    await this.assertAdmin(authorization);
+  async listarLicoes(@Query('modulo_id') moduloId?: string) {
     return this.service.listarLicoes(moduloId);
   }
 
   @Get('licoes/:id')
   @ApiOperation({ summary: 'Buscar lição por ID' })
   @ApiBearerAuth()
-  async buscarLicaoPorId(
-    @Headers('authorization') authorization: string | undefined,
-    @Param('id') id: string,
-  ) {
-    await this.assertAdmin(authorization);
+  async buscarLicaoPorId(@Param('id') id: string) {
     return this.service.buscarLicaoPorId(id);
   }
 

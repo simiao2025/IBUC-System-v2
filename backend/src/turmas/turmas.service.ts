@@ -70,7 +70,7 @@ export class TurmasService {
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('turmas')
-      .select('*')
+      .select('*, modulos!modulo_atual_id(titulo)')
       .eq('id', id)
       .single();
 

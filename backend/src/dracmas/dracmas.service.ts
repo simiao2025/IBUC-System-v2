@@ -24,9 +24,9 @@ export class DracmasService {
     // o comportamento correto é substituir.
     // O ideal seria filtrar também pelo 'tipo' para não apagar outros lançamentos do mesmo dia.
     // Assumindo que o 'tipo' venha preenchido (ex: 'presenca', 'assiduidade').
-    
+
     if (tipo) {
-       await this.supabase
+      await this.supabase
         .getAdminClient()
         .from('dracmas_transacoes')
         .delete()
@@ -39,7 +39,7 @@ export class DracmasService {
       aluno_id: t.aluno_id,
       turma_id,
       quantidade: t.quantidade,
-      tipo: t.tipo || tipo, 
+      tipo: t.tipo || tipo,
       descricao,
       data,
       registrado_por,
@@ -94,25 +94,44 @@ export class DracmasService {
   }
 
   async porAluno(alunoId: string, inicio?: string, fim?: string) {
-    let query = this.supabase
+    // 1. Buscar transações ativas
+    let queryTransacoes = this.supabase
       .getAdminClient()
       .from('dracmas_transacoes')
       .select('*')
-      .eq('aluno_id', alunoId)
-      .order('data');
+      .eq('aluno_id', alunoId);
 
-    if (inicio) query = query.gte('data', inicio);
-    if (fim) query = query.lte('data', fim);
+    if (inicio) queryTransacoes = queryTransacoes.gte('data', inicio);
+    if (fim) queryTransacoes = queryTransacoes.lte('data', fim);
 
-    const { data, error } = await query;
-    if (error) throw new BadRequestException(`Erro DB Por Aluno: ${error.message}`);
+    const { data: transacoes, error: errTp } = await queryTransacoes;
+    if (errTp) throw new BadRequestException(`Erro DB Transacoes: ${errTp.message}`);
 
-    const saldo = (data || []).reduce((acc, row: any) => acc + (row.quantidade || 0), 0);
+    // 2. Buscar histórico de resgates (dracmas antigas)
+    let queryResgate = this.supabase
+      .getAdminClient()
+      .from('dracmas_resgate')
+      .select('*')
+      .eq('aluno_id', alunoId);
+
+    if (inicio) queryResgate = queryResgate.gte('data', inicio);
+    if (fim) queryResgate = queryResgate.lte('data', fim);
+
+    const { data: resgates, error: errRes } = await queryResgate;
+    if (errRes) throw new BadRequestException(`Erro DB Resgates: ${errRes.message}`);
+
+    // 3. Unificar listas
+    const todasTransacoes = [
+      ...(transacoes || []),
+      ...(resgates || []).map((r: any) => ({ ...r, is_resgate: true })) // Mark items from rescue table if needed
+    ].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()); // Sort desc
+
+    const saldo = (todasTransacoes || []).reduce((acc, row: any) => acc + (row.quantidade || 0), 0);
 
     return {
       aluno_id: alunoId,
       saldo,
-      transacoes: data || [],
+      transacoes: todasTransacoes,
     };
   }
 
@@ -229,5 +248,70 @@ export class DracmasService {
 
     if (error) throw new Error(error.message);
     return data;
+  }
+
+  async resgatar(body: { turma_id: string; aluno_id?: string; resgatado_por: string }) {
+    const { turma_id, aluno_id, resgatado_por } = body;
+    const client = this.supabase.getAdminClient();
+
+    // 1. Buscar transações a serem resgatadas
+    let query = client
+      .from('dracmas_transacoes')
+      .select('*')
+      .eq('turma_id', turma_id);
+
+    if (aluno_id) {
+      query = query.eq('aluno_id', aluno_id);
+    }
+
+    const { data: transacoes, error: fetchError } = await query;
+
+    if (fetchError) throw new BadRequestException(`Erro ao buscar transações para resgate: ${fetchError.message}`);
+    if (!transacoes || transacoes.length === 0) {
+      return { message: 'Nenhuma transação encontrada para resgate.', count: 0 };
+    }
+
+    // 2. Preparar dados para inserção na tabela de resgate
+    const resgateRows = transacoes.map(t => ({
+      original_id: t.id,
+      aluno_id: t.aluno_id,
+      turma_id: t.turma_id,
+      quantidade: t.quantidade,
+      tipo: t.tipo,
+      descricao: t.descricao,
+      data: t.data,
+      registrado_por: t.registrado_por,
+      created_at: t.created_at,
+      resgatado_por,
+      data_resgate: new Date().toISOString()
+    }));
+
+    // 3. Inserir na tabela dracmas_resgate
+    const { error: insertError } = await client
+      .from('dracmas_resgate')
+      .insert(resgateRows);
+
+    if (insertError) throw new BadRequestException(`Erro ao registrar resgate: ${insertError.message}`);
+
+    // 4. Deletar da tabela dracmas_transacoes
+    // Para segurança, deletar pelos IDs que acabamos de ler
+    const ids = transacoes.map(t => t.id);
+    const { error: deleteError } = await client
+      .from('dracmas_transacoes')
+      .delete()
+      .in('id', ids);
+
+    if (deleteError) {
+      // Se falhar o delete, ideal seria rollback do insert, mas via client HTTP não temos transação real fácil.
+      // Logamos erro crítico.
+      console.error('CRITICAL: Failed to delete rescued dracmas transactions', ids, deleteError);
+      throw new BadRequestException(`Erro ao remover transações originais (mas cópia foi feita): ${deleteError.message}`);
+    }
+
+    return {
+      message: 'Resgate realizado com sucesso.',
+      count: ids.length,
+      total_resgatado: transacoes.reduce((acc, t) => acc + (t.quantidade || 0), 0)
+    };
   }
 }

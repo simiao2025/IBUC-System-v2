@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -11,7 +12,7 @@ import { TurmasAPI } from '../../services/turma.service';
 import { LicoesAPI } from '../../services/modulos.service';
 import { PolosAPI } from '../../services/polo.service';
 import { useApp } from '../../context/AppContext';
-import { BookOpen, GraduationCap, Calendar as CalendarIcon, Beaker, Trash2, Edit2, History, X, User } from 'lucide-react';
+import { BookOpen, GraduationCap, Calendar as CalendarIcon, Beaker, Trash2, Edit2, History, X, User, Banknote } from 'lucide-react';
 
 type TurmaOption = {
   id: string;
@@ -41,6 +42,8 @@ type LinhaLancamento = {
 
 const AdminFrequencia: React.FC = () => {
   const { currentUser } = useApp();
+  // const navigate = useNavigate(); // Removed unused navigation
+
   const [data, setData] = useState(() => {
     const d = new Date();
     const year = d.getFullYear();
@@ -60,6 +63,14 @@ const AdminFrequencia: React.FC = () => {
   const [criteriosDracma, setCriteriosDracma] = useState<{ codigo: string, nome: string }[]>([]);
   const [licoes, setLicoes] = useState<{ id: string, titulo: string, ordem: number }[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [dracmasTransactions, setDracmasTransactions] = useState<any[]>([]); // To store all transactions for redemption calculation
+
+  const [resgateModalData, setResgateModalData] = useState<{
+    alunoId: string;
+    alunoNome: string;
+    saldo: number;
+    breakdown: Record<string, number>;
+  } | null>(null);
 
   const { showFeedback, showConfirm } = useApp();
 
@@ -268,6 +279,8 @@ const AdminFrequencia: React.FC = () => {
       const presencas = (presencasResponse as any)?.registros || [];
       const dracmas = (dracmasResponse as any)?.transacoes || [];
 
+      setDracmasTransactions(dracmas);
+
       setAlunos(prev => prev.map(aluno => {
         // Encontra presenças do aluno
         const alunoPresencas = presencas.filter((r: any) => r.aluno_id === aluno.aluno_id);
@@ -300,8 +313,6 @@ const AdminFrequencia: React.FC = () => {
     }
   };
 
-  // useEffect separado por turmaId removido para evitar race conditions com carregarDadosTurma
-
   const [editingModalData, setEditingModalData] = useState<{
     alunoId: string;
     alunoNome: string;
@@ -323,7 +334,7 @@ const AdminFrequencia: React.FC = () => {
       data: record.data,
       status: record.status,
       observacao: record.observacao || '',
-      dracmas: { ...record.dracmasPorTipo } || {}
+      dracmas: record.dracmasPorTipo ? { ...record.dracmasPorTipo } : {}
     });
   };
 
@@ -343,7 +354,7 @@ const AdminFrequencia: React.FC = () => {
         licao_id: editingModalData.originalRecord.licao_id || null,
         status: editingModalData.status,
         observacao: editingModalData.observacao,
-        lancado_por: currentUser.id
+        lancado_por: currentUser!.id
       }]);
 
       // 2. Atualizar Drácmas
@@ -373,7 +384,7 @@ const AdminFrequencia: React.FC = () => {
           data: editingModalData.data,
           tipo: 'AJUSTE',
           descricao: `Ajuste manual do aluno ${editingModalData.alunoNome}`,
-          registrado_por: currentUser.id,
+          registrado_por: currentUser!.id,
           transacoes: dracmasList
         });
       }
@@ -445,13 +456,13 @@ const AdminFrequencia: React.FC = () => {
 
       if (hasAnyDracmas) {
         // Agrupar por tipo de Drácma
-        const porTipo: Record<string, { aluno_id: string; quantidade: number }[]> = {};
+        const porTipo: Record<string, { aluno_id: string; quantidade: number; tipo: string }[]> = {};
 
         alunos.forEach(a => {
           Object.entries(a.dracmas).forEach(([tipo, quantidade]) => {
             if (quantidade > 0) {
               if (!porTipo[tipo]) porTipo[tipo] = [];
-              porTipo[tipo].push({ aluno_id: a.aluno_id, quantidade });
+              porTipo[tipo].push({ aluno_id: a.aluno_id, quantidade, tipo });
             }
           });
         });
@@ -483,6 +494,51 @@ const AdminFrequencia: React.FC = () => {
       console.error('Erro ao lançar frequência/drácmas:', err);
       const apiMessage = err.response?.data?.message || err.message;
       setError(apiMessage || 'Não foi possível salvar o lançamento.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenResgate = (alunoId: string) => {
+    const aluno = alunos.find(a => a.aluno_id === alunoId);
+    if (!aluno) return;
+
+    // Filter transactions for this student
+    const studentDracmas = dracmasTransactions.filter(t => t.aluno_id === alunoId);
+    const total = studentDracmas.reduce((acc, t) => acc + (t.quantidade || 0), 0);
+
+    // Breakdown
+    const breakdown: Record<string, number> = {};
+    studentDracmas.forEach(t => {
+      const typeName = t.tipo; // Or map to friendly name if available
+      breakdown[typeName] = (breakdown[typeName] || 0) + (t.quantidade || 0);
+    });
+
+    setResgateModalData({
+      alunoId,
+      alunoNome: aluno.nome,
+      saldo: total,
+      breakdown
+    });
+  };
+
+  const handleConfirmResgate = async () => {
+    if (!resgateModalData || !turmaId) return;
+
+    setSubmitting(true);
+    try {
+      await DracmasAPI.resgatar({
+        turma_id: turmaId,
+        aluno_id: resgateModalData.alunoId,
+        resgatado_por: currentUser!.id
+      });
+
+      showFeedback('success', 'Resgate Realizado', `Foram resgatadas ${resgateModalData.saldo} drácmas com sucesso.`);
+      setResgateModalData(null);
+      carregarHistorico(); // Refresh to clear balance
+    } catch (err) {
+      console.error('Erro ao resgatar:', err);
+      showFeedback('error', 'Erro', 'Falha ao realizar o resgate.');
     } finally {
       setSubmitting(false);
     }
@@ -523,7 +579,7 @@ const AdminFrequencia: React.FC = () => {
                         <GraduationCap className="text-teal-600 w-6 h-6" />
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-teal-600 uppercase tracking-wider">Ciclo Acadêmico</h4>
+                        <h4 className="text-xs font-bold text-teal-600 uppercase tracking-wider">MÓDULO</h4>
                         <p className="text-lg font-extrabold text-gray-900">{turmas[0].modulo_titulo}</p>
                       </div>
                     </div>
@@ -585,15 +641,7 @@ const AdminFrequencia: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="flex items-start space-x-3 bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
-                  <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
-                    <Beaker className="text-blue-600 w-5 h-5" />
-                  </div>
-                  <div className="text-xs text-blue-800 leading-relaxed">
-                    <span className="font-bold block uppercase mb-1">Dica de Produtividade</span>
-                    Agora você pode definir <strong>data</strong> e <strong>lição</strong> individualmente por aluno na lista abaixo.
-                  </div>
-                </div>
+
               </div>
             </div>
 
@@ -641,6 +689,17 @@ const AdminFrequencia: React.FC = () => {
                         >
                           Limpar
                         </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-amber-600 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 ml-2 border border-amber-200"
+                          onClick={() => handleOpenResgate(aluno.aluno_id)}
+                          title="Resgatar Drácmas (saque)"
+                        >
+                          <Banknote className="w-4 h-4 mr-1" />
+                          Resgatar Drácmas
+                        </Button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
@@ -672,7 +731,7 @@ const AdminFrequencia: React.FC = () => {
                           <label className="text-[10px] font-bold text-gray-400 uppercase">Status Presença</label>
                           <Select
                             value={aluno.status ?? ''}
-                            onChange={val => updateStatus(aluno.aluno_id, (val || null) as StatusPresenca)}
+                            onChange={val => updateStatus(aluno.aluno_id, (val === '' ? null : val) as StatusPresenca)}
                             className="h-9 text-xs"
                           >
                             <option value="">Sem registro</option>
@@ -860,8 +919,8 @@ const AdminFrequencia: React.FC = () => {
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
                   <Select
-                    value={editingModalData.status}
-                    onChange={v => setEditingModalData({ ...editingModalData, status: v })}
+                    value={editingModalData.status ?? ''}
+                    onChange={v => setEditingModalData({ ...editingModalData, status: (v === '' ? null : v) as StatusPresenca })}
                   >
                     <option value="presente">Presente</option>
                     <option value="falta">Falta</option>
@@ -922,6 +981,66 @@ const AdminFrequencia: React.FC = () => {
               <Button onClick={handleSaveEditModal} disabled={submitting}>
                 {submitting ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resgateModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 text-white text-center">
+              <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+                <Banknote className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold">Resgate de Drácmas</h3>
+              <p className="text-amber-100 text-sm mt-1">Converte saldo em produtos</p>
+            </div>
+
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-1">Aluno(a)</p>
+                <h4 className="text-lg font-bold text-gray-900">{resgateModalData.alunoNome}</h4>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 mb-6">
+                <p className="text-xs font-bold text-gray-400 uppercase mb-3 border-b pb-2">Extrato Acumulado</p>
+                {Object.entries(resgateModalData.breakdown).length > 0 ? (
+                  <div className="space-y-2">
+                    {Object.entries(resgateModalData.breakdown).map(([tipo, qtd]) => (
+                      <div key={tipo} className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600 capitalize">{tipo}</span>
+                        <span className="font-bold text-gray-800">{qtd}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm text-center py-2">Sem saldo disponível.</p>
+                )}
+
+                <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between items-center">
+                  <span className="text-sm font-bold text-gray-700 uppercase">Total Disponível</span>
+                  <span className="text-2xl font-extrabold text-amber-600">{resgateModalData.saldo}</span>
+                </div>
+              </div>
+
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start space-x-2 text-red-700 text-xs mb-6">
+                <div className="font-bold">Atenção:</div>
+                <div>Esta ação é irreversível. O saldo será zerado e registrado no histórico de resgates.</div>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button variant="outline" className="flex-1" onClick={() => setResgateModalData(null)} disabled={submitting}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white border-transparent"
+                  onClick={handleConfirmResgate}
+                  disabled={submitting || resgateModalData.saldo <= 0}
+                >
+                  {submitting ? 'Processando...' : 'Confirmar Resgate'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

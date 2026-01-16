@@ -6,23 +6,17 @@ import { EventosService, type Evento } from '../../services/eventos.service';
 import Button from '../../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { Icon3D } from '../../components/ui/Icon3D';
-import { BookOpen, ClipboardList, Wallet, FolderOpen, Award } from 'lucide-react';
-import { DracmasAPI } from '../../features/finance/dracmas.service';
+import { BookOpen, ClipboardList, Wallet, FolderOpen } from 'lucide-react';
 
-type DracmasSaldoResponse = {
-  data?: {
-    saldo?: number;
-  };
-  saldo?: number;
-};
+
+
 
 const AppDashboard: React.FC = () => {
-  const { currentUser } = useApp();
+  // const { currentUser } = useApp(); // Removed unused
   const [upcomingEvents, setUpcomingEvents] = useState<Evento[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
-  const [dracmasSaldo, setDracmasSaldo] = useState<number | null>(null);
-  const [dracmasLoading, setDracmasLoading] = useState(false);
+
 
   // Load Events
   useEffect(() => {
@@ -33,7 +27,7 @@ const AppDashboard: React.FC = () => {
         const data = await EventosService.listar({
           date_from: today,
           limit: 3,
-          include_geral: true 
+          include_geral: true
         });
         setUpcomingEvents(data || []);
       } catch (e) {
@@ -45,28 +39,7 @@ const AppDashboard: React.FC = () => {
     loadEvents();
   }, []);
 
-  useEffect(() => {
-    const loadDracmas = async () => {
-      if (!currentUser || currentUser.role !== 'student' || !currentUser.studentId) {
-        setDracmasSaldo(null);
-        return;
-      }
 
-      try {
-        setDracmasLoading(true);
-        const response = (await DracmasAPI.saldoPorAluno(currentUser.studentId)) as DracmasSaldoResponse;
-        const saldo = response?.data?.saldo ?? response?.saldo ?? 0;
-        setDracmasSaldo(typeof saldo === 'number' ? saldo : Number(saldo) || 0);
-      } catch (e) {
-        console.error('Erro ao carregar saldo de Drácmas do aluno:', e);
-        setDracmasSaldo(null);
-      } finally {
-        setDracmasLoading(false);
-      }
-    };
-
-    loadDracmas();
-  }, [currentUser]);
 
   const studentQuickActions = [
     {
@@ -97,14 +70,7 @@ const AppDashboard: React.FC = () => {
       iconName: 'personalizado',
       fallbackIcon: FolderOpen,
     },
-    {
-      title: 'Drácmas',
-      description: 'Saldo total de Drácmas',
-      href: '/app/frequencia',
-      iconName: 'certificado',
-      fallbackIcon: Award,
-      metaValue: dracmasLoading ? 'Carregando...' : dracmasSaldo === null ? '—' : String(dracmasSaldo),
-    },
+
   ];
 
   return (
@@ -148,7 +114,7 @@ const AppDashboard: React.FC = () => {
             <Calendar className="h-5 w-5 mr-2 text-blue-600" />
             Próximos Eventos
           </h3>
-          
+
           {loadingEvents ? (
             <div className="text-center py-8 text-gray-500 text-sm">Carregando eventos...</div>
           ) : upcomingEvents.length === 0 ? (
@@ -161,7 +127,7 @@ const AppDashboard: React.FC = () => {
                 const date = new Date(evt.data_inicio);
                 const day = date.getDate();
                 const month = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
-                
+
                 const colors = [
                   { bg: 'bg-blue-50', text: 'text-blue-600' },
                   { bg: 'bg-yellow-50', text: 'text-yellow-600' },
@@ -174,9 +140,9 @@ const AppDashboard: React.FC = () => {
                     <div>
                       <p className="font-medium text-gray-900 line-clamp-1">{evt.titulo}</p>
                       <div className="flex items-center text-xs text-gray-600 mt-1">
-                         <span>{evt.local || 'Local a definir'}</span>
-                         {evt.polo_id && <span className="ml-2 px-1.5 py-0.5 rounded bg-white/50 border border-gray-200 text-xs">Polo</span>}
-                         {!evt.polo_id && <span className="ml-2 px-1.5 py-0.5 rounded bg-white/50 border border-gray-200 text-xs text-blue-700">Geral</span>}
+                        <span>{evt.local || 'Local a definir'}</span>
+                        {evt.polo_id && <span className="ml-2 px-1.5 py-0.5 rounded bg-white/50 border border-gray-200 text-xs">Polo</span>}
+                        {!evt.polo_id && <span className="ml-2 px-1.5 py-0.5 rounded bg-white/50 border border-gray-200 text-xs text-blue-700">Geral</span>}
                       </div>
                     </div>
                     <div className="text-right min-w-[3rem]">
@@ -192,7 +158,7 @@ const AppDashboard: React.FC = () => {
 
         <Card className="flex items-center justify-center min-h-[200px] bg-gray-50 border-dashed">
           <p className="text-gray-400 text-sm text-center">
-            Mais funcionalidades em breve<br/>
+            Mais funcionalidades em breve<br />
             (conteúdos detalhados por módulo)
           </p>
         </Card>

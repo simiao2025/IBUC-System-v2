@@ -340,44 +340,40 @@ export class DocumentosService {
     await processItems(`alunos/${alunoId}`);
 
     // 2. Busca no caminho legado de pré-matrículas (onde student_id foi usado)
-    if (allArquivos.length === 0) {
-      await processItems(`pre-matriculas/${alunoId}`);
-    }
+    await processItems(`pre-matriculas/${alunoId}`);
 
-    // 3. Se ainda não encontrou, buscar o CPF do aluno e procurar pré-matrícula correspondente
-    if (allArquivos.length === 0) {
-      // Buscar CPF do aluno
-      const { data: aluno } = await client
-        .from('alunos')
-        .select('cpf')
-        .eq('id', alunoId)
-        .single();
+    // 3. Buscar pelo CPF do aluno para encontrar documentos de pré-matrícula associados
+    // Buscar CPF do aluno
+    const { data: aluno } = await client
+      .from('alunos')
+      .select('cpf')
+      .eq('id', alunoId)
+      .single();
 
-      if (aluno?.cpf) {
-        const cpfNormalizado = String(aluno.cpf).replace(/\D/g, '');
+    if (aluno?.cpf) {
+      const cpfNormalizado = String(aluno.cpf).replace(/\D/g, '');
 
-        // Buscar pré-matrículas com o mesmo CPF
-        const { data: preMatriculas } = await client
+      // Buscar pré-matrículas com o mesmo CPF
+      const { data: preMatriculas } = await client
+        .from('pre_matriculas')
+        .select('id')
+        .eq('cpf', cpfNormalizado);
+
+      // Se não encontrar com CPF normalizado, tentar com o CPF original
+      let preMatriculaIds = preMatriculas?.map(pm => pm.id) || [];
+
+      if (preMatriculaIds.length === 0) {
+        const { data: preMatriculas2 } = await client
           .from('pre_matriculas')
           .select('id')
-          .eq('cpf', cpfNormalizado);
+          .eq('cpf', aluno.cpf);
 
-        // Se não encontrar com CPF normalizado, tentar com o CPF original
-        let preMatriculaIds = preMatriculas?.map(pm => pm.id) || [];
+        preMatriculaIds = preMatriculas2?.map(pm => pm.id) || [];
+      }
 
-        if (preMatriculaIds.length === 0) {
-          const { data: preMatriculas2 } = await client
-            .from('pre_matriculas')
-            .select('id')
-            .eq('cpf', aluno.cpf);
-
-          preMatriculaIds = preMatriculas2?.map(pm => pm.id) || [];
-        }
-
-        // Buscar documentos em cada pré-matrícula encontrada
-        for (const preMatriculaId of preMatriculaIds) {
-          await processItems(`pre-matriculas/${preMatriculaId}`);
-        }
+      // Buscar documentos em cada pré-matrícula encontrada
+      for (const preMatriculaId of preMatriculaIds) {
+        await processItems(`pre-matriculas/${preMatriculaId}`);
       }
     }
 

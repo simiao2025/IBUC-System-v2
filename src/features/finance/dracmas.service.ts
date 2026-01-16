@@ -55,6 +55,8 @@ export const DracmasAPI = {
     if (fim) params.append('fim', fim);
     return api.get(`/dracmas/por-turma?${params.toString()}`);
   },
+
+  resgatar: (data: { turma_id: string; aluno_id?: string; resgatado_por: string }) => api.post('/dracmas/resgatar', data),
 };
 
 export class DracmasService {
