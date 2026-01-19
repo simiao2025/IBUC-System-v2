@@ -1,5 +1,5 @@
-import React from 'react';
-import ErrorBoundary from './components/ui/ErrorBoundary';
+﻿import React from 'react';
+import { ErrorBoundary } from '@/shared/ui';
 import { RouterProvider } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { FeedbackProvider } from './context/FeedbackContext';

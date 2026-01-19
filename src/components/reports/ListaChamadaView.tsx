@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Select from '../../components/ui/Select';
-import Button from '../../components/ui/Button';
-import { RelatorioService } from '../../services/relatorio.service';
-import { TurmaService } from '../../services/turma.service';
-import { PolosAPI } from '../../services/polo.service';
+﻿import React, { useState, useEffect } from 'react';
+import { Card } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { AttendanceReportsAPI } from '@/entities/attendance/api/attendance-reports.api';
+import { turmaApi as TurmaService } from '@/entities/turma';
+import { poloApi as PolosAPI } from '@/entities/polo';
 import { Loader2, Download, ClipboardCheck, Search, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -23,7 +23,7 @@ const ListaChamadaView: React.FC = () => {
   // Carregar Polos
   useEffect(() => {
     if (isAdminGlobal) {
-      PolosAPI.listar().then((data: any) => { // Removed the empty object argument
+      PolosAPI.list().then((data: any) => { // Removed the empty object argument
         setPolos(Array.isArray(data) ? data : []);
       });
     }
@@ -35,14 +35,14 @@ const ListaChamadaView: React.FC = () => {
       setTurmas([]);
       return;
     }
-    TurmaService.listarTurmas(selectedPolo ? { polo_id: selectedPolo } : {}).then(setTurmas);
+    TurmaService.list(selectedPolo ? { polo_id: selectedPolo } : {}).then(setTurmas);
   }, [selectedPolo, isAdminGlobal]);
 
   const handleGerar = async () => {
     if (!turmaId) return;
     setLoading(true);
     try {
-      const res = await RelatorioService.relatorioListaChamada(turmaId);
+      const res = await AttendanceReportsAPI.relatorioListaChamada(turmaId);
       setData(res);
     } catch (error) {
       console.error('Erro ao gerar lista de chamada:', error);

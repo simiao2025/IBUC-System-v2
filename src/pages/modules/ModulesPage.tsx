@@ -1,94 +1,94 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 const modules = [
   {
-    title: 'Módulo 01',
-    subtitle: 'APRENDENDO A BÍBLIA',
+    title: 'MÃ³dulo 01',
+    subtitle: 'APRENDENDO A BÃBLIA',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod1_livros.jpg',
-    alt: 'Livros Módulo 01',
+    alt: 'Livros MÃ³dulo 01',
     link: '/modulo-01',
     gradient: 'from-blue-400 to-green-400',
-    livros: 'A BÍBLIA, DEUS, JESUS',
+    livros: 'A BÃBLIA, DEUS, JESUS',
   },
   {
-    title: 'Módulo 02',
-    subtitle: 'HISTÓRIAS BÍBLICAS',
+    title: 'MÃ³dulo 02',
+    subtitle: 'HISTÃ“RIAS BÃBLICAS',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod2_livros.jpg',
-    alt: 'Livros Módulo 02',
+    alt: 'Livros MÃ³dulo 02',
     link: '/modulo-02',
     gradient: 'from-yellow-400 to-orange-400',
-    livros: 'HISTÓRIAS, PERSONAGENS',
+    livros: 'HISTÃ“RIAS, PERSONAGENS',
   },
   {
-    title: 'Módulo 03',
-    subtitle: 'TERRAS BÍBLICAS',
+    title: 'MÃ³dulo 03',
+    subtitle: 'TERRAS BÃBLICAS',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod3_livros.jpg',
-    alt: 'Livros Módulo 03',
+    alt: 'Livros MÃ³dulo 03',
     link: '/modulo-03',
     gradient: 'from-purple-400 to-pink-400',
-    livros: 'TERRAS BÍBLICAS, MAPAS',
+    livros: 'TERRAS BÃBLICAS, MAPAS',
   },
   {
-    title: 'Módulo 04',
-    subtitle: 'VALORES CRISTÃOS',
+    title: 'MÃ³dulo 04',
+    subtitle: 'VALORES CRISTÃƒOS',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod4_livros-300x225.jpg',
-    alt: 'Livros Módulo 04',
+    alt: 'Livros MÃ³dulo 04',
     link: '/modulo-04',
     gradient: 'from-orange-400 to-red-400',
-    livros: 'VALORES, PRINCÍPIOS',
+    livros: 'VALORES, PRINCÃPIOS',
   },
   {
-    title: 'Módulo 05',
-    subtitle: 'LIDERANÇA JUVENIL',
+    title: 'MÃ³dulo 05',
+    subtitle: 'LIDERANÃ‡A JUVENIL',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod5_livros-300x225.jpg',
-    alt: 'Livros Módulo 05',
+    alt: 'Livros MÃ³dulo 05',
     link: '/modulo-05',
     gradient: 'from-red-400 to-orange-400',
-    livros: 'LIDERANÇA, MINISTÉRIO',
+    livros: 'LIDERANÃ‡A, MINISTÃ‰RIO',
   },
   {
-    title: 'Módulo 06',
+    title: 'MÃ³dulo 06',
     subtitle: 'OS PROFETAS',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod6_livros-300x225.jpg',
-    alt: 'Livros Módulo 06',
+    alt: 'Livros MÃ³dulo 06',
     link: '/modulo-06',
     gradient: 'from-pink-400 to-purple-400',
-    livros: 'PROFETAS, ISAÍAS',
+    livros: 'PROFETAS, ISAÃAS',
   },
   {
-    title: 'Módulo 07',
-    subtitle: 'EVANGELIZAÇÃO',
+    title: 'MÃ³dulo 07',
+    subtitle: 'EVANGELIZAÃ‡ÃƒO',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod7_livros-300x225.jpg',
-    alt: 'Livros Módulo 07',
+    alt: 'Livros MÃ³dulo 07',
     link: '/modulo-07',
     gradient: 'from-green-400 to-blue-400',
-    livros: 'EVANGELIZAÇÃO, MISSÕES',
+    livros: 'EVANGELIZAÃ‡ÃƒO, MISSÃ•ES',
   },
   {
-    title: 'Módulo 08',
-    subtitle: 'ADORAÇÃO',
+    title: 'MÃ³dulo 08',
+    subtitle: 'ADORAÃ‡ÃƒO',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod8_livros-300x225.jpg',
-    alt: 'Livros Módulo 08',
+    alt: 'Livros MÃ³dulo 08',
     link: '/modulo-08',
     gradient: 'from-blue-400 to-green-400',
-    livros: 'ADORAÇÃO, LOUVOR',
+    livros: 'ADORAÃ‡ÃƒO, LOUVOR',
   },
   {
-    title: 'Módulo 09',
-    subtitle: 'MÚSICAS BÍBLICAS',
+    title: 'MÃ³dulo 09',
+    subtitle: 'MÃšSICAS BÃBLICAS',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod9_livros-300x225.jpg',
-    alt: 'Livros Módulo 09',
+    alt: 'Livros MÃ³dulo 09',
     link: '/modulo-09',
     gradient: 'from-yellow-400 to-pink-400',
-    livros: 'MÚSICAS, CÂNTICOS',
+    livros: 'MÃšSICAS, CÃ‚NTICOS',
   },
   {
-    title: 'Módulo 10',
+    title: 'MÃ³dulo 10',
     subtitle: 'VENDANDO O FUTURO',
     img: 'https://ibuc.com.br/wp-content/uploads/2023/05/mod10_livros-300x225.jpg',
-    alt: 'Livros Módulo 10',
+    alt: 'Livros MÃ³dulo 10',
     link: '/modulo-10',
     gradient: 'from-purple-400 to-yellow-400',
     livros: 'FUTURO, APOCALIPSE',
@@ -116,7 +116,7 @@ const ModulesPage: React.FC = () => {
             </div>
             <div className="text-right">
               <h1 className="text-2xl font-bold">IBUC - Palmas, TO</h1>
-              <p className="text-sm opacity-90">Instituto Bíblico Único Caminho</p>
+              <p className="text-sm opacity-90">Instituto BÃ­blico Ãšnico Caminho</p>
             </div>
           </div>
         </div>
@@ -127,7 +127,7 @@ const ModulesPage: React.FC = () => {
         {/* Page Title */}
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Módulos
+            MÃ³dulos
           </h2>
         </div>
 

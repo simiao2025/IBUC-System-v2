@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
@@ -23,7 +23,7 @@ const Module07: React.FC = () => {
             </div>
             <div className="text-right">
               <h1 className="text-2xl font-bold">IBUC - Palmas, TO</h1>
-              <p className="text-sm opacity-90">Instituto Bíblico Único Caminho</p>
+              <p className="text-sm opacity-90">Instituto BÃ­blico Ãšnico Caminho</p>
             </div>
           </div>
         </div>
@@ -34,7 +34,7 @@ const Module07: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Module Title */}
           <div className="flex justify-between items-start mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Módulo 07</h2>
+            <h2 className="text-3xl font-bold text-gray-900">MÃ³dulo 07</h2>
             <div className="text-9xl font-bold text-cyan-200 opacity-50">07</div>
           </div>
 
@@ -42,7 +42,7 @@ const Module07: React.FC = () => {
           <div className="flex justify-center mb-8">
             <img
               src="https://ibuc.com.br/wp-content/uploads/2023/05/mod7_livros.jpg"
-              alt="Livros do Módulo 07"
+              alt="Livros do MÃ³dulo 07"
               className="max-w-4xl w-full h-auto rounded-lg shadow-2xl"
             />
           </div>
@@ -59,7 +59,7 @@ const Module07: React.FC = () => {
           <div className="flex justify-center mb-12">
             <img
               src="https://ibuc.com.br/wp-content/uploads/2023/05/mod7_licoes.jpg"
-              alt="Lições do Módulo 07"
+              alt="LiÃ§Ãµes do MÃ³dulo 07"
               className="max-w-4xl w-full h-auto rounded-lg shadow-2xl"
             />
           </div>
@@ -78,7 +78,7 @@ const Module07: React.FC = () => {
                 to="/modulo-08"
                 className="inline-flex items-center px-6 py-3 bg-white text-cyan-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors duration-200 shadow-lg"
               >
-                <span>Módulo 08</span>
+                <span>MÃ³dulo 08</span>
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Link>
             </div>
@@ -94,7 +94,7 @@ const Module07: React.FC = () => {
             className="inline-flex items-center px-6 py-3 bg-white text-cyan-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors duration-200 shadow-lg"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Voltar aos Módulos
+            Voltar aos MÃ³dulos
           </Link>
         </div>
       </div>

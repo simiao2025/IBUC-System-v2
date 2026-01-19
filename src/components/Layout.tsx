@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
@@ -10,10 +10,10 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
-  // Apenas esconde o cabeçalho na página de login
-  const hideHeader = false; // Forçando o cabeçalho a ficar visível em todas as páginas
+  // Apenas esconde o cabeÃ§alho na pÃ¡gina de login
+  const hideHeader = false; // ForÃ§ando o cabeÃ§alho a ficar visÃ­vel em todas as pÃ¡ginas
 
-  // Estilização da barra de rolagem apenas para o ambiente administrativo
+  // EstilizaÃ§Ã£o da barra de rolagem apenas para o ambiente administrativo
   React.useEffect(() => {
     const styleElement = document.createElement('style');
     

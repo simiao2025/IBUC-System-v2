@@ -1,12 +1,12 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { useAccessControl } from '@/components/AccessControl';
 import { useNavigationConfirm } from '@/hooks/useNavigationConfirm';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { Icon3D } from '@/components/ui/Icon3D';
+import { Card } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { ConfirmDialog } from '@/shared/ui';
+import { Icon3D } from '@/shared/ui';
 import {
   Users,
   MapPin,
@@ -48,9 +48,13 @@ const AdminDashboard: React.FC = () => {
 
   React.useEffect(() => {
     const loadCertCount = async () => {
-      const { CertificadoService } = await import('@/services/certificado.service');
-      const total = await CertificadoService.contarTotal();
-      setCertCount(total);
+      try {
+        const { studentReportsApi } = await import('@/entities/student');
+        const total = await studentReportsApi.contarCertificados();
+        setCertCount(total);
+      } catch (e) {
+        console.error('Erro ao carregar contagem de certificados', e);
+      }
     };
     loadCertCount();
   }, []);
@@ -58,7 +62,7 @@ const AdminDashboard: React.FC = () => {
   React.useEffect(() => {
     const loadEvents = async () => {
       try {
-        const { EventosService } = await import('@/services/eventos.service');
+        const { EventosAPI: EventosService } = await import('@/features/event-management/api/eventos.api');
         const today = new Date().toISOString().split('T')[0];
         const data = await EventosService.listar({
           date_from: today,
@@ -234,7 +238,7 @@ const AdminDashboard: React.FC = () => {
     }
   ];
 
-  // Filtra ações baseado nas permissões
+  // Filtra aÃ§Ãµes baseado nas permissÃµes
   const quickActions = allQuickActions.filter(action => action.permission);
 
   return (
@@ -270,7 +274,7 @@ const AdminDashboard: React.FC = () => {
                         </span>
                       </span>
                       <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                        {currentUser.adminUser.role === 'super_admin' && 'Super Admin'}
+                         {currentUser.adminUser.role === 'super_admin' && 'Super Admin'}
                         {currentUser.adminUser.role === 'admin_geral' && 'Admin Geral'}
                         {currentUser.adminUser.role === 'coordenador_geral' && 'Coordenador Geral'}
                         {currentUser.adminUser.role === 'diretor_geral' && 'Diretor Geral'}

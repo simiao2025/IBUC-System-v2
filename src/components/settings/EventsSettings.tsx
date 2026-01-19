@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import Card from '../ui/Card';
-import Button from '../ui/Button';
-import Input from '../ui/Input';
-import Select from '../ui/Select';
-import { useApp } from '../../context/AppContext';
-import { EventosService, type Evento } from '../../services/eventos.service';
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import { Card } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { Input } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { useApp } from '@/context/AppContext';
+import { EventosAPI as EventosService } from '@/features/event-management/api/eventos.api';
+import type { Evento } from '@/features/event-management/model/types';
 
 type ScopeMode = 'geral' | 'polo';
 
@@ -62,7 +63,7 @@ export const EventsSettings: React.FC = () => {
       setItems(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Erro ao carregar eventos:', e);
-      showFeedback('error', 'Erro', 'Não foi possível carregar eventos.');
+      showFeedback('error', 'Erro', 'NÃ£o foi possÃ­vel carregar eventos.');
       setItems([]);
     } finally {
       setLoading(false);
@@ -110,12 +111,12 @@ export const EventsSettings: React.FC = () => {
 
   const handleSave = async () => {
     if (!form.titulo.trim()) {
-      showFeedback('error', 'Erro', 'Título é obrigatório.');
+      showFeedback('error', 'Erro', 'TÃ­tulo Ã© obrigatÃ³rio.');
       return;
     }
 
     if (!form.data_inicio) {
-      showFeedback('error', 'Erro', 'Data de início é obrigatória.');
+      showFeedback('error', 'Erro', 'Data de inÃ­cio Ã© obrigatÃ³ria.');
       return;
     }
 
@@ -157,7 +158,7 @@ export const EventsSettings: React.FC = () => {
       await carregar();
     } catch (e) {
       console.error('Erro ao salvar evento:', e);
-      showFeedback('error', 'Erro', 'Não foi possível salvar o evento.');
+      showFeedback('error', 'Erro', 'NÃ£o foi possÃ­vel salvar o evento.');
     } finally {
       setSaving(false);
     }
@@ -175,11 +176,11 @@ export const EventsSettings: React.FC = () => {
 
     try {
       await EventosService.deletar(evt.id);
-      showFeedback('success', 'Sucesso', 'Evento excluído.');
+      showFeedback('success', 'Sucesso', 'Evento excluÃ­do.');
       await carregar();
     } catch (e) {
       console.error('Erro ao excluir evento:', e);
-      showFeedback('error', 'Erro', 'Não foi possível excluir o evento.');
+      showFeedback('error', 'Erro', 'NÃ£o foi possÃ­vel excluir o evento.');
     }
   };
 
@@ -188,7 +189,7 @@ export const EventsSettings: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Eventos</h2>
-          <p className="text-sm text-gray-600">Cadastro de eventos para exibição no painel administrativo</p>
+          <p className="text-sm text-gray-600">Cadastro de eventos para exibiÃ§Ã£o no painel administrativo</p>
         </div>
         <Button onClick={openCreate}>Novo Evento</Button>
       </div>
@@ -236,11 +237,11 @@ export const EventsSettings: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Título</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-700">TÃ­tulo</th>
                 {!isPoloScoped && <th className="px-4 py-3 text-left font-medium text-gray-700">Polo</th>}
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Local</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Data</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-700">Ações</th>
+                <th className="px-4 py-3 text-right font-medium text-gray-700">AÃ§Ãµes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
@@ -289,13 +290,13 @@ export const EventsSettings: React.FC = () => {
 
             <div className="space-y-4">
               <Input
-                label="Título"
+                label="TÃ­tulo"
                 value={form.titulo}
                 onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
               />
 
               <Input
-                label="Descrição"
+                label="DescriÃ§Ã£o"
                 value={form.descricao}
                 onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
               />
@@ -308,7 +309,7 @@ export const EventsSettings: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Data de Início"
+                  label="Data de InÃ­cio"
                   type="date"
                   value={form.data_inicio}
                   onChange={(e) => setForm((p) => ({ ...p, data_inicio: e.target.value }))}

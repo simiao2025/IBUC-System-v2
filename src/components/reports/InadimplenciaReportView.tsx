@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Select from '../../components/ui/Select';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
-import { RelatorioService } from '../../services/relatorio.service';
-import { PolosAPI } from '../../services/polo.service';
+﻿import React, { useState, useEffect } from 'react';
+import { Card } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { Input } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { FinanceReportsAPI } from '@/entities/finance/api/finance-reports.api';
+import { poloApi as PolosAPI } from '@/entities/polo';
 import { Loader2, Download, DollarSign, Search, AlertCircle, Phone } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -20,20 +20,20 @@ const InadimplenciaReportView: React.FC = () => {
   });
 
   useEffect(() => {
-    // Apenas Diretoria Geral pode trocar de polo aqui se não estiver fixo
+    // Apenas Diretoria Geral pode trocar de polo aqui se nÃ£o estiver fixo
     if (!currentUser?.adminUser?.poloId) {
-       PolosAPI.listar().then(res => setPolos(res as any[]));
+       PolosAPI.list().then(res => setPolos(res as any[]));
     }
   }, [currentUser]);
 
   const handleFetch = async () => {
     setLoading(true);
     try {
-      const res = await RelatorioService.relatorioInadimplencia(filtros);
+      const res = await FinanceReportsAPI.relatorioInadimplencia(filtros);
       setData(res);
     } catch (error) {
-      console.error('Erro ao buscar inadimplência:', error);
-      alert('Erro ao carregar relatório financeiro.');
+      console.error('Erro ao buscar inadimplÃªncia:', error);
+      alert('Erro ao carregar relatÃ³rio financeiro.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ const InadimplenciaReportView: React.FC = () => {
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Data de Referência</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Data de ReferÃªncia</label>
             <Input 
               type="date" 
               value={filtros.data_referencia} 
@@ -70,7 +70,7 @@ const InadimplenciaReportView: React.FC = () => {
           </div>
           <Button onClick={handleFetch} loading={loading} variant="primary">
             <DollarSign className="h-4 w-4 mr-2" />
-            Gerar Relatório
+            Gerar RelatÃ³rio
           </Button>
         </div>
       </Card>
@@ -78,7 +78,7 @@ const InadimplenciaReportView: React.FC = () => {
       {loading && (
         <div className="p-12 text-center text-gray-500">
           <Loader2 className="animate-spin h-8 w-8 mx-auto mb-2 text-red-500" />
-          Analisando histórico financeiro...
+          Analisando histÃ³rico financeiro...
         </div>
       )}
 
@@ -88,10 +88,10 @@ const InadimplenciaReportView: React.FC = () => {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                 <AlertCircle className="h-6 w-6 mr-2 text-red-500" />
-                Relatório de Inadimplência
+                RelatÃ³rio de InadimplÃªncia
               </h2>
               <p className="text-gray-500 text-sm mt-1">
-                Referência: {new Date(data.data_referencia).toLocaleDateString()}
+                ReferÃªncia: {new Date(data.data_referencia).toLocaleDateString()}
               </p>
             </div>
             <div className="print:hidden">
@@ -151,7 +151,7 @@ const InadimplenciaReportView: React.FC = () => {
                 {(!data.resumoPorAluno || data.resumoPorAluno.length === 0) && (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500 italic">
-                      Parabéns! Não foram encontradas inadimplências para os filtros selecionados.
+                      ParabÃ©ns! NÃ£o foram encontradas inadimplÃªncias para os filtros selecionados.
                     </td>
                   </tr>
                 )}

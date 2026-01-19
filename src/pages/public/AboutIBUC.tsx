@@ -1,5 +1,5 @@
-import React from 'react';
-import Card from '../../components/ui/Card';
+﻿import React from 'react';
+import { Card } from '@/shared/ui';
 import { 
   MapPin, 
   Phone, 
@@ -334,7 +334,7 @@ const AboutIBUC: React.FC = () => {
                 </div>
                 <div>
                   <p className="font-semibold text-green-700">Recursos:</p>
-                  <p className="text-green-600">Material Online, Formulários, Quiz</p>
+                  <p className="text-red-600">Material Online, Formulários, Quiz</p>
                 </div>
               </div>
             </Card>
@@ -366,7 +366,7 @@ const AboutIBUC: React.FC = () => {
                   <div>
                     <p className="font-semibold text-gray-700">Endereço Administrativo:</p>
                     <p className="text-gray-600">
-                      Av. T9, nº647, Setor Bueno<br />
+                      Av. T9, nº 647, Setor Bueno<br />
                       Primeiro andar (acima da Copyprint)<br />
                       Palmas - TO, Brasil
                     </p>

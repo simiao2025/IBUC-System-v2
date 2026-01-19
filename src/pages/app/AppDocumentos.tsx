@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
+import { Button } from '@/shared/ui';
+import { Card } from '@/shared/ui';
 import { useApp } from '../../context/AppContext';
-import { DocumentosAPI, type Documento } from '../../services/documentos.service';
+import { DocumentAPI } from '@/shared/api';
+import type { Documento } from '@/types/database';
 import { FileText, Download, Upload, X } from 'lucide-react';
 
 const AppDocumentos: React.FC = () => {
@@ -31,7 +32,7 @@ const AppDocumentos: React.FC = () => {
 
       console.log('[AppDocumentos] Buscando documentos do aluno:', currentUser.studentId);
 
-      const response = await DocumentosAPI.listarPorAluno(currentUser.studentId);
+      const response = await DocumentAPI.listByStudent(currentUser.studentId);
 
       // A API retorna os dados diretamente: { aluno_id, arquivos: [] }
       // O cliente api.ts já faz o unwrap do response.json()
@@ -87,7 +88,7 @@ const AppDocumentos: React.FC = () => {
       setUploading(true);
       setError(null);
 
-      await DocumentosAPI.uploadDocumentos(currentUser.studentId, selectedFiles);
+      await DocumentAPI.uploadMultipleByStudent(currentUser.studentId, selectedFiles);
 
       // Recarregar lista de documentos
       await loadDocumentos();

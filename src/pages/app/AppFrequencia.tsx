@@ -1,14 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Select from '../../components/ui/Select';
+import { Button } from '@/shared/ui';
+import { Card } from '@/shared/ui';
+import { Select } from '@/shared/ui';
 import { useApp } from '../../context/AppContext';
-import { PresencaService } from '../../features/attendance/presenca.service';
-import type { Presenca } from '../../types/database';
-import { TurmasAPI } from '../../features/classes/services/turma.service';
-import { AlunosAPI } from '../../features/students/aluno.service';
-import { DracmasAPI } from '../../features/finance/dracmas.service';
+import { attendanceApi as PresencaService } from '@/entities/attendance';
+import type { Presenca } from '@/types/database';
+import { turmaApi as TurmasAPI } from '@/entities/turma';
+import { AlunosAPI } from '@/features/student-management';
+import { dracmasApi as DracmasAPI } from '@/entities/finance';
 
 const AppFrequencia: React.FC = () => {
   const { currentUser } = useApp();

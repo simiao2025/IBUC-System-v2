@@ -1,4 +1,4 @@
-// ============================================
+﻿// ============================================
 // IBUC System - Cliente Supabase Admin (Service Role)
 // ⚠️ ATENÇÃO: Este cliente BYPASSA o RLS!
 // Use APENAS em:
@@ -46,4 +46,3 @@ export const getAdminClient = () => {
   }
   return supabaseAdmin;
 };
-

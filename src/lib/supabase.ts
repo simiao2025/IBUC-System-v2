@@ -1,4 +1,4 @@
-// ============================================
+﻿// ============================================
 // IBUC System - Cliente Supabase (Frontend)
 // Este cliente usa ANON_KEY e respeita o RLS
 // ============================================
@@ -45,4 +45,3 @@ export const setPoloContext = async (poloId: string) => {
   }
   return { data, error };
 };
-

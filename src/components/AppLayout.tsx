@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from './ui/Button';
+import { Button } from '@/shared/ui';
 import { useApp } from '../context/AppContext';
-import { AlunosAPI } from '../features/students/aluno.service';
-import { PoloService } from '../services/polo.service';
-import { TurmaService } from '../services/turma.service';
-import type { Aluno, Nivel } from '../types/database';
+import { AlunosAPI } from '@/features/student-management';
+import { poloApi } from '@/entities/polo';
+import { turmaApi } from '@/entities/turma';
+import type { Aluno, Nivel } from '@/types/database';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -41,7 +41,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         if (inferredPoloName) {
           setPoloName(inferredPoloName);
         } else if (aluno.polo_id) {
-          const polo = await PoloService.buscarPoloPorId(aluno.polo_id);
+          const poloResponse: any = await poloApi.getById(aluno.polo_id);
+          const polo = poloResponse?.data || poloResponse;
           setPoloName(polo?.nome || '');
         } else {
           setPoloName('');
@@ -51,7 +52,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         if (inferredNivelName) {
           setNivelName(inferredNivelName);
         } else if (aluno.nivel_atual_id) {
-          const niveis = (await TurmaService.listarNiveis()) as Nivel[];
+          const niveisResponse: any = await turmaApi.listNiveis();
+          const niveis = (niveisResponse?.data || niveisResponse) as Nivel[];
           const nivel = (Array.isArray(niveis) ? niveis : []).find(n => n.id === aluno.nivel_atual_id);
           setNivelName(nivel?.nome || aluno.nivel_atual_id);
         } else {

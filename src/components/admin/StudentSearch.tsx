@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Search, User } from 'lucide-react';
-import { AlunosAPI } from '../../features/students/aluno.service';
+import { AlunosAPI } from '@/features/student-management';
 import type { Aluno } from '../../types/database';
 
 interface StudentSearchProps {
@@ -41,7 +41,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
     carregarAlunos();
   }, [poloId]);
 
-  // Filtrar alunos em ordem alfabética
+  // Filtrar alunos em ordem alfabÃ©tica
   const filteredStudents = useMemo(() => {
     if (!searchTerm) {
       return students.sort((a, b) => a.nome.localeCompare(b.nome));
@@ -93,7 +93,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
             onClick={handleClear}
             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            ×
+            Ã—
           </button>
         )}
       </div>

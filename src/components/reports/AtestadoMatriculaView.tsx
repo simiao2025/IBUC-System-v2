@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Select from '../../components/ui/Select';
-import Button from '../../components/ui/Button';
-import { RelatorioService } from '../../services/relatorio.service';
-import { AlunosAPI } from '../../features/students/aluno.service';
-import { PolosAPI } from '../../services/polo.service';
+﻿import React, { useState, useEffect } from 'react';
+import { Card } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { StudentReportsAPI } from '@/entities/student/api/student-reports.api';
+import { AlunosAPI } from '@/features/student-management';
+import { poloApi as PolosAPI } from '@/entities/polo';
 import { Loader2, FileText, Download, FileCheck2, Search, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -23,7 +23,7 @@ const AtestadoMatriculaView: React.FC = () => {
   // Carregar Polos
   useEffect(() => {
     if (isAdminGlobal) {
-      PolosAPI.listar().then((data: any) => {
+      PolosAPI.list().then((data: any) => {
         setPolos(Array.isArray(data) ? data : []);
       });
     }
@@ -48,7 +48,7 @@ const AtestadoMatriculaView: React.FC = () => {
     if (!alunoId) return;
     setLoading(true);
     try {
-      const res = await RelatorioService.relatorioAtestadoMatricula(alunoId);
+      const res = await StudentReportsAPI.relatorioAtestadoMatricula(alunoId);
       setData(res);
     } catch (error) {
       console.error('Erro ao gerar atestado:', error);

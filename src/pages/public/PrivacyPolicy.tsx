@@ -1,5 +1,5 @@
-import React from 'react';
-import Card from '../../components/ui/Card';
+﻿import React from 'react';
+import { Card } from '@/shared/ui';
 import { Shield, Lock, Eye, FileText } from 'lucide-react';
 
 const PrivacyPolicy: React.FC = () => {
@@ -27,7 +27,7 @@ const PrivacyPolicy: React.FC = () => {
             </p>
             <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4">
               <li>Nome completo do aluno e dos responsáveis;</li>
-              <li>Dados de contato (email, telefone);</li>
+              <li>Dados de contato (email, telegram, telefone);</li>
               <li>Documentos de identificação (CPF, RG, Certidão de Nascimento);</li>
               <li>Informações de saúde relevantes para o cuidado do aluno no polo.</li>
             </ul>

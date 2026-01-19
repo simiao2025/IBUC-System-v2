@@ -1,0 +1,38 @@
+﻿
+> ibuc-system@0.1.0 build
+> tsc && vite build
+
+[36mvite v5.4.8 [32mbuilding for production...[36m[39m
+transforming...
+node.exe : Browserslist: caniuse-lite is outdated. 
+Please run:
+No linha:1 caractere:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Browser 
+   slist: c...ed. Please run::String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  npx update-browserslist-db@latest
+  Why you should do it regularly: 
+https://github.com/browserslist/update-db#readme
+[32mÔ£ô[39m 1789 modules transformed.
+[31mx[39m Build failed in 2m 10s
+[31merror during build:
+[31mCould not resolve "../api/class.api" from 
+"src/entities/turma/model/hooks.ts"[31m
+file: [36mC:/Projetos/IBUC-System-v2/src/entities/tu
+rma/model/hooks.ts[31m
+    at getRollupError (file:///C:/Projetos/IBUC-Syste
+m-v2/node_modules/rollup/dist/es/shared/parseAst.js:4
+01:41)
+    at error (file:///C:/Projetos/IBUC-System-v2/node
+_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.handleInvalidResolvedId (file:///
+C:/Projetos/IBUC-System-v2/node_modules/rollup/dist/e
+s/shared/node-entry.js:21661:24)
+    at file:///C:/Projetos/IBUC-System-v2/node_module
+s/rollup/dist/es/shared/node-entry.js:21621:26[39m

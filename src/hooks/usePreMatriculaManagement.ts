@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { DocumentosAPI } from '../services/documento.service';
-import { PreMatriculasAPI } from '../features/enrollments/matricula.service';
-import { TurmaService } from '../services/turma.service';
-import { REQUIRED_DOCUMENTS } from '../constants/enrollment';
-import type { PreMatricula, StatusPreMatricula, TipoDocumento, Nivel } from '../types/database';
+import { DocumentAPI } from '@/shared/api';
+import { PreMatriculasAPI } from '@/entities/enrollment';
+import { turmaApi as TurmaService } from '@/entities/turma';
+import { REQUIRED_DOCUMENTS } from '@/constants/enrollment';
+import type { PreMatricula, StatusPreMatricula, TipoDocumento, Nivel } from '@/types/database';
 
 export const usePreMatriculaManagement = () => {
   const { getUserAllowedPolos, hasAccessToAllPolos, polos, currentUser } = useApp();
@@ -173,7 +173,7 @@ export const usePreMatriculaManagement = () => {
     const loadDocumentos = async () => {
       try {
         setIsLoading(true);
-        const response = (await DocumentosAPI.listarPorPreMatricula(selectedPreMatricula)) as {
+        const response = (await DocumentAPI.listByPreEnrollment(selectedPreMatricula)) as unknown as {
           arquivos?: Array<{ name: string; path: string; url: string }>;
         };
         setDocumentos(response?.arquivos || []);
@@ -194,8 +194,8 @@ export const usePreMatriculaManagement = () => {
       setIsUploading(true);
       const fd = new FormData();
       fd.append('files', selectedFile);
-      await DocumentosAPI.uploadPorPreMatricula(selectedPreMatricula, fd, selectedDocumentType);
-      const response = (await DocumentosAPI.listarPorPreMatricula(selectedPreMatricula)) as {
+      await DocumentAPI.uploadByPreEnrollment(selectedPreMatricula, fd, selectedDocumentType);
+      const response = (await DocumentAPI.listByPreEnrollment(selectedPreMatricula)) as unknown as {
         arquivos?: Array<{ name: string; path: string; url: string }>;
       };
       setDocumentos(response?.arquivos || []);

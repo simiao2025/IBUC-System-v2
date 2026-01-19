@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+﻿import React, { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 // Layouts
@@ -12,26 +12,27 @@ import AdminAccess from './pages/auth/AdminAccess';
 
 // Lazy Load Admin Pages
 const AdminDashboard = lazy(() => import('./features/dashboard/pages/AdminDashboardPage'));
-const StudentManagement = lazy(() => import('./features/students/StudentManagement'));
-const TurmaManagement = lazy(() => import('./features/classes/pages/ClassManagementPage'));
-const ModulosManagement = lazy(() => import('./features/curriculum/pages/ModulosManagementPage'));
-const FrequenciaManagement = lazy(() => import('./features/attendance/FrequenciaManagement'));
-const FinanceiroManagement = lazy(() => import('./features/finance/FinanceiroManagement'));
-const PoloManagement = lazy(() => import('./features/polos/pages/PoloManagementPage'));
-const DiretoriaManagement = lazy(() => import('./features/diretoria/pages/DiretoriaManagementPage'));
+const StudentManagement = lazy(() => import('./pages/admin/StudentPage'));
+const AttendanceByStudentManagement = lazy(() => import('@/features/student-management').then(m => ({ default: m.AttendanceByStudentManagement })));
+const DracmasByStudentManagement = lazy(() => import('@/features/student-management').then(m => ({ default: m.DracmasByStudentManagement })));
+const TurmaManagement = lazy(() => import('./pages/admin/ClassPage'));
+const ModulosManagement = lazy(() => import('@/features/curriculum-management').then(m => ({ default: m.ModulosManagementPage })));
+const FrequenciaManagement = lazy(() => import('./pages/admin/AttendancePage'));
+const FinanceiroManagement = lazy(() => import('./pages/admin/FinancePage'));
+const PoloManagement = lazy(() => import('./pages/admin/PoloPage'));
+const DiretoriaManagement = lazy(() => import('@/features/diretoria-management').then(m => ({ default: m.DiretoriaManagementPage })));
 const EducationalReportManagement = lazy(() => import('./features/reports/pages/EducationalReportManagementPage'));
-const SystemSettings = lazy(() => import('./features/settings/pages/SystemSettingsPage'));
-const StaffManagement = lazy(() => import('./features/staff/pages/StaffManagementPage'));
-const PreMatriculaManagement = lazy(() => import('./features/enrollments/PreMatriculaManagement'));
-const AttendanceByClassManagement = lazy(() => import('./features/attendance/AttendanceByClassManagement'));
-const AttendanceByStudentManagement = lazy(() => import('./features/students/AttendanceByStudentManagement'));
-const PresencaFormManagement = lazy(() => import('./features/attendance/PresencaFormManagement'));
-const DracmasLaunchManagement = lazy(() => import('./features/finance/DracmasLaunchManagement'));
-const DracmasByClassManagement = lazy(() => import('./features/finance/DracmasByClassManagement'));
-const DracmasByStudentManagement = lazy(() => import('./features/students/DracmasByStudentManagement'));
-const MatriculaDocumentManagement = lazy(() => import('./features/enrollments/MatriculaDocumentManagement'));
-const EventManagement = lazy(() => import('./features/events/EventManagement'));
-const MaterialOrderManagement = lazy(() => import('./features/materials/MaterialOrderManagement'));
+const SystemSettings = lazy(() => import('@/features/settings-management').then(m => ({ default: m.SystemSettingsPage })));
+const IssueCertificate = lazy(() => import('@/features/certificate-management').then(m => ({ default: m.IssueCertificate })));
+const StaffManagement = lazy(() => import('@/features/staff-management').then(m => ({ default: m.StaffManagementPage })));
+const PreMatriculaManagement = lazy(() => import('@/features/enrollment-management').then(m => ({ default: m.PreMatriculaManagement })));
+const MatriculaDocumentManagement = lazy(() => import('@/features/enrollment-management').then(m => ({ default: m.MatriculaDocumentManagement })));
+const AttendanceByClassManagement = lazy(() => import('@/features/attendance-management').then(m => ({ default: m.AttendanceByClassManagement })));
+const PresencaFormManagement = lazy(() => import('@/features/attendance-management').then(m => ({ default: m.PresencaFormManagement })));
+const DracmasLaunchManagement = lazy(() => import('@/features/finance-management').then(m => ({ default: m.DracmasLaunchManagement })));
+const DracmasByClassManagement = lazy(() => import('@/features/finance-management').then(m => ({ default: m.DracmasByClassManagement })));
+const EventManagement = lazy(() => import('@/features/event-management').then(m => ({ default: m.EventManagement })));
+const MaterialOrderManagement = lazy(() => import('@/features/material-management').then(m => ({ default: m.MaterialOrderManagement })));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">

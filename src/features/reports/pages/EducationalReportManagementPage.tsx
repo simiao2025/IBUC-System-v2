@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import PageHeader from '../../../components/ui/PageHeader';
-import Card from '../../../components/ui/Card';
+﻿import React, { useState } from 'react';
+import { PageHeader } from '@/shared/ui';
+import { Card } from '@/shared/ui';
 import BoletimView from '../../../components/reports/BoletimView';
 import HistoricoView from '../../../components/reports/HistoricoView';
 import EstatisticasView from '../../../components/reports/EstatisticasView';

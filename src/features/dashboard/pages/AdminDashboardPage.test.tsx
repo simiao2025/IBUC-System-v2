@@ -1,10 +1,10 @@
-
+﻿
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import AdminDashboard from './AdminDashboardPage';
 
-// Mock dependências do contexto e hooks
+// Mock dependÃªncias do contexto e hooks
 vi.mock('@/context/AppContext', () => ({
   useApp: () => ({
     students: [],

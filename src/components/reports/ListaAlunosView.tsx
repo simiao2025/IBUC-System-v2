@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Select from '../../components/ui/Select';
-import Button from '../../components/ui/Button';
-import { RelatorioService } from '../../services/relatorio.service';
-import { TurmaService } from '../../services/turma.service';
+﻿import React, { useState, useEffect } from 'react';
+import { Card } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { StudentReportsAPI } from '@/entities/student/api/student-reports.api';
+import { TurmaService } from '@/features/classes/services/turma.service';
 import { Loader2, FileText, Download, Users, Search, Phone } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -49,7 +49,7 @@ const ListaAlunosView: React.FC = () => {
   const handleFetch = async () => {
     setLoading(true);
     try {
-      const res = await RelatorioService.relatorioListaAlunos(filtros);
+      const res = await StudentReportsAPI.relatorioListaAlunos(filtros);
       setAlunos(res);
     } catch (error) {
       console.error('Erro ao buscar lista de alunos:', error);
@@ -62,7 +62,7 @@ const ListaAlunosView: React.FC = () => {
   const handlePdf = async () => {
     setPdfLoading(true);
     try {
-      const res = await RelatorioService.gerarListaAlunosPdf(filtros);
+      const res = await StudentReportsAPI.gerarListaAlunosPdf(filtros);
       if (res.url) {
         window.open(res.url, '_blank');
       } else {

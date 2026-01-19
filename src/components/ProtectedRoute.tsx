@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 
@@ -11,7 +11,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
   const { currentUser, authLoading } = useApp();
   const location = useLocation();
 
-  // Aguarda o carregamento da sessão antes de redirecionar
+  // Aguarda o carregamento da sessÃ£o antes de redirecionar
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -23,7 +23,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
     );
   }
 
-  // Se requer admin, verifica se o usuário tem permissão de admin
+  // Se requer admin, verifica se o usuÃ¡rio tem permissÃ£o de admin
   if (requireAdmin) {
     const isAdmin = currentUser?.role === 'admin';
     
@@ -33,7 +33,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
     }
   }
 
-  // Se requer qualquer tipo de autenticação
+  // Se requer qualquer tipo de autenticaÃ§Ã£o
   if (!currentUser) {
     return <Navigate to="/acesso-aluno" state={{ from: location }} replace />;
   }

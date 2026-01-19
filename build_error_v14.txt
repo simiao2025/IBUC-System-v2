@@ -1,0 +1,38 @@
+﻿[36mvite v5.4.8 [32mbuilding for production...[36m[39m
+transforming...
+node.exe : Browserslist: caniuse-lite is outdated. 
+Please run:
+No linha:1 caractere:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Browser 
+   slist: c...ed. Please run::String) [], RemoteExc  
+  eption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  npx update-browserslist-db@latest
+  Why you should do it regularly: 
+https://github.com/browserslist/update-db#readme
+[32mÔ£ô[39m 1552 modules transformed.
+[31mx[39m Build failed in 21.47s
+[31merror during build:
+[31m[vite:load-fallback] Could not load 
+/src/shared/ui-v2 (imported by 
+src/pages/public/Home.tsx): ENOENT: no such file or 
+directory, open 'C:\src\shared\ui-v2'[31m
+    at async open (node:internal/fs/promises:642:25)
+    at async Object.readFile 
+(node:internal/fs/promises:1279:14)
+    at async Object.load (file:///C:/Projetos/IBUC-Sy
+stem-v2/node_modules/vite/dist/node/chunks/dep-CDnG8r
+E7.js:65034:25)
+    at async PluginDriver.hookFirstAndGetPlugin (file
+:///C:/Projetos/IBUC-System-v2/node_modules/rollup/di
+st/es/shared/node-entry.js:22404:28)
+    at async file:///C:/Projetos/IBUC-System-v2/node_
+modules/rollup/dist/es/shared/node-entry.js:21404:33
+    at async Queue.work (file:///C:/Projetos/IBUC-Sys
+tem-v2/node_modules/rollup/dist/es/shared/node-entry.
+js:22632:32)[39m

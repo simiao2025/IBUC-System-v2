@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Select from '../../components/ui/Select';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
-import { RelatorioService } from '../../services/relatorio.service';
-import { AlunosAPI } from '../../features/students/aluno.service';
-import { TurmaService } from '../../services/turma.service';
+﻿import React, { useState, useEffect } from 'react';
+import { Card } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { Input } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { FinanceReportsAPI } from '@/entities/finance/api/finance-reports.api';
+import { AlunosAPI } from '@/features/student-management';
+import { TurmaService } from '@/features/classes/services/turma.service';
 import { Loader2, FileText, Download, Award, Search } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -24,7 +24,7 @@ const DracmasReportView: React.FC = () => {
     fim: '',
   });
 
-  // Opções para os filtros
+  // OpÃ§Ãµes para os filtros
   const [opcoes, setOpcoes] = useState({
     turmas: [] as any[],
     niveis: [] as any[],
@@ -32,7 +32,7 @@ const DracmasReportView: React.FC = () => {
   });
 
   useEffect(() => {
-    // Carregar opções iniciais
+    // Carregar opÃ§Ãµes iniciais
     const loadOpcoes = async () => {
       try {
         const [turmasRes, niveisRes] = await Promise.all([
@@ -45,7 +45,7 @@ const DracmasReportView: React.FC = () => {
           niveis: niveisRes as any[],
         }));
       } catch (error) {
-        console.error('Erro ao carregar opções de filtro:', error);
+        console.error('Erro ao carregar opÃ§Ãµes de filtro:', error);
       }
     };
     loadOpcoes();
@@ -64,11 +64,11 @@ const DracmasReportView: React.FC = () => {
   const handleFetch = async () => {
     setLoading(true);
     try {
-      const res = await RelatorioService.relatorioDracmas(filtros);
+      const res = await FinanceReportsAPI.relatorioDracmas(filtros);
       setData(res);
     } catch (error) {
-      console.error('Erro ao gerar relatório de drácmas:', error);
-      alert('Erro ao carregar relatório.');
+      console.error('Erro ao gerar relatÃ³rio de drÃ¡cmas:', error);
+      alert('Erro ao carregar relatÃ³rio.');
     } finally {
       setLoading(false);
     }
@@ -83,16 +83,16 @@ const DracmasReportView: React.FC = () => {
       <Card className="p-4 print:hidden">
         <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
           <Search className="h-4 w-4 mr-2" />
-          Filtros do Relatório
+          Filtros do RelatÃ³rio
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Nível</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de NÃ­vel</label>
             <Select 
               value={filtros.nivel_id} 
               onChange={val => setFiltros(f => ({ ...f, nivel_id: val }))}
             >
-              <option value="">Todos os Níveis</option>
+              <option value="">Todos os NÃ­veis</option>
               {opcoes.niveis.map(n => <option key={n.id} value={n.id}>{n.nome}</option>)}
             </Select>
           </div>
@@ -107,7 +107,7 @@ const DracmasReportView: React.FC = () => {
             </Select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Aluno Específico</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Aluno EspecÃ­fico</label>
             <Select 
               value={filtros.aluno_id} 
               onChange={val => setFiltros(f => ({ ...f, aluno_id: val }))}
@@ -118,7 +118,7 @@ const DracmasReportView: React.FC = () => {
             </Select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Data Início</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Data InÃ­cio</label>
             <Input 
               type="date" 
               value={filtros.inicio} 
@@ -140,7 +140,7 @@ const DracmasReportView: React.FC = () => {
               loading={loading}
             >
               <FileText className="h-4 w-4 mr-2" />
-              Gerar Relatório
+              Gerar RelatÃ³rio
             </Button>
           </div>
         </div>
@@ -159,12 +159,12 @@ const DracmasReportView: React.FC = () => {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                 <Award className="h-6 w-6 mr-2 text-yellow-500" />
-                Relatório de Drácmas
+                RelatÃ³rio de DrÃ¡cmas
               </h2>
               <p className="text-gray-500 text-sm mt-1">
                 {filtros.inicio && filtros.fim 
-                  ? `Período: ${new Date(filtros.inicio).toLocaleDateString()} até ${new Date(filtros.fim).toLocaleDateString()}`
-                  : 'Período: Completo'}
+                  ? `PerÃ­odo: ${new Date(filtros.inicio).toLocaleDateString()} atÃ© ${new Date(filtros.fim).toLocaleDateString()}`
+                  : 'PerÃ­odo: Completo'}
               </p>
             </div>
             <div className="text-right print:hidden">
@@ -177,15 +177,15 @@ const DracmasReportView: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-xs font-medium text-blue-600 uppercase">Total de Drácmas</p>
-              <p className="text-2xl font-bold text-blue-900">{data.resumo?.total_dracmas || 0} ð</p>
+              <p className="text-xs font-medium text-blue-600 uppercase">Total de DrÃ¡cmas</p>
+              <p className="text-2xl font-bold text-blue-900">{data.resumo?.total_dracmas || 0} Ã°</p>
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg text-yellow-900 font-bold border-l-4 border-yellow-400">
               <p className="text-xs font-medium text-yellow-600 uppercase">Alunos Premiados</p>
               <p className="text-2xl font-bold">{data.resumo?.alunos_atendidos || 0}</p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total de Lançamentos</p>
+              <p className="text-xs font-medium text-gray-500 uppercase">Total de LanÃ§amentos</p>
               <p className="text-2xl font-bold text-gray-900">{data.resumo?.total_transacoes || 0}</p>
             </div>
           </div>
@@ -217,7 +217,7 @@ const DracmasReportView: React.FC = () => {
                       {t.tipo}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-indigo-600">
-                      {t.quantidade > 0 ? `+${t.quantidade}` : t.quantidade} ð
+                      {t.quantidade > 0 ? `+${t.quantidade}` : t.quantidade} Ã°
                     </td>
                   </tr>
                 ))}

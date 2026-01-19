@@ -1,11 +1,11 @@
-// ============================================
+﻿// ============================================
 // IBUC System - Tipos do Supabase Database
 // Gerado automaticamente pelo Supabase CLI
 // Execute: npx supabase gen types typescript --project-id <project-id> > src/lib/database.types.ts
 // ============================================
 
-// Este arquivo será gerado automaticamente pelo Supabase CLI
-// Por enquanto, definimos uma estrutura básica
+// Este arquivo serÃ¡ gerado automaticamente pelo Supabase CLI
+// Por enquanto, definimos uma estrutura bÃ¡sica
 
 export type Json =
   | string
@@ -98,7 +98,7 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['diretoria_polo']['Row'], 'id'>;
         Update: Partial<Database['public']['Tables']['diretoria_polo']['Insert']>;
       };
-      // Adicionar outras tabelas conforme necessário
+      // Adicionar outras tabelas conforme necessÃ¡rio
     };
     Views: {
       vw_aluno_progresso: {

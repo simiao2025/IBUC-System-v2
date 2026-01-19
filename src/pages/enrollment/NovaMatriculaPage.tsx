@@ -1,19 +1,14 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { usePreMatricula } from '../../features/enrollments/hooks/usePreMatricula';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
+import { usePreMatricula } from '@/features/enrollment-management/model/hooks/usePreMatricula';
+import { Button, Card, Select, PhotoUpload, DocumentUpload } from '@/shared/ui';
 import { Check, Save } from 'lucide-react';
 
 // Subcomponents
-import { FormularioDadosPessoais } from '../../features/enrollments/components/FormularioDadosPessoais';
-import { FormularioEndereco } from '../../features/enrollments/components/FormularioEndereco';
-import { FormularioSaude } from '../../features/enrollments/components/FormularioSaude';
-import { FormularioResponsaveis } from '../../features/enrollments/components/FormularioResponsaveis';
-
-import Select from '../../components/ui/Select';
-import PhotoUpload from '../../components/ui/PhotoUpload';
-import DocumentUpload from '../../components/ui/DocumentUpload';
+import { FormularioDadosPessoais } from '@/features/enrollment-management/ui/components/FormularioDadosPessoais';
+import { FormularioEndereco } from '@/features/enrollment-management/ui/components/FormularioEndereco';
+import { FormularioSaude } from '@/features/enrollment-management/ui/components/FormularioSaude';
+import { FormularioResponsaveis } from '@/features/enrollment-management/ui/components/FormularioResponsaveis';
 
 
 interface NovaMatriculaPageProps {
@@ -185,7 +180,8 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                                                 : "Turmas filtradas automaticamente pela idade."
                                     }
                                 />
-                            )}</div>
+                            )}
+</div>
                     </Card>
 
                     {/* Sessão: Documentos */}

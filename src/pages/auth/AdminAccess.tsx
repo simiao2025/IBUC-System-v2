@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
+import { Input } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { Card } from '@/shared/ui';
 import { Shield, Mail, Lock } from 'lucide-react';
 
 const AdminAccess: React.FC = () => {

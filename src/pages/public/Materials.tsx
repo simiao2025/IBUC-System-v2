@@ -1,6 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '../../components/ui/Card';
+import { Card } from '@/shared/ui';
 import { 
   BookOpen, 
   ArrowRight, 
@@ -154,7 +154,7 @@ const Materials: React.FC = () => {
         </div>
       </section>
 
-      {/* Informações do Curso */}
+      {/* InformaÃ§Ãµes do Curso */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
@@ -167,7 +167,7 @@ const Materials: React.FC = () => {
           </p>
         </div>
 
-        {/* Características do Curso */}
+        {/* CaracterÃ­sticas do Curso */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
           <Card className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
@@ -205,7 +205,7 @@ const Materials: React.FC = () => {
         </div>
       </section>
 
-      {/* Grid de Módulos */}
+      {/* Grid de MÃ³dulos */}
       <section className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">

@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QrCode, Upload, Check, Copy, ExternalLink, X, AlertCircle } from 'lucide-react';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
+import { Button } from '@/shared/ui';
+import { Card } from '@/shared/ui';
 import { useApp } from '../../context/AppContext';
-import { FinanceiroService } from '../../features/finance/financeiro.service';
-import type { Mensalidade } from '../../types/database';
+import { Select } from '@/shared/ui';
+import { financeApi as FinanceiroService } from '@/entities/finance';
+import type { Mensalidade } from '@/types/database';
 
 const AppFinanceiro: React.FC = () => {
   const { currentUser, showFeedback } = useApp();
@@ -73,8 +74,8 @@ const AppFinanceiro: React.FC = () => {
     setUploading(true);
     try {
       const file = e.target.files[0];
-      // Em um cenário real, faria o upload para o Storage
-      // Aqui vamos simular o upload e chamar o serviço
+      // Em um cenÃ¡rio real, faria o upload para o Storage
+      // Aqui vamos simular o upload e chamar o serviÃ§o
       const fakeUrl = `https://storage.ibuc.com.br/comprovantes/${Date.now()}_${file.name}`;
       
       await FinanceiroService.confirmarPagamento(selectedCobranca.id, fakeUrl);

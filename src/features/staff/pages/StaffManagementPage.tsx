@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '../../../context/AppContext';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
-import Select from '../../../components/ui/Select';
-import { UserServiceV2 } from '../../../services/userService.v2';
+import { useApp } from '@/context/AppContext';
+import { Card } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { Input } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { userApi } from '@/entities/user';
 import {
   ArrowLeft,
   Search,
@@ -22,7 +22,7 @@ import {
   FileText,
   Loader2
 } from 'lucide-react';
-import type { AdminUser, AdminRole } from '../../../types';
+import type { AdminUser, AdminRole } from '@/types';
 
 // Roles que são considerados "staff" (equipe)
 // Apenas valores válidos para o enum role_usuario no banco de dados
@@ -142,7 +142,7 @@ const StaffManagementPage: React.FC = () => {
         filtros.role = filterRole;
       }
 
-      const usuarios = await UserServiceV2.listUsers(filtros);
+      const usuarios = await userApi.list(filtros);
 
       const staffMapeados = usuarios.filter(u => STAFF_ROLES.includes(u.role));
 
@@ -172,7 +172,7 @@ const StaffManagementPage: React.FC = () => {
 
     try {
       setSaving(true);
-      await UserServiceV2.createUser({
+      await userApi.create({
         ...newStaff,
         accessLevel: 'polo_especifico'
       } as any);
@@ -204,7 +204,7 @@ const StaffManagementPage: React.FC = () => {
 
     try {
       setSaving(true);
-      await UserServiceV2.updateUser(editingStaff.id, editingStaff);
+      await userApi.update(editingStaff.id, editingStaff);
 
       showFeedback('success', 'Sucesso', 'Membro da equipe atualizado com sucesso!');
       await carregarStaff();
@@ -220,7 +220,7 @@ const StaffManagementPage: React.FC = () => {
   const handleDeleteStaff = async (staffId: string) => {
     showConfirm('Confirmar exclusão', 'Tem certeza que deseja excluir este membro da equipe?', async () => {
       try {
-        await UserServiceV2.deleteUser(staffId);
+        await userApi.delete(staffId);
         showFeedback('success', 'Sucesso', 'Membro da equipe deletado com sucesso!');
         await carregarStaff();
       } catch (error: any) {
@@ -235,7 +235,7 @@ const StaffManagementPage: React.FC = () => {
     if (!staff) return;
 
     try {
-      await UserServiceV2.updateUser(staffId, { isActive: !staff.isActive });
+      await userApi.update(staffId, { isActive: !staff.isActive });
       showFeedback('success', 'Sucesso', `Membro da equipe ${staff.isActive ? 'desativado' : 'ativado'} com sucesso!`);
       await carregarStaff();
     } catch (error: any) {

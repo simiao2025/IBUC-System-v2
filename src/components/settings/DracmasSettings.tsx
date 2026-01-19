@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Loader2 } from 'lucide-react';
 import { DracmasAPI } from '../../features/finance/dracmas.service';
-import Button from '../ui/Button';
-import Card from '../ui/Card';
-import Input from '../ui/Input';
+import { Button } from '@/shared/ui';
+import { Card } from '@/shared/ui';
+import { Input } from '@/shared/ui';
 import { useApp } from '../../context/AppContext';
 
 export type DracmasCriterio = {
@@ -34,7 +34,7 @@ export const DracmasSettings: React.FC = () => {
       const data = (await DracmasAPI.listarCriterios()) as DracmasCriterio[];
       setDracmasCriterios(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Erro ao carregar critérios de Drácmas:', error);
+      console.error('Erro ao carregar critÃ©rios de DrÃ¡cmas:', error);
       setDracmasCriterios([]);
     } finally {
       setDracmasCriteriosLoading(false);
@@ -50,8 +50,8 @@ export const DracmasSettings: React.FC = () => {
       await DracmasAPI.atualizarCriterio(criterio.id, { ativo: !criterio.ativo });
       await carregarDracmasCriterios();
     } catch (error) {
-      console.error('Erro ao atualizar critério de Drácmas:', error);
-      showFeedback('error', 'Erro', 'Não foi possível atualizar o critério.');
+      console.error('Erro ao atualizar critÃ©rio de DrÃ¡cmas:', error);
+      showFeedback('error', 'Erro', 'NÃ£o foi possÃ­vel atualizar o critÃ©rio.');
     }
   };
 
@@ -85,7 +85,7 @@ export const DracmasSettings: React.FC = () => {
           descricao: dracmaForm.descricao,
           quantidade_padrao: Number(dracmaForm.quantidade_padrao)
         });
-        showFeedback('success', 'Sucesso', 'Critério atualizado com sucesso!');
+        showFeedback('success', 'Sucesso', 'CritÃ©rio atualizado com sucesso!');
       } else {
         await DracmasAPI.criarCriterio({
           codigo: dracmaForm.codigo,
@@ -94,13 +94,13 @@ export const DracmasSettings: React.FC = () => {
           quantidade_padrao: Number(dracmaForm.quantidade_padrao),
           ativo: true
         });
-        showFeedback('success', 'Sucesso', 'Critério criado com sucesso!');
+        showFeedback('success', 'Sucesso', 'CritÃ©rio criado com sucesso!');
       }
       setShowDracmasModal(false);
       void carregarDracmasCriterios();
     } catch (error) {
-      console.error('Erro ao salvar critério:', error);
-      showFeedback('error', 'Erro', 'Erro ao salvar critério.');
+      console.error('Erro ao salvar critÃ©rio:', error);
+      showFeedback('error', 'Erro', 'Erro ao salvar critÃ©rio.');
     }
   };
 
@@ -108,20 +108,20 @@ export const DracmasSettings: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Configuração de Drácmas (Critérios)</h2>
+          <h2 className="text-xl font-semibold text-gray-900">ConfiguraÃ§Ã£o de DrÃ¡cmas (CritÃ©rios)</h2>
           <p className="text-sm text-gray-600">
-            Defina quais critérios ficam ativos para lançamento e consulta.
+            Defina quais critÃ©rios ficam ativos para lanÃ§amento e consulta.
           </p>
         </div>
         <Button onClick={() => handleOpenDracmaModal()}>
           <Plus className="h-4 w-4 mr-2" />
-          Novo Critério
+          Novo CritÃ©rio
         </Button>
       </div>
 
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Critérios</h3>
+          <h3 className="text-lg font-semibold text-gray-900">CritÃ©rios</h3>
           {dracmasCriteriosLoading && (
             <div className="flex items-center text-sm text-gray-600">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -131,7 +131,7 @@ export const DracmasSettings: React.FC = () => {
         </div>
 
         {!dracmasCriteriosLoading && dracmasCriterios.length === 0 && (
-          <p className="text-sm text-gray-600">Nenhum critério encontrado.</p>
+          <p className="text-sm text-gray-600">Nenhum critÃ©rio encontrado.</p>
         )}
 
         {dracmasCriterios.length > 0 && (
@@ -155,7 +155,7 @@ export const DracmasSettings: React.FC = () => {
 
                 <div className="flex items-center gap-3">
                   <div className="text-sm text-gray-700">
-                    Padrão: <span className="font-semibold">{c.quantidade_padrao}</span>
+                    PadrÃ£o: <span className="font-semibold">{c.quantidade_padrao}</span>
                   </div>
                   <Button
                     variant="outline"
@@ -178,7 +178,7 @@ export const DracmasSettings: React.FC = () => {
         )}
       </Card>
 
-      {/* Modal de Cadastro/Edição de Drácmas */}
+      {/* Modal de Cadastro/EdiÃ§Ã£o de DrÃ¡cmas */}
       {showDracmasModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -190,12 +190,12 @@ export const DracmasSettings: React.FC = () => {
               <form onSubmit={handleSaveDracma}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                    {editingDracma ? 'Editar Critério' : 'Novo Critério'}
+                    {editingDracma ? 'Editar CritÃ©rio' : 'Novo CritÃ©rio'}
                   </h3>
                   <div className="space-y-4">
                     {!editingDracma && (
                       <Input
-                        label="Código (slug)"
+                        label="CÃ³digo (slug)"
                         value={dracmaForm.codigo}
                         onChange={e => setDracmaForm(prev => ({ ...prev, codigo: e.target.value }))}
                         placeholder="ex: frequencia-ebd"
@@ -206,11 +206,11 @@ export const DracmasSettings: React.FC = () => {
                       label="Nome"
                       value={dracmaForm.nome}
                       onChange={e => setDracmaForm(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="ex: Frequência na EBD"
+                      placeholder="ex: FrequÃªncia na EBD"
                       required
                     />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">DescriÃ§Ã£o</label>
                       <textarea
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={dracmaForm.descricao}
@@ -219,7 +219,7 @@ export const DracmasSettings: React.FC = () => {
                       />
                     </div>
                     <Input
-                      label="Quantidade Padrão"
+                      label="Quantidade PadrÃ£o"
                       type="number"
                       value={dracmaForm.quantidade_padrao}
                       onChange={e => setDracmaForm(prev => ({ ...prev, quantidade_padrao: Number(e.target.value) }))}

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
+import { Card } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { Select } from '@/shared/ui';
 import { DiretoriaService } from '../../../services/diretoria.service';
-import { UserServiceV2 } from '../../../services/userService.v2';
+import { UserService } from '@/entities/user';
 import { useApp } from '../../../context/AppContext';
 import type { AdminUser, AdminRole } from '../../../types';
 import {
@@ -18,7 +18,7 @@ import {
   Shield,
   Loader2
 } from 'lucide-react';
-import PageHeader from '../../../components/ui/PageHeader';
+import { PageHeader } from '@/shared/ui';
 
 interface DirectoratePosition {
   id: string;
@@ -39,18 +39,18 @@ const cargoOptions = [
   { value: 'vice_diretor_geral', label: 'Vice-Diretor Geral' },
   { value: 'coordenador_geral', label: 'Coordenador Geral' },
   { value: 'vice_coordenador_geral', label: 'Vice-Coordenador Geral' },
-  { value: 'primeiro_secretario_geral', label: '1º Secretário Geral' },
-  { value: 'segundo_secretario_geral', label: '2º Secretário Geral' },
-  { value: 'primeiro_tesoureiro_geral', label: '1º Tesoureiro Geral' },
-  { value: 'segundo_tesoureiro_geral', label: '2º Tesoureiro Geral' },
+  { value: 'primeiro_secretario_geral', label: '1Âº SecretÃ¡rio Geral' },
+  { value: 'segundo_secretario_geral', label: '2Âº SecretÃ¡rio Geral' },
+  { value: 'primeiro_tesoureiro_geral', label: '1Âº Tesoureiro Geral' },
+  { value: 'segundo_tesoureiro_geral', label: '2Âº Tesoureiro Geral' },
   { value: 'diretor_polo', label: 'Diretor do Polo' },
   { value: 'vice_diretor_polo', label: 'Vice-Diretor do Polo' },
   { value: 'coordenador_polo', label: 'Coordenador do Polo' },
   { value: 'vice_coordenador_polo', label: 'Vice-Coordenador do Polo' },
-  { value: 'primeiro_secretario_polo', label: '1º Secretário do Polo' },
-  { value: 'segundo_secretario_polo', label: '2º Secretário do Polo' },
-  { value: 'primeiro_tesoureiro_polo', label: '1º Tesoureiro do Polo' },
-  { value: 'segundo_tesoureiro_polo', label: '2º Tesoureiro do Polo' },
+  { value: 'primeiro_secretario_polo', label: '1Âº SecretÃ¡rio do Polo' },
+  { value: 'segundo_secretario_polo', label: '2Âº SecretÃ¡rio do Polo' },
+  { value: 'primeiro_tesoureiro_polo', label: '1Âº Tesoureiro do Polo' },
+  { value: 'segundo_tesoureiro_polo', label: '2Âº Tesoureiro do Polo' },
 ] as const;
 
 // Mapeamento de cargos do frontend para o backend
@@ -110,7 +110,7 @@ const DiretoriaManagementPage: React.FC = () => {
     cpf: '',
     cargo: 'secretario_geral' as string,
     data_inicio: new Date().toISOString().split('T')[0],
-    usuario_id: '', // Será preenchido ao buscar/criar usuário
+    usuario_id: '', // SerÃ¡ preenchido ao buscar/criar usuÃ¡rio
   });
 
   // Carregar diretorias ao montar o componente
@@ -156,11 +156,11 @@ const DiretoriaManagementPage: React.FC = () => {
 
       try {
         setUsersLoading(true);
-        const users = await UserServiceV2.listUsers({ polo_id: selectedPoloId, ativo: true });
+        const users = await UserService.listUsers({ polo_id: selectedPoloId, ativo: true });
         const sorted = [...users].sort((a, b) => a.name.localeCompare(b.name));
         setAvailableUsers(sorted);
       } catch (error: unknown) {
-        console.error('Erro ao carregar usuários do polo:', error);
+        console.error('Erro ao carregar usuÃ¡rios do polo:', error);
         setAvailableUsers([]);
       } finally {
         setUsersLoading(false);
@@ -223,25 +223,25 @@ const DiretoriaManagementPage: React.FC = () => {
     vice_diretor_geral: 'Vice-Diretor Geral',
     coordenador_geral: 'Coordenador Geral',
     vice_coordenador_geral: 'Vice-Coordenador Geral',
-    primeiro_secretario_geral: '1º Secretário Geral',
-    segundo_secretario_geral: '2º Secretário Geral',
-    primeiro_tesoureiro_geral: '1º Tesoureiro Geral',
-    segundo_tesoureiro_geral: '2º Tesoureiro Geral',
+    primeiro_secretario_geral: '1Âº SecretÃ¡rio Geral',
+    segundo_secretario_geral: '2Âº SecretÃ¡rio Geral',
+    primeiro_tesoureiro_geral: '1Âº Tesoureiro Geral',
+    segundo_tesoureiro_geral: '2Âº Tesoureiro Geral',
     diretor_polo: 'Diretor do Polo',
     vice_diretor_polo: 'Vice-Diretor do Polo',
     coordenador_polo: 'Coordenador do Polo',
     vice_coordenador_polo: 'Vice-Coordenador do Polo',
-    primeiro_secretario_polo: '1º Secretário do Polo',
-    segundo_secretario_polo: '2º Secretário do Polo',
-    primeiro_tesoureiro_polo: '1º Tesoureiro do Polo',
-    segundo_tesoureiro_polo: '2º Tesoureiro do Polo',
+    primeiro_secretario_polo: '1Âº SecretÃ¡rio do Polo',
+    segundo_secretario_polo: '2Âº SecretÃ¡rio do Polo',
+    primeiro_tesoureiro_polo: '1Âº Tesoureiro do Polo',
+    segundo_tesoureiro_polo: '2Âº Tesoureiro do Polo',
 
     // Compatibilidade
     diretor: 'Diretor',
     coordenador: 'Coordenador',
-    secretario: 'Secretário',
+    secretario: 'SecretÃ¡rio',
     tesoureiro: 'Tesoureiro',
-    secretario_geral: 'Secretário Geral',
+    secretario_geral: 'SecretÃ¡rio Geral',
     tesoureiro_geral: 'Tesoureiro Geral',
   };
 
@@ -281,7 +281,7 @@ const DiretoriaManagementPage: React.FC = () => {
     e.preventDefault();
 
     if (!formData.nome_completo || !formData.email || !formData.cargo) {
-      alert('Preencha todos os campos obrigatórios');
+      alert('Preencha todos os campos obrigatÃ³rios');
       return;
     }
 
@@ -300,14 +300,14 @@ const DiretoriaManagementPage: React.FC = () => {
 
       let finalUsuarioId = formData.usuario_id || undefined;
 
-      // Se for novo usuário (ou diretoria geral sem usuário selecionado), criar primeiro
+      // Se for novo usuÃ¡rio (ou diretoria geral sem usuÃ¡rio selecionado), criar primeiro
       if ((isNewUser || directorateMode === 'geral') && !editingPosition && !finalUsuarioId) {
         if (!formData.cpf) {
-          alert('CPF é obrigatório para criar um novo usuário (usado para gerar a senha inicial).');
+          alert('CPF Ã© obrigatÃ³rio para criar um novo usuÃ¡rio (usado para gerar a senha inicial).');
           return;
         }
 
-        // Mapear cargo da diretoria para role do usuário
+        // Mapear cargo da diretoria para role do usuÃ¡rio
         const roleMapping: Record<string, AdminRole> = {
           diretor_geral: 'diretor_geral',
           vice_diretor_geral: 'vice_diretor_geral',
@@ -337,11 +337,11 @@ const DiretoriaManagementPage: React.FC = () => {
 
         const targetRole = roleMapping[formData.cargo] || 'auxiliar' as AdminRole;
 
-        // Senha inicial: 6 primeiros dígitos do CPF
+        // Senha inicial: 6 primeiros dÃ­gitos do CPF
         const password = formData.cpf.replace(/\D/g, '').substring(0, 6);
 
         try {
-          const userRes = await UserServiceV2.createUser({
+          const userRes = await UserService.createUser({
             name: formData.nome_completo,
             email: formData.email,
             cpf: formData.cpf,
@@ -353,8 +353,8 @@ const DiretoriaManagementPage: React.FC = () => {
           });
           finalUsuarioId = userRes.id;
         } catch (err: any) {
-          console.error('Erro ao criar usuário:', err);
-          throw new Error(`Falha ao criar usuário: ${err.message}`);
+          console.error('Erro ao criar usuÃ¡rio:', err);
+          throw new Error(`Falha ao criar usuÃ¡rio: ${err.message}`);
         }
       }
 
@@ -384,7 +384,7 @@ const DiretoriaManagementPage: React.FC = () => {
           });
         }
 
-        alert(`Diretoria atualizada com sucesso!${isNewUser ? ' Um novo usuário foi criado para este membro.' : ''}`);
+        alert(`Diretoria atualizada com sucesso!${isNewUser ? ' Um novo usuÃ¡rio foi criado para este membro.' : ''}`);
       } else {
         if (directorateMode === 'polo') {
           await DiretoriaService.criarDiretoriaPolo({
@@ -408,7 +408,7 @@ const DiretoriaManagementPage: React.FC = () => {
             data_inicio: formData.data_inicio,
           });
         }
-        alert(`Diretoria criada com sucesso!${isNewUser ? ' Uma conta de usuário com senha (6 primeiros dígitos do CPF) também foi criada.' : ''}`);
+        alert(`Diretoria criada com sucesso!${isNewUser ? ' Uma conta de usuÃ¡rio com senha (6 primeiros dÃ­gitos do CPF) tambÃ©m foi criada.' : ''}`);
       }
 
       // Recarregar lista
@@ -566,20 +566,20 @@ const DiretoriaManagementPage: React.FC = () => {
       { value: 'vice_diretor_polo', label: 'Vice-Diretor do Polo' },
       { value: 'coordenador_polo', label: 'Coordenador do Polo' },
       { value: 'vice_coordenador_polo', label: 'Vice-Coordenador do Polo' },
-      { value: 'primeiro_secretario_polo', label: '1º Secretário do Polo' },
-      { value: 'segundo_secretario_polo', label: '2º Secretário do Polo' },
-      { value: 'primeiro_tesoureiro_polo', label: '1º Tesoureiro do Polo' },
-      { value: 'segundo_tesoureiro_polo', label: '2º Tesoureiro do Polo' },
+      { value: 'primeiro_secretario_polo', label: '1Âº SecretÃ¡rio do Polo' },
+      { value: 'segundo_secretario_polo', label: '2Âº SecretÃ¡rio do Polo' },
+      { value: 'primeiro_tesoureiro_polo', label: '1Âº Tesoureiro do Polo' },
+      { value: 'segundo_tesoureiro_polo', label: '2Âº Tesoureiro do Polo' },
     ]
     : [
       { value: 'diretor_geral', label: 'Diretor Geral' },
       { value: 'vice_diretor_geral', label: 'Vice-Diretor Geral' },
       { value: 'coordenador_geral', label: 'Coordenador Geral' },
       { value: 'vice_coordenador_geral', label: 'Vice-Coordenador Geral' },
-      { value: 'primeiro_secretario_geral', label: '1º Secretário Geral' },
-      { value: 'segundo_secretario_geral', label: '2º Secretário Geral' },
-      { value: 'primeiro_tesoureiro_geral', label: '1º Tesoureiro Geral' },
-      { value: 'segundo_tesoureiro_geral', label: '2º Tesoureiro Geral' },
+      { value: 'primeiro_secretario_geral', label: '1Âº SecretÃ¡rio Geral' },
+      { value: 'segundo_secretario_geral', label: '2Âº SecretÃ¡rio Geral' },
+      { value: 'primeiro_tesoureiro_geral', label: '1Âº Tesoureiro Geral' },
+      { value: 'segundo_tesoureiro_geral', label: '2Âº Tesoureiro Geral' },
     ];
 
   return (
@@ -587,8 +587,8 @@ const DiretoriaManagementPage: React.FC = () => {
       <PageHeader
         title={directorateMode === 'polo' ? 'Diretoria do Polo' : 'Diretoria Geral'}
         subtitle={directorateMode === 'polo'
-          ? 'Cadastro e gestão da liderança dos polos (Diretor/Coordenador)'
-          : 'Cadastro e gestão da diretoria executiva do IBUC'}
+          ? 'Cadastro e gestÃ£o da lideranÃ§a dos polos (Diretor/Coordenador)'
+          : 'Cadastro e gestÃ£o da diretoria executiva do IBUC'}
         actionLabel="Adicionar Cargo"
         actionIcon={<Crown className="h-4 w-4" />}
         onAction={() => {
@@ -604,7 +604,7 @@ const DiretoriaManagementPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-lg shadow-sm mb-6">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">Visão:</span>
+            <span className="text-sm font-medium text-gray-700">VisÃ£o:</span>
             {isPoloScoped ? (
               <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-900">
                 Diretoria do Polo
@@ -678,13 +678,13 @@ const DiretoriaManagementPage: React.FC = () => {
                 {/* Vice-Coordenador Geral */}
                 {renderLeadershipCard('vice_coordenador_geral', 'Vice-Coordenador Geral', UserCheck, 'blue')}
 
-                {/* Secretários */}
-                {renderLeadershipCard('primeiro_secretario_geral', '1º Secretário Geral', FileText, 'green')}
-                {renderLeadershipCard('segundo_secretario_geral', '2º Secretário Geral', FileText, 'green')}
+                {/* SecretÃ¡rios */}
+                {renderLeadershipCard('primeiro_secretario_geral', '1Âº SecretÃ¡rio Geral', FileText, 'green')}
+                {renderLeadershipCard('segundo_secretario_geral', '2Âº SecretÃ¡rio Geral', FileText, 'green')}
 
                 {/* Tesoureiros */}
-                {renderLeadershipCard('primeiro_tesoureiro_geral', '1º Tesoureiro Geral', Shield, 'yellow')}
-                {renderLeadershipCard('segundo_tesoureiro_geral', '2º Tesoureiro Geral', Shield, 'yellow')}
+                {renderLeadershipCard('primeiro_tesoureiro_geral', '1Âº Tesoureiro Geral', Shield, 'yellow')}
+                {renderLeadershipCard('segundo_tesoureiro_geral', '2Âº Tesoureiro Geral', Shield, 'yellow')}
               </div>
             )}
 
@@ -692,7 +692,7 @@ const DiretoriaManagementPage: React.FC = () => {
             <Card>
               <div className="flex items-center space-x-2 mb-6">
                 <Shield className="h-6 w-6 text-gray-600" />
-                <h2 className="text-xl font-semibold text-gray-900">Histórico da Diretoria</h2>
+                <h2 className="text-xl font-semibold text-gray-900">HistÃ³rico da Diretoria</h2>
               </div>
 
               <div className="overflow-x-auto">
@@ -714,13 +714,13 @@ const DiretoriaManagementPage: React.FC = () => {
                         Contato
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Data de Início
+                        Data de InÃ­cio
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ações
+                        AÃ§Ãµes
                       </th>
                     </tr>
                   </thead>
@@ -820,7 +820,7 @@ const DiretoriaManagementPage: React.FC = () => {
                     className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                   />
                   <label htmlFor="isNewUser" className="text-sm font-medium text-blue-800">
-                    Criar novo usuário automaticamente
+                    Criar novo usuÃ¡rio automaticamente
                   </label>
                 </div>
               )}
@@ -829,7 +829,7 @@ const DiretoriaManagementPage: React.FC = () => {
                 {directorateMode === 'polo' && !isNewUser ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Selecionar Usuário Existente
+                      Selecionar UsuÃ¡rio Existente
                     </label>
                     <select
                       name="usuario_id"
@@ -850,7 +850,7 @@ const DiretoriaManagementPage: React.FC = () => {
                       disabled={usersLoading}
                     >
                       <option value="">
-                        {usersLoading ? 'Carregando usuários...' : 'Selecione um usuário'}
+                        {usersLoading ? 'Carregando usuÃ¡rios...' : 'Selecione um usuÃ¡rio'}
                       </option>
                       {availableUsers.map((u) => (
                         <option key={u.id} value={u.id}>
@@ -871,7 +871,7 @@ const DiretoriaManagementPage: React.FC = () => {
 
                 {(isNewUser || directorateMode === 'geral') && (
                   <Input
-                    label="CPF (Usado para senha inicial: 6 primeiros dígitos)"
+                    label="CPF (Usado para senha inicial: 6 primeiros dÃ­gitos)"
                     name="cpf"
                     placeholder="000.000.000-00"
                     value={formData.cpf || ''}
@@ -917,7 +917,7 @@ const DiretoriaManagementPage: React.FC = () => {
                 </div>
 
                 <Input
-                  label="Data de Início"
+                  label="Data de InÃ­cio"
                   name="data_inicio"
                   type="date"
                   value={formData.data_inicio || ''}
@@ -936,7 +936,7 @@ const DiretoriaManagementPage: React.FC = () => {
                   ) : (
                     <>
                       <Save className="h-4 w-4 mr-2" />
-                      {editingPosition ? 'Salvar Alterações' : 'Adicionar Cargo'}
+                      {editingPosition ? 'Salvar AlteraÃ§Ãµes' : 'Adicionar Cargo'}
                     </>
                   )}
                 </Button>

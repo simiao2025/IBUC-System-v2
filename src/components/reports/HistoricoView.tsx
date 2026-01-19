@@ -1,24 +1,24 @@
-/*
+﻿/*
  * ------------------------------------------------------------------
- * 🔒 ARQUIVO BLINDADO / SHIELDED FILE 🔒
+ * ðŸ”’ ARQUIVO BLINDADO / SHIELDED FILE ðŸ”’
  * ------------------------------------------------------------------
- * ESTE ARQUIVO CONTÉM LÓGICA CRÍTICA DE GERAÇÃO DE RELATÓRIOS.
- * (Certificado, Histórico, Boletim)
+ * ESTE ARQUIVO CONTÃ‰M LÃ“GICA CRÃTICA DE GERAÃ‡ÃƒO DE RELATÃ“RIOS.
+ * (Certificado, HistÃ³rico, Boletim)
  *
- * NÃO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÇÃO APROVADO
- * E UMA ANÁLISE DE IMPACTO PRÉVIA (/impact-analysis).
+ * NÃƒO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÃ‡ÃƒO APROVADO
+ * E UMA ANÃLISE DE IMPACTO PRÃ‰VIA (/impact-analysis).
  *
- * QUALQUER ALTERAÇÃO DEVE SER ESTRITAMENTE NECESSÁRIA E VALIDADA.
+ * QUALQUER ALTERAÃ‡ÃƒO DEVE SER ESTRITAMENTE NECESSÃRIA E VALIDADA.
  * ------------------------------------------------------------------
  */
 import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Select from '../../components/ui/Select';
-import Button from '../../components/ui/Button';
-import { RelatorioService } from '../../services/relatorio.service';
-import { AlunosAPI } from '../../features/students/aluno.service';
-import { TurmasAPI } from '../../services/turma.service';
-import { PolosAPI } from '../../services/polo.service';
+import { Card } from '@/shared/ui';
+import { Select } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { StudentReportsAPI } from '@/entities/student/api/student-reports.api';
+import { AlunosAPI } from '@/features/student-management';
+import { turmaApi as TurmasAPI } from '@/entities/turma';
+import { poloApi as PolosAPI } from '@/entities/polo';
 import { Download, GraduationCap, Loader2, Calendar, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
@@ -41,7 +41,7 @@ const HistoricoView: React.FC = () => {
   // Carregar Polos se for admin global
   useEffect(() => {
     if (isAdminGlobal) {
-      PolosAPI.listar().then((data: any) => {
+      PolosAPI.list().then((data: any) => {
         setPolos(Array.isArray(data) ? data : []);
       });
     }
@@ -50,18 +50,18 @@ const HistoricoView: React.FC = () => {
   // Carregar Turmas (Depende do Polo)
   useEffect(() => {
     if (selectedPolo) {
-      TurmasAPI.listar({ polo_id: selectedPolo }).then((data: any) => {
+      TurmasAPI.list({ polo_id: selectedPolo }).then((data: any) => {
         setTurmas(Array.isArray(data) ? data.map((t: any) => ({ id: t.id, nome: t.nome })) : []);
       });
     } else if (isAdminGlobal) {
       setTurmas([]);
     } else {
       // Fallback
-      TurmasAPI.listar({}).then((data: any) => {
+      TurmasAPI.list({}).then((data: any) => {
         setTurmas(Array.isArray(data) ? data.map((t: any) => ({ id: t.id, nome: t.nome })) : []);
       });
     }
-    // Reiniciar seleções
+    // Reiniciar seleÃ§Ãµes
     setSelectedTurma('');
     setSelectedAluno('');
   }, [selectedPolo, isAdminGlobal]);
@@ -74,15 +74,15 @@ const HistoricoView: React.FC = () => {
       });
     } else {
       setAlunos([]);
-      // TODO: Talvez listar alunos do polo todo se não selecionar turma?
-      // Por enquanto manter lógica antiga de limpar.
+      // TODO: Talvez listar alunos do polo todo se nÃ£o selecionar turma?
+      // Por enquanto manter lÃ³gica antiga de limpar.
     }
     setSelectedAluno('');
   }, [selectedTurma]);
 
-  // Estado de alunos separado é necessário? 
-  // No código original `HistoricoView.tsx`, `alunos` e `setAlunos` eram usados.
-  // Vou garantir que estão declarados.
+  // Estado de alunos separado Ã© necessÃ¡rio? 
+  // No cÃ³digo original `HistoricoView.tsx`, `alunos` e `setAlunos` eram usados.
+  // Vou garantir que estÃ£o declarados.
   const [alunos, setAlunos] = useState<{ id: string, nome: string }[]>([]);
 
 
@@ -90,11 +90,11 @@ const HistoricoView: React.FC = () => {
     if (!selectedAluno) return;
     setLoading(true);
     try {
-      const data = await RelatorioService.historicoAluno(selectedAluno);
+      const data = await StudentReportsAPI.historicoAluno(selectedAluno);
       setHistorico(data);
     } catch (error) {
-      console.error('Erro ao buscar histórico:', error);
-      alert('Erro ao buscar histórico.');
+      console.error('Erro ao buscar histÃ³rico:', error);
+      alert('Erro ao buscar histÃ³rico.');
     } finally {
       setLoading(false);
     }
@@ -104,9 +104,9 @@ const HistoricoView: React.FC = () => {
     if (!selectedAluno) return;
     setGeneratingPdf(true);
     try {
-      const res = await RelatorioService.gerarHistoricoPdf(selectedAluno) as any;
+      const res = await StudentReportsAPI.gerarHistoricoPdf(selectedAluno) as any;
       // Backend refatonado retorna agora direto: { status: 'completed', result: { success: true, path: ... } }
-      // Ou compatibilidade: o res já é o objeto
+      // Ou compatibilidade: o res jÃ¡ Ã© o objeto
 
       const result = res.data?.result || res?.result || res;
       const path = result?.path;
@@ -116,10 +116,10 @@ const HistoricoView: React.FC = () => {
         if (data?.publicUrl) {
           window.open(data.publicUrl, '_blank');
         } else {
-          alert('Erro ao obter URL pública do PDF.');
+          alert('Erro ao obter URL pÃºblica do PDF.');
         }
       } else {
-        alert('Erro ao gerar PDF: Caminho não retornado.');
+        alert('Erro ao gerar PDF: Caminho nÃ£o retornado.');
       }
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
@@ -161,7 +161,7 @@ const HistoricoView: React.FC = () => {
           </div>
           <Button onClick={handleConsultar} disabled={!selectedAluno || loading}>
             {loading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <GraduationCap className="h-4 w-4 mr-2" />}
-            Buscar Histórico
+            Buscar HistÃ³rico
           </Button>
         </div>
       </Card>
@@ -169,10 +169,10 @@ const HistoricoView: React.FC = () => {
       {historico && (
         <Card className="p-8">
           <div className="text-center mb-8 border-b pb-4">
-            <h2 className="text-2xl font-bold text-gray-900">Histórico Escolar</h2>
+            <h2 className="text-2xl font-bold text-gray-900">HistÃ³rico Escolar</h2>
             <p className="text-xl text-gray-700 mt-2">{historico.aluno?.nome}</p>
             <div className="flex justify-center gap-4 text-sm text-gray-500 mt-2">
-              <span className="flex items-center"><Calendar className="h-4 w-4 mr-1" /> Matrícula: {historico.matricula?.data_inicio ? new Date(historico.matricula.data_inicio).toLocaleDateString() : 'N/A'}</span>
+              <span className="flex items-center"><Calendar className="h-4 w-4 mr-1" /> MatrÃ­cula: {historico.matricula?.data_inicio ? new Date(historico.matricula.data_inicio).toLocaleDateString() : 'N/A'}</span>
               <span className="flex items-center"><GraduationCap className="h-4 w-4 mr-1" /> Status: {historico.matricula?.status}</span>
             </div>
           </div>
@@ -184,9 +184,9 @@ const HistoricoView: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Aula</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lição</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Drácmas</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frequência</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LiÃ§Ã£o</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">DrÃ¡cmas</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">FrequÃªncia</th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aprovado</th>
                     </tr>
                   </thead>
@@ -211,7 +211,7 @@ const HistoricoView: React.FC = () => {
                 </table>
               </div>
             ) : (
-              <p className="text-gray-500 italic">Nenhuma lição estudada registrada.</p>
+              <p className="text-gray-500 italic">Nenhuma liÃ§Ã£o estudada registrada.</p>
             )}
           </div>
 

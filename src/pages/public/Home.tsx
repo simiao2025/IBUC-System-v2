@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Users, BookOpen, MapPin, Award, ChevronDown, ChevronUp, Phone, Mail } from 'lucide-react';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import { PoloService } from '../../services/polo.service';
-import { ConfiguracoesService } from '../../services/configuracoes.service';
-import { ListaEsperaService } from '../../services/listaEspera.service';
+import { Button, Card } from '@/shared/ui';
+import { poloApi } from '@/entities/polo';
+import { ConfiguracoesService } from '@/entities/system';
+import { ListaEsperaService } from '@/entities/enrollment';
 
 const Home: React.FC = () => {
   const [polosAtivos, setPolosAtivos] = useState<any[]>([]);
@@ -30,7 +29,7 @@ const Home: React.FC = () => {
     const fetchInitialData = async () => {
       try {
         // Buscar Polos
-        const polosData = await PoloService.listarPolos();
+        const polosData = await poloApi.listar();
         setPolosAtivos(polosData.filter((p: any) => p.ativo !== false));
 
         // Buscar Configurações de Matrícula
@@ -99,7 +98,7 @@ const Home: React.FC = () => {
               </div>
             ) : (
               <div className="max-w-md mx-auto bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                <p className="text-lg font-medium mb-4">Matrículas encerradas no momento, deseja preecher lista de espera?</p>
+                <p className="text-lg font-medium mb-4">Matrículas encerradas no momento, deseja preencher lista de espera?</p>
                 {waitlistSuccess ? (
                   <div className="bg-green-500/20 border border-green-500 text-green-100 p-3 rounded-lg">
                     ✅ Cadastro realizado! Notificaremos você assim que abrirmos novas vagas.
@@ -265,7 +264,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Níveis de Ensino Section */}
+      {/* NÃ­veis de Ensino Section */}
       <section id="niveis" className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">

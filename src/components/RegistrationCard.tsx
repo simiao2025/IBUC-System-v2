@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import type { PreMatricula } from '../types/database';
 
 interface RegistrationCardProps {

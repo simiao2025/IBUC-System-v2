@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Card from '../../components/ui/Card';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
-import { UserServiceV2 } from '../../services/userService.v2';
+import { Card } from '@/shared/ui';
+import { Input } from '@/shared/ui';
+import { Button } from '@/shared/ui';
+import { UserService } from '@/entities/user';
 
 const RecoverPassword: React.FC = () => {
   const [step, setStep] = useState<'request' | 'confirm'>('request');
@@ -28,7 +28,7 @@ const RecoverPassword: React.FC = () => {
 
     setLoading(true);
     try {
-      await UserServiceV2.requestPasswordRecovery(email);
+      await UserService.requestPasswordRecovery(email);
       setStep('confirm');
       setMessage('Código enviado para o e-mail informado');
     } catch (err: any) {
@@ -54,7 +54,7 @@ const RecoverPassword: React.FC = () => {
 
     setLoading(true);
     try {
-      await UserServiceV2.confirmPasswordRecovery({ email, codigo, senhaNova });
+      await UserService.confirmPasswordRecovery({ email, codigo, senhaNova });
       setMessage('Senha redefinida com sucesso');
     } catch (err: any) {
       setError(err?.message || 'Erro ao redefinir senha');

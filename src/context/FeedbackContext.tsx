@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import FeedbackDialog, { FeedbackType } from '../components/ui/FeedbackDialog';
+﻿import React, { createContext, useContext, useState, useCallback } from 'react';
+import { FeedbackDialog, FeedbackType } from '@/shared/ui';
 
 interface FeedbackState {
   isOpen: boolean;

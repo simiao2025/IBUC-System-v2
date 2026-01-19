@@ -1,0 +1,7 @@
+﻿
+> ibuc-system@0.1.0 build
+> tsc && vite build
+
+[36mvite v5.4.8 [32mbuilding for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 1537 modules transformed.

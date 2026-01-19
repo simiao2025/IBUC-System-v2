@@ -1,16 +1,16 @@
-import React from 'react';
+﻿import React from 'react';
 import { Documento, TipoDocumento } from '../types/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Button } from './ui/Button';
+import { Button } from '@/shared/ui';
 
 const getDocumentTypeLabel = (type: TipoDocumento): string => {
   const types: Record<TipoDocumento, string> = {
-    certidao: 'Certidão de Nascimento',
+    certidao: 'CertidÃ£o de Nascimento',
     rg: 'Documento de Identidade (RG)',
     cpf: 'CPF',
-    comprovante_residencia: 'Comprovante de Residência',
-    laudo: 'Laudo Médico',
+    comprovante_residencia: 'Comprovante de ResidÃªncia',
+    laudo: 'Laudo MÃ©dico',
     outro: 'Outro Documento',
   };
   return types[type] || type;
@@ -60,7 +60,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
             )}
             {showActions && (
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ações
+                AÃ§Ãµes
               </th>
             )}
           </tr>
@@ -80,7 +80,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {format(new Date(documento.uploaded_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {format(new Date(documento.uploaded_at), "dd/MM/yyyy 'Ã s' HH:mm", { locale: ptBR })}
               </td>
               {showValidation && (
                 <td className="px-6 py-4 whitespace-nowrap">

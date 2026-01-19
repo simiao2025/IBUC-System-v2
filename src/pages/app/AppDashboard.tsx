@@ -1,12 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { useApp } from '../../context/AppContext';
-import Card from '../../components/ui/Card';
-import { Calendar } from 'lucide-react';
-import { EventosService, type Evento } from '../../services/eventos.service';
-import Button from '../../components/ui/Button';
+﻿import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Icon3D } from '../../components/ui/Icon3D';
-import { BookOpen, ClipboardList, Wallet, FolderOpen } from 'lucide-react';
+import { Card, Button, Icon3D } from '@/shared/ui';
+import { Calendar, BookOpen, ClipboardList, Wallet, FolderOpen } from 'lucide-react';
+import { EventosAPI } from '@/features/event-management/api/eventos.api';
+import type { Evento } from '@/features/event-management/model/types';
 
 
 
@@ -24,7 +21,7 @@ const AppDashboard: React.FC = () => {
       try {
         const today = new Date().toISOString().split('T')[0];
         // RLS on backend handles filtering by user's polo automatically
-        const data = await EventosService.listar({
+        const data = await EventosAPI.listar({
           date_from: today,
           limit: 3,
           include_geral: true
@@ -41,7 +38,16 @@ const AppDashboard: React.FC = () => {
 
 
 
-  const studentQuickActions = [
+  interface QuickAction {
+    title: string;
+    description: string;
+    href: string;
+    iconName: string;
+    fallbackIcon: any;
+    metaValue?: string | number;
+  }
+
+  const studentQuickActions: QuickAction[] = [
     {
       title: 'Módulos',
       description: 'Conteúdos e aulas',

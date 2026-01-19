@@ -1,12 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { api } from '../lib/api';
+﻿import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { api } from '@/shared/api';
 import { StudentData, Enrollment, Polo as UiPolo, User, AdminUser, AccessLevel, Level } from '../types';
-import type { Polo as DbPolo, PreMatricula } from '../types/database';
-import { PoloService } from '../services/polo.service';
-import { UserServiceV2 } from '../services/userService.v2';
-import { PreMatriculasAPI } from '../features/enrollments/matricula.service';
-import FeedbackDialog, { FeedbackType } from '../components/ui/FeedbackDialog';
-import ConfirmDialog from '../components/ui/ConfirmDialog';
+import type { Polo as DbPolo, PreMatricula } from '@/types/database';
+import { UserService } from '@/entities/user';
+import { poloApi } from '@/entities/polo';
+import { PreMatriculasAPI } from '@/features/enrollment-management';
+import { FeedbackDialog, FeedbackType } from '@/shared/ui';
+import { ConfirmDialog } from '@/shared/ui';
 
 interface AppContextType {
   // Student registration
@@ -166,7 +166,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     const carregarPolosReais = async () => {
       try {
-        const polosReais = await PoloService.listarPolos();
+        const polosReais = await poloApi.listar();
         if (Array.isArray(polosReais) && polosReais.length > 0) {
           const polosConvertidos = polosReais.map(mapDbPoloToUiPolo);
           setPolos(polosConvertidos);
@@ -211,8 +211,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         if (!response.ok) {
-          // Token inválido/expirado/erro: limpar sessão
-          console.warn('Sessão inválida ou expirada, limpando dados locais.');
+          // Token invÃ¡lido/expirado/erro: limpar sessÃ£o
+          console.warn('SessÃ£o invÃ¡lida ou expirada, limpando dados locais.');
           sessionStorage.removeItem('auth_token');
           sessionStorage.removeItem('auth_user');
           setCurrentUser(null);
@@ -251,8 +251,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
         setAuthLoading(false);
       } catch (error) {
-        console.error('Erro ao restaurar sessão:', error);
-        // Erro de rede/back-end fora do ar: mantém cache/token para não derrubar a sessão
+        console.error('Erro ao restaurar sessÃ£o:', error);
+        // Erro de rede/back-end fora do ar: mantÃ©m cache/token para nÃ£o derrubar a sessÃ£o
         setAuthLoading(false);
       }
     };
@@ -284,9 +284,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       let rawPayload;
       if (role === 'student') {
-        rawPayload = await UserServiceV2.loginAluno({ cpf: identifier, password });
+        rawPayload = await UserService.loginAluno({ cpf: identifier, password });
       } else {
-        rawPayload = await UserServiceV2.login({ email: identifier, password });
+        rawPayload = await UserService.login({ email: identifier, password });
       }
 
       const token = extractToken(rawPayload);
@@ -338,7 +338,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const hasAccessToAllPolos = (): boolean => {
     if (!currentUser || currentUser.role !== 'admin') return false;
-    if (!currentUser.adminUser) return true; // Admin padrão tem acesso geral
+    if (!currentUser.adminUser) return true; // Admin padrÃ£o tem acesso geral
 
     return currentUser.adminUser.accessLevel === 'geral' &&
       ['coordenador_geral', 'diretor_geral', 'secretario_geral', 'tesoureiro_geral', 'super_admin', 'admin_geral'].includes(currentUser.adminUser.role);
@@ -350,7 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Se tem acesso geral, pode acessar qualquer polo
     if (hasAccessToAllPolos()) return true;
 
-    // Se tem acesso específico, só pode acessar seu polo
+    // Se tem acesso especÃ­fico, sÃ³ pode acessar seu polo
     if (currentUser.adminUser?.accessLevel === 'polo_especifico') {
       return currentUser.adminUser.poloId === poloId;
     }
@@ -404,8 +404,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       // Carregar dados em paralelo
       const [alunosData, matriculasData, preMatriculasData] = await Promise.all([
-        import('../features/students/aluno.service').then(m => m.AlunosAPI.listar({ polo_id: poloId })),
-        import('../features/enrollments/matricula.service').then(m => m.MatriculaAPI.listar({ polo_id: poloId })),
+        import('@/features/student-management').then(m => m.AlunosAPI.listar({ polo_id: poloId })),
+        import('@/features/enrollment-management').then(m => m.MatriculaAPI.listar({ polo_id: poloId })),
         PreMatriculasAPI.listar({ polo_id: poloId })
       ]);
 
@@ -429,7 +429,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         status: aluno.status === 'ativo' ? 'active' : 'inactive',
         registrationDate: aluno.data_criacao || new Date().toISOString(),
         parents: {
-          fatherName: '', // Não mapeado diretamente no StudentData simples
+          fatherName: '', // NÃ£o mapeado diretamente no StudentData simples
           motherName: aluno.nome_responsavel || '',
           phone: aluno.telefone_responsavel || '',
           email: aluno.email_responsavel || '',
@@ -438,8 +438,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       }));
 
-      // Mapear Matrículas (DB) -> Enrollment (UI)
-      // Precisamos do nome do aluno, então usamos o array de alunos carregado
+      // Mapear MatrÃ­culas (DB) -> Enrollment (UI)
+      // Precisamos do nome do aluno, entÃ£o usamos o array de alunos carregado
       const mappedEnrollments: Enrollment[] = (matriculasData as any[]).map(mat => {
         const aluno = (alunosData as any[]).find(a => a.id === mat.aluno_id);
         return {
@@ -501,7 +501,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }}>
       {children}
 
-      {/* Diálogos Globais */}
+      {/* DiÃ¡logos Globais */}
       <FeedbackDialog
         isOpen={feedback.isOpen}
         type={feedback.type}

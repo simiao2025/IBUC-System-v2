@@ -1,7 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import Button from './ui/Button';
+import { Button } from '@/shared/ui';
 
 interface AdminPageHeaderProps {
   title: string;

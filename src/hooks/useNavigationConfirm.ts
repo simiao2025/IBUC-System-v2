@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+﻿import { useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface NavigationConfirmProps {
@@ -10,10 +10,10 @@ interface NavigationConfirmProps {
 }
 
 export const useNavigationConfirm = ({ 
-  message = 'Você tem certeza que deseja sair desta página?',
-  title = 'Confirmar navegação',
+  message = 'VocÃª tem certeza que deseja sair desta pÃ¡gina?',
+  title = 'Confirmar navegaÃ§Ã£o',
   confirmText = 'Sim',
-  cancelText = 'Não',
+  cancelText = 'NÃ£o',
   shouldConfirm = true
 }: NavigationConfirmProps = {}) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -22,7 +22,7 @@ export const useNavigationConfirm = ({
 
   const confirmNavigation = useCallback((destination: string | (() => void)) => {
     if (!shouldConfirm) {
-      // Se não precisa confirmar, executa diretamente
+      // Se nÃ£o precisa confirmar, executa diretamente
       if (typeof destination === 'string') {
         navigate(destination);
       } else {
@@ -45,7 +45,7 @@ export const useNavigationConfirm = ({
           pending();
         }
       } catch (error) {
-        console.error('Erro ao executar navegação confirmada:', error);
+        console.error('Erro ao executar navegaÃ§Ã£o confirmada:', error);
       }
     }
     setIsDialogOpen(false);

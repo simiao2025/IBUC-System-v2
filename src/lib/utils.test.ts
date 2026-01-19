@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { formatCPF, formatCEP, formatPhone, formatCurrency } from './format';
 
 describe('Utils: format', () => {

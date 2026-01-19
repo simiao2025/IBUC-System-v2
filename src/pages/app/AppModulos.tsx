@@ -1,20 +1,11 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import { useApp } from '../../context/AppContext';
-import { AlunosAPI } from '../../features/students/aluno.service';
-import { ModulosAPI, LicoesAPI } from '../../services/modulos.service';
+import { Button, Card } from '@/shared/ui';
+import { ModulosAPI, LicoesAPI } from '@/entities/turma';
+import type { Modulo, Licao } from '@/shared/api/types/database';
+import { useApp } from '@/context/AppContext';
+import { AlunosAPI } from '@/features/student-management';
 import { BookOpen, Clock, CheckCircle } from 'lucide-react';
-
-type Licao = {
-  id: string;
-  modulo_id: string;
-  titulo: string;
-  descricao?: string;
-  ordem: number;
-  duracao_minutos?: number;
-};
 
 type ModuloItem = {
   id: string;
@@ -60,8 +51,7 @@ const AppModulos: React.FC = () => {
         console.log('[AppModulos] Histórico de módulos:', historico);
         console.log('[AppModulos] Dados do aluno:', aluno);
 
-        const modulosLista: ModuloItem[] = [];
-        const moduloIdsParaLicoes: string[] = [];
+        const moduloIdsParaLicoes = [];
 
         // Adicionar módulos do histórico (concluídos/aprovados)
         if (Array.isArray(historico) && historico.length > 0) {
@@ -82,10 +72,10 @@ const AppModulos: React.FC = () => {
           }
         }
 
-        // Buscar módulo atual (da turma)
+        // Buscar mÃ³dulo atual (da turma)
         if (aluno?.turma_id) {
           try {
-            const { TurmasAPI } = await import('../../features/classes/services/turma.service');
+            const { TurmasAPI } = await import('@/features/turma-management');
             const turmaResponse: any = await TurmasAPI.buscarPorId(aluno.turma_id);
             const turma = turmaResponse?.data || turmaResponse;
 

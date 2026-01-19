@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Users,
   Settings,
@@ -7,20 +7,20 @@ import {
   Award,
   Calendar
 } from 'lucide-react';
-import { useApp } from '../../../context/AppContext';
-import { useAccessControl } from '../../../components/AccessControl';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import Input from '../../../components/ui/Input';
-import PageHeader from '../../../components/ui/PageHeader';
+import { useApp } from '@/context/AppContext';
+import { useAccessControl } from '@/components/AccessControl';
+import { Button } from '@/shared/ui';
+import { Card } from '@/shared/ui';
+import { Input } from '@/shared/ui';
+import { PageHeader } from '@/shared/ui';
 
 // New Components
-import UserManagement from '../../../features/users/UserManagement';
-import { SecuritySettings } from '../../../components/settings/SecuritySettings';
-import { DracmasSettings } from '../../../components/settings/DracmasSettings';
-import { BackupSettings } from '../../../components/settings/BackupSettings';
-import { EventsSettings } from '../../../components/settings/EventsSettings';
-import { ConfiguracoesService } from '../../../services/configuracoes.service';
+import { UserManagement } from '@/features/user-management';
+import { SecuritySettings } from '@/components/settings/SecuritySettings';
+import { DracmasSettings } from '@/components/settings/DracmasSettings';
+import { BackupSettings } from '@/components/settings/BackupSettings';
+import { EventsSettings } from '@/components/settings/EventsSettings';
+import { systemConfigApi } from '@/entities/system';
 
 // Interface SystemConfig
 interface SystemConfig {
@@ -86,10 +86,10 @@ const SystemSettingsPage: React.FC = () => {
     }
   });
 
-  // Carregar configurações ao montar o componente
+  // Carregar configuraÃ§Ãµes ao montar o componente
   React.useEffect(() => {
     const loadSettings = async () => {
-      const data = await ConfiguracoesService.buscarTodasComoObjeto();
+      const data = await systemConfigApi.getSettingsAsObject();
 
       setSystemConfig(prev => ({
         ...prev,
@@ -106,7 +106,7 @@ const SystemSettingsPage: React.FC = () => {
   }, []);
 
   const saveSystemConfig = async () => {
-    console.log('[DEBUG] Iniciando salvamento das configurações...', systemConfig);
+    console.log('[DEBUG] Iniciando salvamento das configuraÃ§Ãµes...', systemConfig);
     try {
       const payload = {
         ano_letivo: systemConfig.schoolYear,
@@ -119,13 +119,13 @@ const SystemSettingsPage: React.FC = () => {
 
       console.log('[DEBUG] Payload enviado:', payload);
 
-      const results = await ConfiguracoesService.salvarLote(payload);
+      const results = await systemConfigApi.updateBatch(payload);
       console.log('[DEBUG] Resultados do salvamento:', results);
 
-      showFeedback('success', 'Sucesso', 'Configurações salvas com sucesso!');
+      showFeedback('success', 'Sucesso', 'ConfiguraÃ§Ãµes salvas com sucesso!');
     } catch (error: any) {
-      console.error('[DEBUG] Erro ao salvar configurações:', error);
-      showFeedback('error', 'Erro', `Falha ao salvar configurações: ${error.message || 'Erro deconhecido'}`);
+      console.error('[DEBUG] Erro ao salvar configuraÃ§Ãµes:', error);
+      showFeedback('error', 'Erro', `Falha ao salvar configuraÃ§Ãµes: ${error.message || 'Erro deconhecido'}`);
     }
   };
 
@@ -144,8 +144,8 @@ const SystemSettingsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader
-        title="Configurações do Sistema"
-        subtitle="Usuários, acessos e configurações gerais"
+        title="ConfiguraÃ§Ãµes do Sistema"
+        subtitle="UsuÃ¡rios, acessos e configuraÃ§Ãµes gerais"
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -154,11 +154,11 @@ const SystemSettingsPage: React.FC = () => {
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px space-x-8">
               {[
-                { id: 'users', label: 'Usuários', icon: Users, permission: canManageUsers() || canAccessModule('manage_users') },
-                { id: 'config', label: 'Parâmetros', icon: Settings, permission: canAccessModule('settings') },
+                { id: 'users', label: 'UsuÃ¡rios', icon: Users, permission: canManageUsers() || canAccessModule('manage_users') },
+                { id: 'config', label: 'ParÃ¢metros', icon: Settings, permission: canAccessModule('settings') },
                 { id: 'events', label: 'Eventos', icon: Calendar, permission: canAccessModule('settings') },
-                { id: 'dracmas', label: 'Drácmas', icon: Award, permission: canAccessModule('dracmas_settings') },
-                { id: 'security', label: 'Segurança', icon: Shield, permission: canAccessModule('security') },
+                { id: 'dracmas', label: 'DrÃ¡cmas', icon: Award, permission: canAccessModule('dracmas_settings') },
+                { id: 'security', label: 'SeguranÃ§a', icon: Shield, permission: canAccessModule('security') },
                 { id: 'backup', label: 'Backup', icon: Database, permission: canAccessModule('backup') }
               ]
                 .filter(tab => tab.permission)
@@ -191,7 +191,7 @@ const SystemSettingsPage: React.FC = () => {
         {/* Config Tab */}
         {activeTab === 'config' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900">Parâmetros do Sistema</h2>
+            <h2 className="text-xl font-semibold text-gray-900">ParÃ¢metros do Sistema</h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
@@ -204,10 +204,10 @@ const SystemSettingsPage: React.FC = () => {
               </Card>
 
               <Card>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Período de Matrícula</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">PerÃ­odo de MatrÃ­cula</h3>
                 <div className="space-y-4">
                   <Input
-                    label="Data de Início"
+                    label="Data de InÃ­cio"
                     type="date"
                     value={systemConfig.enrollmentPeriod.start}
                     onChange={(e) => setSystemConfig(prev => ({
@@ -216,7 +216,7 @@ const SystemSettingsPage: React.FC = () => {
                     }))}
                   />
                   <Input
-                    label="Data de Término"
+                    label="Data de TÃ©rmino"
                     type="date"
                     value={systemConfig.enrollmentPeriod.end}
                     onChange={(e) => setSystemConfig(prev => ({
@@ -228,11 +228,11 @@ const SystemSettingsPage: React.FC = () => {
               </Card>
 
               <Card>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Horário e Dias das Aulas</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">HorÃ¡rio e Dias das Aulas</h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <Input
-                      label="Horário de Início"
+                      label="HorÃ¡rio de InÃ­cio"
                       type="time"
                       value={systemConfig.classSchedule.startTime}
                       onChange={(e) => setSystemConfig(prev => ({
@@ -241,7 +241,7 @@ const SystemSettingsPage: React.FC = () => {
                       }))}
                     />
                     <Input
-                      label="Horário de Término"
+                      label="HorÃ¡rio de TÃ©rmino"
                       type="time"
                       value={systemConfig.classSchedule.endTime}
                       onChange={(e) => setSystemConfig(prev => ({
@@ -256,11 +256,11 @@ const SystemSettingsPage: React.FC = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
                         { id: 'monday', label: 'Segunda' },
-                        { id: 'tuesday', label: 'Terça' },
+                        { id: 'tuesday', label: 'TerÃ§a' },
                         { id: 'wednesday', label: 'Quarta' },
                         { id: 'thursday', label: 'Quinta' },
                         { id: 'friday', label: 'Sexta' },
-                        { id: 'saturday', label: 'Sábado' },
+                        { id: 'saturday', label: 'SÃ¡bado' },
                         { id: 'sunday', label: 'Domingo' }
                       ].map(day => (
                         <label key={day.id} className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50 cursor-pointer transition-colors">
@@ -291,7 +291,7 @@ const SystemSettingsPage: React.FC = () => {
               </Card>
 
               <Card>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Notificações</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">NotificaÃ§Ãµes</h3>
                 <div className="space-y-3">
                   <label className="flex items-center">
                     <input
@@ -303,7 +303,7 @@ const SystemSettingsPage: React.FC = () => {
                       }))}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
                     />
-                    <span className="text-sm font-medium text-gray-700">Notificações por Email</span>
+                    <span className="text-sm font-medium text-gray-700">NotificaÃ§Ãµes por Email</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -315,7 +315,7 @@ const SystemSettingsPage: React.FC = () => {
                       }))}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
                     />
-                    <span className="text-sm font-medium text-gray-700">Notificações por SMS</span>
+                    <span className="text-sm font-medium text-gray-700">NotificaÃ§Ãµes por SMS</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -327,7 +327,7 @@ const SystemSettingsPage: React.FC = () => {
                       }))}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
                     />
-                    <span className="text-sm font-medium text-gray-700">Notificações por WhatsApp</span>
+                    <span className="text-sm font-medium text-gray-700">NotificaÃ§Ãµes por WhatsApp</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -339,7 +339,7 @@ const SystemSettingsPage: React.FC = () => {
                       }))}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
                     />
-                    <span className="text-sm font-medium text-gray-700">Lembretes Automáticos</span>
+                    <span className="text-sm font-medium text-gray-700">Lembretes AutomÃ¡ticos</span>
                   </label>
                 </div>
               </Card>
@@ -347,7 +347,7 @@ const SystemSettingsPage: React.FC = () => {
 
             <div className="flex justify-end">
               <Button onClick={saveSystemConfig}>
-                Salvar Configurações
+                Salvar ConfiguraÃ§Ãµes
               </Button>
             </div>
           </div>

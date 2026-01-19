@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import { RelatorioService } from '../../services/relatorio.service';
+﻿import React, { useState, useEffect } from 'react';
+import { Card } from '@/shared/ui';
+import { PoloReportsAPI } from '@/entities/polo';
 import { Loader2, TrendingUp, Users, GraduationCap, BarChart } from 'lucide-react';
 import { 
   BarChart as ReBarChart, 
@@ -29,7 +29,7 @@ const EstatisticasView: React.FC = () => {
     const loadStatsInternal = async () => {
       setLoading(true);
       try {
-        const data = await RelatorioService.estatisticasPorPolo(periodo);
+        const data = await PoloReportsAPI.estatisticasPorPolo(periodo);
         setStats(data);
       } catch (error) {
         console.error('Erro ao carregar stats:', error);
