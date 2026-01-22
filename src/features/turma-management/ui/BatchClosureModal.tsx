@@ -1,9 +1,9 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
-import { TurmaService, TurmaItem } from './services/turma.service';
+import { TurmaService, TurmaItem } from '../api/turma.service';
 import { AlertTriangle, CheckCircle, Loader2, XCircle } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 
 interface BatchClosureModalProps {
     turmas: TurmaItem[];

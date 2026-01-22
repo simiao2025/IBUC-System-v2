@@ -6,8 +6,8 @@ import { Select } from '@/shared/ui';
 import { DracmasAPI } from '../api/dracmas.service';
 import { TurmasAPI } from '@/features/turma-management';
 import { AlunosAPI } from '@/features/student-management';
-import { useApp } from '@/context/AppContext';
-import AccessControl from '@/components/AccessControl';
+import { useApp } from '@/app/providers/AppContext';
+import AccessControl from '@/features/auth/ui/AccessControl';
 
 interface AlunoDracma {
   aluno_id: string;

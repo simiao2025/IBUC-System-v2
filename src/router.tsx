@@ -2,9 +2,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 // Layouts
-import PublicLayout from './components/PublicLayout';
-import ProtectedRoute from './components/ProtectedRoute';
-import AppLayout from './components/AppLayout';
+import PublicLayout from './widgets/layout/PublicLayout';
+import ProtectedRoute from './app/providers/ProtectedRoute';
+import AppLayout from './widgets/layout/AppLayout';
 
 // Auth Pages
 import StudentAccess from './pages/auth/StudentAccess';

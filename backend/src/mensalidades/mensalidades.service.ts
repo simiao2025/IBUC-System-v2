@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { CreateCobrancaLoteDto, ConfirmarPagamentoDto } from './dto';
+import { CreateCobrancaLoteDto, ConfirmarPagamentoDto, UpdateConfiguracaoFinanceiraDto } from './dto';
 
 @Injectable()
 export class MensalidadesService {
@@ -126,20 +126,88 @@ export class MensalidadesService {
   }
 
   /**
-   * Confirmar pagamento manualmente
+   * Confirmar pagamento (Aluno enviando comprovante ou Baixa manual imediata)
    */
   async confirmarPagamento(id: string, dto?: ConfirmarPagamentoDto) {
-    const { data, error } = await this.supabase
-      .getAdminClient()
+    const client = this.supabase.getAdminClient();
+    
+    // 1. Buscar a mensalidade para ter o valor exato (incluindo juros/descontos que podem ter sido aplicados)
+    const { data: mensalidade } = await client
       .from('mensalidades')
-      .update({
-        status: 'pago',
-        pago_em: new Date().toISOString(),
-        comprovante_url: dto?.comprovante_url || null,
-      })
+      .select('valor_cents, juros_cents, desconto_cents')
       .eq('id', id)
+      .single();
+    
+    if (!mensalidade) throw new BadRequestException('Mensalidade não encontrada');
+    
+    const valorFinal = (mensalidade.valor_cents || 0) + (mensalidade.juros_cents || 0) - (mensalidade.desconto_cents || 0);
+
+    // 2. Registrar na tabela de pagamentos
+    // Se houver comprovante, fica 'pending' para a Diretoria validar.
+    // Se não houver comprovante (baixa direta), já entra como 'success'.
+    const statusGateway = dto?.comprovante_url ? 'pending' : 'success';
+
+    const { data: pagamento, error: pagError } = await client
+      .from('pagamentos')
+      .insert({
+        mensalidade_id: id,
+        metodo: 'pix',
+        valor_cents: valorFinal,
+        status_gateway: statusGateway,
+        comprovante_url: dto?.comprovante_url || null,
+        data_recebimento: new Date().toISOString(),
+      })
       .select()
       .single();
+
+    if (pagError) throw new BadRequestException(pagError.message);
+
+    // 3. A TRIGGER 'update_mensalidade_status' no banco cuidará de atualizar a tabela 'mensalidades'.
+    // Buscamos o estado atualizado para retornar ao front.
+    const { data: updated } = await client
+      .from('mensalidades')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    return updated;
+  }
+
+  /**
+   * Aprovar um pagamento pendente (Diretoria Geral)
+   */
+  async aprovarPagamento(pagamentoId: string, diretorId: string) {
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('pagamentos')
+      .update({
+        status_gateway: 'success',
+        recebido_por: diretorId,
+      })
+      .eq('id', pagamentoId)
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    return data;
+  }
+
+  /**
+   * Listar pagamentos para validação
+   */
+  async listarPagamentosPendentes() {
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('pagamentos')
+      .select(`
+        *,
+        mensalidade:mensalidades!fk_mensalidade(
+          id, titulo,
+          aluno:alunos!fk_aluno(id, nome)
+        )
+      `)
+      .eq('status_gateway', 'pending')
+      .order('created_at', { ascending: false });
 
     if (error) throw new BadRequestException(error.message);
     return data;
@@ -157,6 +225,39 @@ export class MensalidadesService {
       .single();
 
     if (error) throw new BadRequestException('Configuração financeira não encontrada');
+    return data;
+  }
+  /**
+   * Atualizar configurações financeiras
+   */
+  async atualizarConfiguracaoFinanceira(dto: any) {
+    // 1. Verificar se já existe (deveria existir pelo insert inicial)
+    const { data: existente } = await this.supabase
+      .getAdminClient()
+      .from('configuracoes_financeiras')
+      .select('id')
+      .limit(1)
+      .single();
+
+    let query;
+    if (existente) {
+      query = this.supabase
+        .getAdminClient()
+        .from('configuracoes_financeiras')
+        .update({
+          ...dto,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existente.id);
+    } else {
+      query = this.supabase
+        .getAdminClient()
+        .from('configuracoes_financeiras')
+        .insert(dto);
+    }
+
+    const { data, error } = await query.select().single();
+    if (error) throw new BadRequestException(error.message);
     return data;
   }
 }

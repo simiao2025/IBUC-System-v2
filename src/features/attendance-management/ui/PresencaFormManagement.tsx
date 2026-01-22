@@ -4,7 +4,7 @@ import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { PresencasAPI } from './presenca.service';
+import { PresencasAPI } from '../api/attendance.service';
 
 interface AlunoPresenca {
   aluno_id: string;
@@ -17,7 +17,7 @@ const PresencaFormManagement: React.FC = () => {
   const [turmaId, setTurmaId] = useState('');
   const [observacao, setObservacao] = useState('');
   const [alunos, setAlunos] = useState<AlunoPresenca[]>([
-    { aluno_id: '1', nome: 'JoÃ£o Silva', status: null },
+    { aluno_id: '1', nome: 'João Silva', status: null },
     { aluno_id: '2', nome: 'Maria Santos', status: null },
     { aluno_id: '3', nome: 'Pedro Oliveira', status: null },
   ]);
@@ -47,16 +47,16 @@ const PresencaFormManagement: React.FC = () => {
         }));
 
       if (presencas.length === 0) {
-        alert('Selecione pelo menos um aluno com status para registrar presenÃ§a.');
+        alert('Selecione pelo menos um aluno com status para registrar presença.');
         return;
       }
 
       await PresencasAPI.lancarLote(presencas);
 
-      alert('PresenÃ§a registrada com sucesso!');
+      alert('Presença registrada com sucesso!');
     } catch (error) {
-      console.error('Erro ao registrar presenÃ§a:', error);
-      alert('Erro ao registrar presenÃ§a');
+      console.error('Erro ao registrar presença:', error);
+      alert('Erro ao registrar presença');
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ const PresencaFormManagement: React.FC = () => {
 
   return (
     <Card className="p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">LanÃ§amento de PresenÃ§a</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Lançamento de Presença</h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -90,8 +90,8 @@ const PresencaFormManagement: React.FC = () => {
               required
             >
               <option value="">Selecione a turma</option>
-              <option value="1">Turma NÃ­vel I - ManhÃ£</option>
-              <option value="2">Turma NÃ­vel II - Tarde</option>
+              <option value="1">Turma Nível I - Manhã</option>
+              <option value="2">Turma Nível II - Tarde</option>
             </Select>
           </div>
         </div>
@@ -164,7 +164,7 @@ const PresencaFormManagement: React.FC = () => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            ObservaÃ§Ã£o (opcional)
+            Observação (opcional)
           </label>
           <textarea
             value={observacao}
@@ -179,7 +179,7 @@ const PresencaFormManagement: React.FC = () => {
             Cancelar
           </Button>
           <Button type="submit" loading={loading}>
-            Salvar PresenÃ§a
+            Salvar Presença
           </Button>
         </div>
       </form>

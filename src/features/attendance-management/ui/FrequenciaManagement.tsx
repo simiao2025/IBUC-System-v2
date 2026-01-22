@@ -6,13 +6,13 @@ import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { PageHeader } from '@/shared/ui';
 import { AlunosAPI } from '@/features/student-management';
-import { DracmasAPI } from '@/entities/finance';
+import { DracmasAPI } from '@/features/finance-management';
 import { PresencasAPI } from '../api/attendance.service';
 import { TurmasAPI } from '@/features/turma-management';
 import { ModulosAPI as LicoesAPI } from '@/entities/turma';
 import { PolosAPI } from '@/features/polo-management';
-import { useApp } from '@/context/AppContext';
-import { BookOpen, GraduationCap, Calendar as CalendarIcon, Beaker, Trash2, Edit2, History, X, User, Banknote } from 'lucide-react';
+import { useApp } from '@/app/providers/AppContext';
+import { BookOpen, GraduationCap, Beaker, Trash2, Edit2, History, X, User, Banknote } from 'lucide-react';
 
 type TurmaOption = {
   id: string;
@@ -62,6 +62,7 @@ const AdminFrequencia: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [criteriosDracma, setCriteriosDracma] = useState<{ codigo: string, nome: string }[]>([]);
   const [licoes, setLicoes] = useState<{ id: string, titulo: string, ordem: number }[]>([]);
+  const [licoesConcluidas, setLicoesConcluidas] = useState<string[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [dracmasTransactions, setDracmasTransactions] = useState<any[]>([]); // To store all transactions for redemption calculation
 
@@ -80,6 +81,10 @@ const AdminFrequencia: React.FC = () => {
 
   const hasAnyPresence = useMemo(() => alunos.some(a => Boolean(a.status)), [alunos]);
   const hasAnyDracmas = useMemo(() => alunos.some(a => Object.values(a.dracmas).some(v => v > 0)), [alunos]);
+
+  const licoesPendentes = useMemo(() => {
+    return licoes.filter(l => !licoesConcluidas.includes(l.id));
+  }, [licoes, licoesConcluidas]);
 
   useEffect(() => {
     // Carregar critérios de Drácmas
@@ -203,7 +208,11 @@ const AdminFrequencia: React.FC = () => {
           nome: String(a.nome ?? a.id),
         }));
 
-        const listaLicoes = Array.isArray(licoesRes) ? licoesRes : [];
+        const listaLicoes = (Array.isArray(licoesRes) ? licoesRes : []).map((l: any) => ({
+          id: String(l.id),
+          titulo: String(l.titulo),
+          ordem: Number(l.ordem || 0)
+        }));
         setLicoes(listaLicoes);
 
         console.log(`Frequencia - Alunos: ${items.length}, Lições: ${listaLicoes.length}`);
@@ -257,9 +266,6 @@ const AdminFrequencia: React.FC = () => {
     setAlunos(prev => prev.map(a => (a.aluno_id === alunoId ? { ...a, licao_id: value } : a)));
   };
 
-  const syncAllRows = () => {
-    setAlunos(prev => prev.map(a => ({ ...a, data: data })));
-  };
 
   const formatarDataLocal = (isoString: string) => {
     if (!isoString) return '';
@@ -280,6 +286,10 @@ const AdminFrequencia: React.FC = () => {
       const dracmas = (dracmasResponse as any)?.transacoes || [];
 
       setDracmasTransactions(dracmas);
+
+      // Calcular lições que já possuem registro
+      const idsConcluidos = new Set(presencas.filter((p: any) => p.licao_id).map((p: any) => String(p.licao_id)));
+      setLicoesConcluidas(Array.from(idsConcluidos) as string[]);
 
       setAlunos(prev => prev.map(aluno => {
         // Encontra presenças do aluno
@@ -556,7 +566,7 @@ const AdminFrequencia: React.FC = () => {
 
         <Card className="p-6 mb-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
               {isGlobalAdmin && !isProfessor && (
                 <div className="space-y-4">
                   <div>
@@ -619,30 +629,6 @@ const AdminFrequencia: React.FC = () => {
                 </div>
               )}
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Data de Referência</label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={data}
-                      onChange={e => setData(e.target.value)}
-                      required
-                      className="w-full pl-10"
-                    />
-                    <CalendarIcon className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={syncAllRows}
-                    className="mt-1 text-[10px] text-teal-600 font-bold hover:underline ml-1"
-                  >
-                    Aplicar esta data a todos os alunos
-                  </button>
-                </div>
-
-
-              </div>
             </div>
 
 
@@ -715,16 +701,21 @@ const AdminFrequencia: React.FC = () => {
 
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-gray-400 uppercase">Lição Ministrada</label>
-                          <Select
-                            value={aluno.licao_id}
-                            onChange={val => updateLicaoPerRow(aluno.aluno_id, val)}
-                            className="h-9 text-xs"
-                          >
-                            <option value="">Selecione lição...</option>
-                            {licoes.map(l => (
-                              <option key={l.id} value={l.id}>Lição {l.ordem}: {l.titulo}</option>
-                            ))}
-                          </Select>
+                            <Select
+                              value={aluno.licao_id}
+                              onChange={val => updateLicaoPerRow(aluno.aluno_id, val)}
+                              className="h-9 text-xs"
+                            >
+                              <option value="">Selecione lição...</option>
+                              {licoesPendentes.map(l => (
+                                <option key={l.id} value={l.id}>Lição {l.ordem}: {l.titulo}</option>
+                              ))}
+                              {licoesConcluidas.length > 0 && (
+                                <optgroup label="Lições Já Registradas (Ocultas)">
+                                  <option disabled>As lições com presença já lançada não aparecem aqui.</option>
+                                </optgroup>
+                              )}
+                            </Select>
                         </div>
 
                         <div className="space-y-1">
@@ -802,7 +793,7 @@ const AdminFrequencia: React.FC = () => {
                                       {c.nome.substring(0, 15)}{c.nome.length > 15 ? '...' : ''}
                                     </th>
                                   ))}
-                                <th className="px-3 py-1.5 text-right text-[9px] font-bold text-gray-500 uppercase">AÃ§Ãµes</th>
+                                <th className="px-3 py-1.5 text-right text-[9px] font-bold text-gray-500 uppercase">Ações</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
@@ -810,7 +801,7 @@ const AdminFrequencia: React.FC = () => {
                                 <tr key={reg.id} className="hover:bg-white transition-colors">
                                   <td className="px-3 py-1.5 text-[10px] text-gray-700">{formatarDataLocal(reg.data)}</td>
                                   <td className="px-3 py-1.5 text-[10px] text-gray-600 truncate max-w-[150px]" title={reg.licoes?.titulo}>
-                                    {reg.licoes?.titulo || 'Sem liÃ§Ã£o'}
+                                    {reg.licoes?.titulo || 'Sem lição'}
                                   </td>
                                   <td className="px-3 py-1.5">
                                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${reg.status === 'presente' ? 'bg-green-100 text-green-700' :
@@ -871,7 +862,7 @@ const AdminFrequencia: React.FC = () => {
 
             <div className="flex justify-end">
               <Button type="submit" loading={submitting} disabled={submitting || loadingTurmas || loadingAlunos || !turmaId}>
-                Salvar lanÃ§amento
+                Salvar lançamento
               </Button>
             </div>
           </form>
@@ -883,7 +874,7 @@ const AdminFrequencia: React.FC = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between p-4 border-b bg-gray-50">
               <h3 className="text-lg font-bold text-gray-800">
-                Editar LanÃ§amento
+                Editar Lançamento
               </h3>
               <button
                 onClick={handleCloseEditModal}
@@ -914,7 +905,7 @@ const AdminFrequencia: React.FC = () => {
                     disabled
                     className="bg-gray-100 text-gray-500 font-medium"
                   />
-                  <p className="text-[9px] text-gray-400 mt-1">A data nÃ£o pode ser alterada na ediÃ§Ã£o rÃ¡pida.</p>
+                  <p className="text-[9px] text-gray-400 mt-1">A data não pode ser alterada na edição rápida.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Status</label>
@@ -932,7 +923,7 @@ const AdminFrequencia: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center">
-                  DrÃ¡cmas <span className="ml-2 text-[9px] font-normal normal-case text-gray-400">(Deixe vazio para 0)</span>
+                  Drácmas <span className="ml-2 text-[9px] font-normal normal-case text-gray-400">(Deixe vazio para 0)</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {criteriosDracma.map(c => (
@@ -963,13 +954,13 @@ const AdminFrequencia: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">ObservaÃ§Ã£o</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Observação</label>
                 <textarea
                   className="w-full text-xs p-2 border rounded-md focus:ring-teal-500 focus:border-teal-500"
                   rows={2}
                   value={editingModalData.observacao}
                   onChange={e => setEditingModalData({ ...editingModalData, observacao: e.target.value })}
-                  placeholder="Justificativa ou anotaÃ§Ã£o..."
+                  placeholder="Justificativa ou anotação..."
                 />
               </div>
             </div>
@@ -979,7 +970,7 @@ const AdminFrequencia: React.FC = () => {
                 Cancelar
               </Button>
               <Button onClick={handleSaveEditModal} disabled={submitting}>
-                {submitting ? 'Salvando...' : 'Salvar AlteraÃ§Ãµes'}
+                {submitting ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
             </div>
           </div>
@@ -993,7 +984,7 @@ const AdminFrequencia: React.FC = () => {
               <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
                 <Banknote className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold">Resgate de DrÃ¡cmas</h3>
+              <h3 className="text-xl font-bold">Resgate de Drácmas</h3>
               <p className="text-amber-100 text-sm mt-1">Converte saldo em produtos</p>
             </div>
 
@@ -1015,18 +1006,18 @@ const AdminFrequencia: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm text-center py-2">Sem saldo disponÃ­vel.</p>
+                  <p className="text-gray-500 text-sm text-center py-2">Sem saldo disponível.</p>
                 )}
 
                 <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between items-center">
-                  <span className="text-sm font-bold text-gray-700 uppercase">Total DisponÃ­vel</span>
+                  <span className="text-sm font-bold text-gray-700 uppercase">Total Disponível</span>
                   <span className="text-2xl font-extrabold text-amber-600">{resgateModalData.saldo}</span>
                 </div>
               </div>
 
               <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start space-x-2 text-red-700 text-xs mb-6">
-                <div className="font-bold">AtenÃ§Ã£o:</div>
-                <div>Esta aÃ§Ã£o Ã© irreversÃ­vel. O saldo serÃ¡ zerado e registrado no histÃ³rico de resgates.</div>
+                <div className="font-bold">Atenção:</div>
+                <div>Esta ação é irreversível. O saldo será zerado e registrado no histórico de resgates.</div>
               </div>
 
               <div className="flex space-x-3">

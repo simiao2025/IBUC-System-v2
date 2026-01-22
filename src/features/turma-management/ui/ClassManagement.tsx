@@ -8,12 +8,13 @@ import type { Modulo } from '@/shared/api/types/database';
 import { PolosAPI } from '@/entities/polo';
 import { UserService } from '@/entities/user';
 import { ConfiguracoesService } from '@/entities/system';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { PageHeader } from '@/shared/ui';
-import { Lock, Users, UserPlus, Eye } from 'lucide-react';
+import { Lock, Users, UserPlus, Eye, Check } from 'lucide-react';
 
 import { ModuleTransitionWizard } from './ModuleTransitionWizard';
 import { BatchClosureModal } from './BatchClosureModal';
+import { StudentTransitionLoading } from './StudentTransitionLoading';
 
 type PoloOption = { id: string; nome: string };
 type NivelOption = { id: string; nome: string; ordem?: number };
@@ -31,6 +32,8 @@ type TurmaFormState = {
   modulo_atual_id: string;
   dias_semana: number[];
   horario_inicio: string;
+  data_inicio: string;
+  data_previsao_termino: string;
 };
 
 const DEFAULT_FORM: TurmaFormState = {
@@ -45,6 +48,8 @@ const DEFAULT_FORM: TurmaFormState = {
   modulo_atual_id: '',
   dias_semana: [],
   horario_inicio: '',
+  data_inicio: '',
+  data_previsao_termino: '',
 };
 
 export const ClassManagement: React.FC = () => {
@@ -97,7 +102,7 @@ export const ClassManagement: React.FC = () => {
         PolosAPI.listar(true),
         NiveisAPI.listar(),
         ModulosAPI.listar(),
-        UserService.listUsers(professorFilters),
+        UserService.list(professorFilters),
       ]);
 
       const polosList = (polosResp as any) as any[];
@@ -150,6 +155,10 @@ export const ClassManagement: React.FC = () => {
         modulo_atual_id: t.modulo_atual_id,
         dias_semana: (t as any).dias_semana || [],
         horario_inicio: (t as any).horario_inicio || '',
+        data_inicio: (t as any).data_inicio || '',
+        data_previsao_termino: (t as any).data_previsao_termino || '',
+        data_conclusao: (t as any).data_conclusao || '',
+        migracao_concluida: Boolean((t as any).migracao_concluida),
         created_at: t.created_at,
       })));
     } catch (e) {
@@ -197,6 +206,8 @@ export const ClassManagement: React.FC = () => {
       modulo_atual_id: t.modulo_atual_id || '',
       dias_semana: (t as any).dias_semana || [],
       horario_inicio: (t as any).horario_inicio || '',
+      data_inicio: (t as any).data_inicio || '',
+      data_previsao_termino: (t as any).data_previsao_termino || '',
     });
   };
 
@@ -242,6 +253,8 @@ export const ClassManagement: React.FC = () => {
         modulo_atual_id: form.modulo_atual_id || undefined,
         dias_semana: form.dias_semana,
         horario_inicio: form.horario_inicio || undefined,
+        data_inicio: form.data_inicio || undefined,
+        data_previsao_termino: form.data_previsao_termino || undefined,
       };
 
       if (editingId) {
@@ -281,7 +294,7 @@ export const ClassManagement: React.FC = () => {
 
     showConfirm(
       'Migrar Alunos',
-      `Deseja buscar alunos APROVADOS no Módulo ${previousNum} (do mesmo Polo e Nível) e vinculá-los a esta turma (${t.nome})?`,
+      `Deseja buscar alunos APROVADOS no Módulo ${previousNum} (do mesmo Polo e Nível) e vinculá-los a esta turma (${t.nome})? Esta ação irá travar o botão de migração para esta turma.`,
       async () => {
         setSaving(true);
         try {
@@ -349,13 +362,9 @@ export const ClassManagement: React.FC = () => {
       <Card className="p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Filtros</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Polo</label>
-            {isPoloScoped ? (
-              <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-900">
-                {polos.find(p => p.id === userPoloId)?.nome || 'Polo'}
-              </div>
-            ) : (
+          {!isPoloScoped && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Polo</label>
               <Select value={filterPolo} onChange={val => setFilterPolo(val)}>
                 <option value="">Todos</option>
                 {polos.map(p => (
@@ -364,8 +373,8 @@ export const ClassManagement: React.FC = () => {
                   </option>
                 ))}
               </Select>
-            )}
-          </div>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <Select value={filterStatus} onChange={val => setFilterStatus(val)}>
@@ -390,17 +399,19 @@ export const ClassManagement: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
             <Input value={form.nome} onChange={e => setForm(prev => ({ ...prev, nome: e.target.value }))} />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Polo (apenas ativos)</label>
-            <Select value={isPoloScoped ? userPoloId : form.polo_id} onChange={val => setForm(prev => ({ ...prev, polo_id: val }))} disabled={isPoloScoped}>
-              <option value="">Selecione</option>
-              {polos.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                </option>
-              ))}
-            </Select>
-          </div>
+          {!isPoloScoped && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Polo (apenas ativos)</label>
+              <Select value={form.polo_id} onChange={val => setForm(prev => ({ ...prev, polo_id: val }))}>
+                <option value="">Selecione</option>
+                {polos.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nível</label>
             <Select value={form.nivel_id} onChange={val => setForm(prev => ({ ...prev, nivel_id: val }))}>
@@ -465,6 +476,22 @@ export const ClassManagement: React.FC = () => {
               type="time"
               value={form.horario_inicio}
               onChange={e => setForm(prev => ({ ...prev, horario_inicio: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+            <Input
+              type="date"
+              value={form.data_inicio}
+              onChange={e => setForm(prev => ({ ...prev, data_inicio: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Previsão de Término</label>
+            <Input
+              type="date"
+              value={form.data_previsao_termino}
+              onChange={e => setForm(prev => ({ ...prev, data_previsao_termino: e.target.value }))}
             />
           </div>
           <div className="md:col-span-3">
@@ -592,7 +619,7 @@ export const ClassManagement: React.FC = () => {
                               Editar
                             </Button>
 
-                            {t.status === 'ativa' && (
+                            {t.status === 'ativa' && !t.migracao_concluida && (
                               <Button 
                                 type="button" 
                                 variant="primary" 
@@ -603,6 +630,12 @@ export const ClassManagement: React.FC = () => {
                                 <UserPlus className="h-4 w-4 mr-1" />
                                 Trazer Alunos
                               </Button>
+                            )}
+                            {t.status === 'ativa' && t.migracao_concluida && (
+                              <span className="flex items-center text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-100 uppercase tracking-tighter shadow-sm animate-in fade-in zoom-in duration-300">
+                                <Check className="h-3 w-3 mr-1" />
+                                Alunos Migrados
+                              </span>
                             )}
 
                             <Button type="button" variant="outline" onClick={() => handleDelete(t.id)} title="Excluir Turma">
@@ -717,6 +750,12 @@ export const ClassManagement: React.FC = () => {
           />
         )
       }
+
+      {saving && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100]">
+          <StudentTransitionLoading />
+        </div>
+      )}
     </div >
   );
 };

@@ -2,9 +2,9 @@
 import { Card } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Button } from '@/shared/ui';
-import { DracmasAPI } from '../dracmas.service';
+import { DracmasAPI } from '../../api/dracmas.service';
 import { AlunoService } from '@/features/student-management';
-import AccessControl from '@/components/AccessControl';
+import AccessControl from '@/features/auth/ui/AccessControl';
 
 type DracmaTransacao = {
   id: string;

@@ -2,7 +2,7 @@
 import { AlunoService } from '@/features/student-management';
 import { MatriculaService } from '../../api/enrollment.service';
 import { toast } from 'sonner';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { poloApi as PoloService } from '@/entities/polo';
 import { turmaApi as TurmaService } from '@/entities/turma';
 // import { NiveisModulosService } from '../../../services/modulos.service';

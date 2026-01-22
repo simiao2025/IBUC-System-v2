@@ -1,5 +1,5 @@
 import { studentApi } from './student.api';
-import { studentReportsApi } from './student-reports.api';
+import { StudentReportsAPI as StudentReportsApiSource } from './student-reports.api';
 
 /** @deprecated Use studentApi from @/entities/student */
 export const AlunosAPI = {
@@ -18,23 +18,29 @@ export const AlunoService = {
   atualizar: studentApi.update,
 };
 
-/** @deprecated Use studentReportsApi from @/entities/student */
-export const StudentReportsAPI = studentReportsApi;
+/** @deprecated Use StudentReportsAPI from @/entities/student */
+export const StudentReportsAPI = StudentReportsApiSource;
 
-/** @deprecated Use studentReportsApi from @/entities/student */
+/** @deprecated Use StudentReportsAPI from @/entities/student */
 export const BoletimAPI = {
-  listar: studentReportsApi.listBoletins,
-  visualizarPDF: studentReportsApi.visualizarBoletimPDF,
+  listar: StudentReportsAPI.listBoletins,
+  visualizarPDF: StudentReportsAPI.visualizarBoletimPDF,
 };
 
-/** @deprecated Use studentReportsApi from @/entities/student */
+/** @deprecated Use StudentReportsAPI from @/entities/student */
 export class BoletimService {
-  static listar = studentReportsApi.listBoletins;
-  static visualizarPDF = studentReportsApi.visualizarBoletimPDF;
+  static listar = StudentReportsAPI.listBoletins;
+  static visualizarPDF = StudentReportsAPI.visualizarBoletimPDF;
 }
 
-/** @deprecated Use studentReportsApi from @/entities/student */
+/** @deprecated Use StudentReportsAPI from @/entities/student */
 export class CertificadoService {
-  static gerar = studentReportsApi.gerarCertificado;
-  static validar = studentReportsApi.validarCertificado;
+  static gerar = StudentReportsAPI.gerarCertificado;
+  static validar = StudentReportsAPI.validarCertificado;
 }
+
+/** @deprecated Use StudentReportsAPI from @/entities/student */
+export const CertificadoAPI = {
+  listar: StudentReportsAPI.listCertificados,
+  gerar: StudentReportsAPI.gerarCertificado,
+};

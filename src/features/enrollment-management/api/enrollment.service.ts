@@ -3,7 +3,7 @@
 // ============================================
 
 import { api } from '@/shared/api';
-import type { Matricula } from '@/types/database';
+import type { Matricula } from '@/shared/model/database';
 
 /**
  * Interface para criaÃ§Ã£o de matrÃ­cula

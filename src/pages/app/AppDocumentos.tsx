@@ -2,9 +2,9 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { DocumentAPI } from '@/shared/api';
-import type { Documento } from '@/types/database';
+import type { Documento } from '@/shared/model/database';
 import { FileText, Download, Upload, X } from 'lucide-react';
 
 const AppDocumentos: React.FC = () => {
@@ -235,13 +235,13 @@ const AppDocumentos: React.FC = () => {
 
           {documentos
             .sort((a, b) => {
-              const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
-              const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
+              const dateA = new Date(a.uploaded_at || 0).getTime();
+              const dateB = new Date(b.uploaded_at || 0).getTime();
               return dateB - dateA;
             })
             .map((doc) => {
               return (
-                <Card key={doc.path || doc.id || doc.name} className="p-4 hover:shadow-md transition-shadow">
+                <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="bg-blue-50 p-2 rounded-lg">
@@ -250,16 +250,16 @@ const AppDocumentos: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-sm font-semibold text-gray-900 truncate">
-                            {doc.name}
+                            {doc.file_name}
                           </h3>
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                            {getTipoLabel(doc.tipo || 'outros')}
+                            {getTipoLabel(doc.tipo_documento || 'outros')}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-gray-500">
-                          {doc.created_at && (
+                          {doc.uploaded_at && (
                             <span>
-                              Enviado em {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                              Enviado em {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
                             </span>
                           )}
                         </div>
@@ -271,7 +271,7 @@ const AppDocumentos: React.FC = () => {
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => handleDownload(doc.url, doc.name)}
+                          onClick={() => handleDownload(doc.url, doc.file_name)}
                           className="flex items-center gap-1.5"
                         >
                           <Download className="h-4 w-4" />

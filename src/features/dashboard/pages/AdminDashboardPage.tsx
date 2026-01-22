@@ -1,8 +1,8 @@
 ﻿import React from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '@/context/AppContext';
-import { useAccessControl } from '@/components/AccessControl';
-import { useNavigationConfirm } from '@/hooks/useNavigationConfirm';
+import { useApp } from '@/app/providers/AppContext';
+import { useAccessControl } from '@/features/auth/ui/AccessControl';
+import { useNavigationConfirm } from '@/shared/lib/hooks/useNavigationConfirm';
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { ConfirmDialog } from '@/shared/ui';
@@ -49,8 +49,8 @@ const AdminDashboard: React.FC = () => {
   React.useEffect(() => {
     const loadCertCount = async () => {
       try {
-        const { studentReportsApi } = await import('@/entities/student');
-        const total = await studentReportsApi.contarCertificados();
+        const { StudentReportsAPI } = await import('@/entities/student');
+        const total = await StudentReportsAPI.contarCertificados();
         setCertCount(total);
       } catch (e) {
         console.error('Erro ao carregar contagem de certificados', e);

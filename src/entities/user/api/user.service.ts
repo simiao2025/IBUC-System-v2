@@ -1,4 +1,4 @@
-﻿import { userApi } from '@/entities/user';
+﻿import { userApi } from './user.api';
 
 /**
  * @deprecated Use userApi from @/entities/user instead.

@@ -7,8 +7,8 @@ import {
   Award,
   Calendar
 } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
-import { useAccessControl } from '@/components/AccessControl';
+import { useApp } from '@/app/providers/AppContext';
+import { useAccessControl } from '@/features/auth/ui/AccessControl';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';
 import { Input } from '@/shared/ui';
@@ -16,10 +16,10 @@ import { PageHeader } from '@/shared/ui';
 
 // New Components
 import { UserManagement } from '@/features/user-management';
-import { SecuritySettings } from '@/components/settings/SecuritySettings';
-import { DracmasSettings } from '@/components/settings/DracmasSettings';
-import { BackupSettings } from '@/components/settings/BackupSettings';
-import { EventsSettings } from '@/components/settings/EventsSettings';
+import { SecuritySettings } from '../ui/SecuritySettings';
+import { DracmasSettings } from '../ui/DracmasSettings';
+import { BackupSettings } from '../ui/BackupSettings';
+import { EventsSettings } from '../ui/EventsSettings';
 import { systemConfigApi } from '@/entities/system';
 
 // Interface SystemConfig

@@ -2,7 +2,7 @@
 import { EventList } from './components/EventList';
 import { PageHeader } from '@/shared/ui';
 import { Calendar } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { useNavigate } from 'react-router-dom';
 
 export const EventManagement: React.FC = () => {

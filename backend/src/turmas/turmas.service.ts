@@ -93,6 +93,8 @@ export class TurmasService {
     horario_inicio?: string;
     status?: 'ativa' | 'inativa' | 'concluida';
     modulo_atual_id?: string;
+    data_inicio?: string;
+    data_previsao_termino?: string;
   }) {
     if (!dto.nome || dto.nome.trim().length === 0) {
       throw new BadRequestException('Nome é obrigatório');
@@ -144,6 +146,9 @@ export class TurmasService {
         horario_inicio: dto.horario_inicio || null,
         status: dto.status || 'ativa',
         modulo_atual_id: moduloId || null,
+        data_inicio: dto.data_inicio || null,
+        data_previsao_termino: dto.data_previsao_termino || null,
+        migracao_concluida: false,
       })
       .select()
       .single();
@@ -169,6 +174,10 @@ export class TurmasService {
       horario_inicio?: string | null;
       status?: 'ativa' | 'inativa' | 'concluida';
       modulo_atual_id?: string | null;
+      data_inicio?: string | null;
+      data_previsao_termino?: string | null;
+      data_conclusao?: string | null;
+      migracao_concluida?: boolean;
     },
   ) {
     await this.buscarTurmaPorId(id);
@@ -203,6 +212,10 @@ export class TurmasService {
     if (dto.horario_inicio !== undefined) updateData.horario_inicio = dto.horario_inicio;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.modulo_atual_id !== undefined) updateData.modulo_atual_id = dto.modulo_atual_id;
+    if (dto.data_inicio !== undefined) updateData.data_inicio = dto.data_inicio;
+    if (dto.data_previsao_termino !== undefined) updateData.data_previsao_termino = dto.data_previsao_termino;
+    if (dto.data_conclusao !== undefined) updateData.data_conclusao = dto.data_conclusao;
+    if (dto.migracao_concluida !== undefined) updateData.migracao_concluida = dto.migracao_concluida;
 
     const { data, error } = await this.supabase
       .getAdminClient()
@@ -436,7 +449,10 @@ export class TurmasService {
 
 
     // 3. Finaliza a turma atual (Modelo de Transição Discreta)
-    await this.atualizarTurma(turmaId, { status: 'concluida' });
+    await this.atualizarTurma(turmaId, { 
+      status: 'concluida',
+      data_conclusao: new Date().toISOString().split('T')[0]
+    });
 
     // 4. Notifica Secretários do Polo (Falha não deve impedir o sucesso da operação)
     try {
@@ -490,6 +506,12 @@ export class TurmasService {
       .in('id', alunoIds);
 
     if (updateError) throw new BadRequestException(updateError.message);
+
+    // 3. Marcar migração como concluída
+    await client
+      .from('turmas')
+      .update({ migracao_concluida: true })
+      .eq('id', turmaId);
 
     return {
       message: `${alunoIds.length} alunos migrados com sucesso para a turma ${novaTurma.nome}`,

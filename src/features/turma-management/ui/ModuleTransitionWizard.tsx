@@ -2,7 +2,7 @@
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
-import { TurmaService } from './services/turma.service';
+import { TurmaService } from '../api/turma.service';
 import { Check, AlertTriangle, Users, DollarSign, ArrowRight, Loader2 } from 'lucide-react';
 
 interface ModuleTransitionWizardProps {

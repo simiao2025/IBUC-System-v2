@@ -24,7 +24,9 @@
     },
     "types": [
       "node",
-      "jest"
+      "jest",
+      "express",
+      "multer"
     ]
   },
   "include": [

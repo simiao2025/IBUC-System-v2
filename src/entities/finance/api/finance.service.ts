@@ -1,6 +1,6 @@
 import { dracmasApi } from './dracmas.api';
 import { financeApi } from './finance.api';
-import { financeReportsApi } from './finance-reports.api';
+
 
 /** @deprecated Use dracmasApi from @/entities/finance */
 export const DracmasAPI = {
@@ -26,8 +26,4 @@ export const FinanceiroService = {
     listPedidosMateriais: financeApi.listPedidosMateriais,
 };
 
-/** @deprecated Use financeReportsApi from @/entities/finance */
-export const FinanceReportsAPI = {
-    relatorioDracmas: financeReportsApi.relatorioDracmas,
-    relatorioInadimplencia: financeReportsApi.relatorioInadimplencia,
-};
+

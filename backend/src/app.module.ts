@@ -29,6 +29,7 @@ import { ConfiguracoesModule } from './configuracoes/configuracoes.module';
 import { ListaEsperaModule } from './lista-espera/lista-espera.module';
 import { MateriaisModule } from './materiais/materiais.module';
 import { PedidosMateriaisModule } from './pedidos-materiais/pedidos-materiais.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { PedidosMateriaisModule } from './pedidos-materiais/pedidos-materiais.mo
     ListaEsperaModule,
     MateriaisModule,
     PedidosMateriaisModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

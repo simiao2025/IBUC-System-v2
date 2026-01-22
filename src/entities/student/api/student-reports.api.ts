@@ -1,7 +1,7 @@
 ﻿import { api, API_BASE_URL } from '@/shared/api';
 import type { Boletim } from '../model/types';
 
-export const studentReportsApi = {
+export const StudentReportsAPI = {
   // Boletins
   listBoletins: (alunoId: string) => api.get<Boletim[]>(`/relatorios/boletins?aluno_id=${alunoId}`),
   

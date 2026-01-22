@@ -2,7 +2,7 @@
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
-import { PresencasAPI } from './presenca.service';
+import { PresencasAPI } from '../api/attendance.service';
 
 const AttendanceByClassManagement: React.FC = () => {
   const [turmaId, setTurmaId] = useState('');
@@ -24,10 +24,10 @@ const AttendanceByClassManagement: React.FC = () => {
 
     try {
       const response = await PresencasAPI.porTurma(turmaId, inicio || undefined, fim || undefined);
-      setData(response.data);
+      setData(response);
     } catch (err) {
-      console.error('Erro ao buscar frequÃªncia da turma:', err);
-      setError('NÃ£o foi possÃ­vel carregar a frequÃªncia da turma.');
+      console.error('Erro ao buscar frequência da turma:', err);
+      setError('Não foi possível carregar a frequência da turma.');
     } finally {
       setLoading(false);
     }
@@ -35,7 +35,7 @@ const AttendanceByClassManagement: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">FrequÃªncia por Turma</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">Frequência por Turma</h1>
 
       <Card className="p-6 mb-6">
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -48,7 +48,7 @@ const AttendanceByClassManagement: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Data InÃ­cio</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
             <Input type="date" value={inicio} onChange={e => setInicio(e.target.value)} />
           </div>
           <div>
@@ -67,9 +67,9 @@ const AttendanceByClassManagement: React.FC = () => {
       {data && (
         <div className="space-y-4">
           <Card className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Resumo por Aluno / CertificaÃ§Ã£o</h2>
+            <h2 className="text-lg font-semibold mb-2">Resumo por Aluno / Certificação</h2>
             {(!data.resumoPorAluno || data.resumoPorAluno.length === 0) && (
-              <p className="text-sm text-gray-600">Nenhum registro encontrado para o perÃ­odo informado.</p>
+              <p className="text-sm text-gray-600">Nenhum registro encontrado para o período informado.</p>
             )}
             {data.resumoPorAluno && data.resumoPorAluno.length > 0 && (
               <div className="overflow-x-auto">
@@ -78,10 +78,10 @@ const AttendanceByClassManagement: React.FC = () => {
                     <tr>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Aluno</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Total</th>
-                      <th className="px-4 py-2 text-left font-medium text-gray-700">PresenÃ§as</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Presenças</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Faltas</th>
-                      <th className="px-4 py-2 text-left font-medium text-gray-700">FrequÃªncia</th>
-                      <th className="px-4 py-2 text-left font-medium text-gray-700">CertificaÃ§Ã£o</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Frequência</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Certificação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -99,7 +99,7 @@ const AttendanceByClassManagement: React.FC = () => {
                         <td className="px-4 py-2">
                           {item.total > 0 && (item.presentes / item.total) * 100 >= 75
                             ? 'Apto (>= 75%)'
-                            : 'NÃ£o apto (< 75%)'}
+                            : 'Não apto (< 75%)'}
                         </td>
                       </tr>
                     ))}
@@ -110,9 +110,9 @@ const AttendanceByClassManagement: React.FC = () => {
           </Card>
 
           <Card className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Registros de PresenÃ§a</h2>
+            <h2 className="text-lg font-semibold mb-2">Registros de Presença</h2>
             {(!data.registros || data.registros.length === 0) && (
-              <p className="text-sm text-gray-600">Nenhum registro encontrado para o perÃ­odo informado.</p>
+              <p className="text-sm text-gray-600">Nenhum registro encontrado para o período informado.</p>
             )}
             {data.registros && data.registros.length > 0 && (
               <div className="overflow-x-auto">
@@ -122,7 +122,7 @@ const AttendanceByClassManagement: React.FC = () => {
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Data</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Aluno</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Status</th>
-                      <th className="px-4 py-2 text-left font-medium text-gray-700">ObservaÃ§Ã£o</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Observação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">

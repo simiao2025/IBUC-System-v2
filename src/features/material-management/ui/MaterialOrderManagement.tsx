@@ -4,11 +4,11 @@ import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { PageHeader } from '@/shared/ui';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { Plus, Trash2, ShoppingCart, Package, List } from 'lucide-react';
-import { MaterialsAPI, MaterialOrdersAPI, type Material, type MaterialOrderItem, type MaterialOrder } from './materials.service';
+import { MaterialsAPI, MaterialOrdersAPI, type Material, type MaterialOrderItem, type MaterialOrder } from '../api/materials.service';
 import { ModulosAPI } from '@/entities/turma';
-import type { Modulo } from '../../types/database';
+import type { Modulo } from '@/shared/model/database';
 
 const MaterialOrderManagement: React.FC = () => {
   const { showFeedback } = useApp();
@@ -319,7 +319,7 @@ const MaterialOrderManagement: React.FC = () => {
                         {new Date(order.created_at).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.solicitante?.nome || '—'}
+                        {order.solicitante?.nome_completo || '—'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {order.modulo_destino?.titulo || order.tipo_cobranca}

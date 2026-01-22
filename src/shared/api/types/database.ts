@@ -173,6 +173,10 @@ export interface Turma {
   horario_fim?: string;
   local?: string;
   status: StatusTurma;
+  data_inicio?: string;
+  data_previsao_termino?: string;
+  data_conclusao?: string;
+  migracao_concluida: boolean;
   created_at: string;
 }
 

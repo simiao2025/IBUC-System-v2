@@ -1,6 +1,6 @@
 ﻿import { api } from '@/shared/api';
 
-export const attendanceReportsApi = {
+export const AttendanceReportsAPI = {
   relatorioListaChamada: (turmaId: string) => api.get(`/relatorios/lista-chamada?turma_id=${turmaId}`),
 
   relatorioConsolidadoFrequencia: (filtros: any) => {

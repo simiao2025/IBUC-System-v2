@@ -3,7 +3,7 @@ import {
   Plus, Search, Edit2, Trash2, Mail, Phone, User, Shield, Loader2,
   ArrowLeft, MapPin, Calendar
 } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { userApi } from '@/entities/user';
 import { poloApi as PoloService } from '@/entities/polo';
 import { Button } from '@/shared/ui';

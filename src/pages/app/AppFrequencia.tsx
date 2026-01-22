@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { attendanceApi as PresencaService } from '@/entities/attendance';
-import type { Presenca } from '@/types/database';
+import type { Presenca } from '@/shared/model/database';
 import { turmaApi as TurmasAPI } from '@/entities/turma';
 import { AlunosAPI } from '@/features/student-management';
-import { dracmasApi as DracmasAPI } from '@/entities/finance';
+import { DracmasAPI } from '@/features/finance-management';
 
 const AppFrequencia: React.FC = () => {
   const { currentUser } = useApp();

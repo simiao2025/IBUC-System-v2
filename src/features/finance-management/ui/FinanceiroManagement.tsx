@@ -1,15 +1,16 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { FileText, Settings, Package } from 'lucide-react';
+import { FileText, Settings, Package, CheckCircle, ExternalLink, Clock } from 'lucide-react';
 import { PageHeader } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Select } from '@/shared/ui';
+import { Input } from '@/shared/ui';
 import { FinanceiroService } from '../api/finance.service';
 import { TurmasAPI } from '@/features/turma-management';
-import { useApp } from '@/context/AppContext';
-import AccessControl from '@/components/AccessControl';
-import MaterialOrderManagement from '@/features/materials/MaterialOrderManagement';
+import { useApp } from '@/app/providers/AppContext';
+import AccessControl from '@/features/auth/ui/AccessControl';
+import { MaterialOrderManagement } from '@/features/material-management';
 
-type ActiveTab = 'controle' | 'materiais' | 'config';
+type ActiveTab = 'controle' | 'aprovacao' | 'materiais' | 'config';
 
 const AdminFinanceiro: React.FC = () => {
   const { currentUser } = useApp();
@@ -17,6 +18,8 @@ const AdminFinanceiro: React.FC = () => {
   const [cobrancas, setCobrancas] = useState<any[]>([]);
   const [turmas, setTurmas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pagamentosPendentes, setPagamentosPendentes] = useState<any[]>([]);
+  const [loadingPagamentos, setLoadingPagamentos] = useState(false);
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId || '';
@@ -29,6 +32,14 @@ const AdminFinanceiro: React.FC = () => {
   useEffect(() => {
     carregarTurmas();
     carregarCobrancas();
+    carregarPagamentosPendentes();
+
+    // Polling de 5 minutos (300.000 ms)
+    const interval = setInterval(() => {
+      carregarPagamentosPendentes();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -52,6 +63,78 @@ const AdminFinanceiro: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPoloScoped, turmas]);
 
+  const carregarPagamentosPendentes = async () => {
+    try {
+      setLoadingPagamentos(true);
+      const data = await FinanceiroService.listarPagamentosPendentes();
+      setPagamentosPendentes(data);
+    } catch (error) {
+      console.error('Erro ao carregar pagamentos pendentes:', error);
+    } finally {
+      setLoadingPagamentos(false);
+    }
+  };
+
+  const handleAprovarPagamento = async (pagamentoId: string) => {
+    if (!currentUser) return;
+    if (!confirm('Deseja realmente aprovar este pagamento? Esta ação dará baixa na mensalidade correspondente.')) return;
+
+    try {
+      setLoading(true);
+      await FinanceiroService.aprovarPagamento(pagamentoId, currentUser.id);
+      alert('✓ Pagamento aprovado com sucesso!');
+      await Promise.all([carregarPagamentosPendentes(), carregarCobrancas()]);
+    } catch (error: any) {
+      alert('Erro ao aprovar pagamento: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [configData, setConfigData] = useState({
+    chave_pix: '',
+    beneficiario_nome: '',
+    beneficiario_cidade: ''
+  });
+
+  useEffect(() => {
+    if (activeTab === 'config') {
+      carregarConfiguracao();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const carregarConfiguracao = async () => {
+    try {
+      setLoading(true);
+      const data = await FinanceiroService.buscarConfiguracao();
+      if (data) {
+        setConfigData({
+          chave_pix: data.chave_pix || '',
+          beneficiario_nome: data.beneficiario_nome || '',
+          beneficiario_cidade: data.beneficiario_cidade || ''
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar configuração:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSalvarConfiguracao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      await FinanceiroService.atualizarConfiguracao(configData);
+      alert('Configurações salvas com sucesso!');
+    } catch (error: any) {
+      alert('Erro ao salvar: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const carregarCobrancas = async () => {
     try {
       setLoading(true);
@@ -69,20 +152,7 @@ const AdminFinanceiro: React.FC = () => {
   };
 
 
-  const handleConfirmarPagamento = async (id: string) => {
-    if (!confirm('Confirmar o pagamento desta cobrança?')) return;
-    
-    try {
-      setLoading(true);
-      await FinanceiroService.confirmarPagamento(id);
-      alert('✓ Pagamento confirmado!');
-      await carregarCobrancas();
-    } catch (error: any) {
-      alert('Erro ao confirmar pagamento: ' + (error.message || 'Erro desconhecido'));
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const formatarValor = (cents: number) => {
     return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -117,6 +187,22 @@ const AdminFinanceiro: React.FC = () => {
                 Controle de Caixa
               </button>
               <button
+                onClick={() => setActiveTab('aprovacao')}
+                className={`px-6 py-3 text-sm font-medium border-b-2 flex items-center ${
+                  activeTab === 'aprovacao'
+                    ? 'border-red-500 text-red-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <CheckCircle className="inline w-4 h-4 mr-2" />
+                Aprovação
+                {pagamentosPendentes.length > 0 && (
+                  <span className="ml-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                    {pagamentosPendentes.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab('materiais')}
                 className={`px-6 py-3 text-sm font-medium border-b-2 ${
                   activeTab === 'materiais'
@@ -143,6 +229,81 @@ const AdminFinanceiro: React.FC = () => {
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'aprovacao' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Validar Comprovantes</h2>
+                <p className="text-sm text-gray-500">Confira o comprovante enviado pelo aluno antes de dar baixa.</p>
+              </div>
+              <div className="flex items-center text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full border">
+                <Clock className="w-3 h-3 mr-1" />
+                Atualiza a cada 5 min
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aluno</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fatura</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Envio</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Comprovante</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {loadingPagamentos ? (
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500">Carregando pagamentos...</td></tr>
+                  ) : pagamentosPendentes.length === 0 ? (
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">Nenhum comprovante aguardando validação :)</td></tr>
+                  ) : (
+                    pagamentosPendentes.map(p => (
+                      <tr key={p.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                          {p.mensalidade?.aluno?.nome || '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {p.mensalidade?.titulo || 'Sem título'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {formatarValor(p.valor_cents)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatarData(p.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {p.comprovante_url && (
+                            <a 
+                              href={p.comprovante_url} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="inline-flex items-center text-red-600 hover:text-red-800 text-xs font-bold bg-red-50 px-2 py-1 rounded border border-red-100"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" /> Ver Arquivo
+                            </a>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <Button 
+                            size="sm" 
+                            variant="primary" 
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleAprovarPagamento(p.id)}
+                          >
+                            Baixar Fatura
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {activeTab === 'controle' && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Controle de Caixa</h2>
@@ -225,15 +386,7 @@ const AdminFinanceiro: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {cobranca.status === 'pendente' && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleConfirmarPagamento(cobranca.id)}
-                            >
-                              Confirmar Pagamento
-                            </Button>
-                          )}
+
                           {cobranca.status === 'pago' && cobranca.pago_em && (
                             <span className="text-xs text-gray-500">
                               Pago em {formatarData(cobranca.pago_em)}
@@ -258,13 +411,41 @@ const AdminFinanceiro: React.FC = () => {
 
         {activeTab === 'config' && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Configuração Financeira</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              As configurações de chave PIX devem ser gerenciadas diretamente no banco de dados por enquanto.
-            </p>
-            <p className="text-sm text-gray-500">
-              Em breve: Interface para gerenciar chave PIX, nome do beneficiário e outras configurações.
-            </p>
+            <h2 className="text-lg font-semibold mb-6">Configuração Financeira</h2>
+            
+            <form onSubmit={handleSalvarConfiguracao} className="max-w-xl">
+              <div className="space-y-4">
+                <Input
+                  label="Chave PIX"
+                  value={configData.chave_pix}
+                  onChange={(e) => setConfigData({ ...configData, chave_pix: e.target.value })}
+                  placeholder="CPF, CNPJ, Email ou Telefone"
+                  required
+                />
+                
+                <Input
+                  label="Nome do Beneficiário"
+                  value={configData.beneficiario_nome}
+                  onChange={(e) => setConfigData({ ...configData, beneficiario_nome: e.target.value })}
+                  placeholder="Nome que aparecerá no comprovante"
+                  required
+                />
+
+                <Input
+                  label="Cidade do Beneficiário"
+                  value={configData.beneficiario_cidade}
+                  onChange={(e) => setConfigData({ ...configData, beneficiario_cidade: e.target.value })}
+                  placeholder="Cidade de origem do PIX"
+                  required
+                />
+
+                <div className="pt-4">
+                  <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+                    {loading ? 'Salvando...' : 'Salvar Configurações'}
+                  </Button>
+                </div>
+              </div>
+            </form>
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { AlunoService, AlunosAPI } from '../api/student.service';
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';

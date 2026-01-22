@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
+import { useApp } from '@/app/providers/AppContext';
+import { useNavigationConfirm } from '@/shared/lib/hooks/useNavigationConfirm';
 import { Input } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';

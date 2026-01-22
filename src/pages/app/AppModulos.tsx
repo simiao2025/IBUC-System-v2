@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button, Card } from '@/shared/ui';
 import { ModulosAPI, LicoesAPI } from '@/entities/turma';
 import type { Modulo, Licao } from '@/shared/api/types/database';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { AlunosAPI } from '@/features/student-management';
 import { BookOpen, Clock, CheckCircle } from 'lucide-react';
 
@@ -72,7 +72,7 @@ const AppModulos: React.FC = () => {
           }
         }
 
-        // Buscar mÃ³dulo atual (da turma)
+        // Buscar módulo atual (da turma)
         if (aluno?.turma_id) {
           try {
             const { TurmasAPI } = await import('@/features/turma-management');

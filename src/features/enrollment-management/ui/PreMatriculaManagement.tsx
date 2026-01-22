@@ -5,11 +5,11 @@ import { PageHeader } from '@/shared/ui';
 import { usePreMatricula } from '../model/hooks/usePreMatricula';
 import { REQUIRED_DOCUMENTS, PRE_MATRICULA_STATUS_OPTIONS as STATUS_OPTIONS } from '@/constants/enrollment';
 import type { StatusPreMatricula, TipoDocumento } from '@/entities/enrollment';
-import { RegistrationCard } from '@/components/RegistrationCard';
+import { RegistrationCard } from './RegistrationCard';
 import { Printer, User as UserIcon, Edit, Save, X, Trash2 } from 'lucide-react';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { usePreMatriculaManagement } from '@/hooks/usePreMatriculaManagement';
+import { usePreMatriculaManagement } from '@/features/enrollment-management/model/usePreMatriculaManagement';
 
 export const PreMatriculaManagement: React.FC = () => {
   const {

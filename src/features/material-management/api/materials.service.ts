@@ -1,5 +1,5 @@
 ﻿import { api } from '@/shared/api';
-import type {
+export type {
   Material,
   MaterialOrderItem,
   MaterialOrder

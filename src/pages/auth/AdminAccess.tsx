@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { Input } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';

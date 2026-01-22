@@ -3,16 +3,16 @@ import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { PageHeader } from '@/shared/ui';
-import AccessControl from '../../../components/AccessControl';
-import { useApp } from '../../../context/AppContext';
+import AccessControl from '@/features/auth/ui/AccessControl';
+import { useApp } from '@/app/providers/AppContext';
 import {
-  LicoesAPI,
+  moduleApi,
+  lessonApi,
   type LicaoCreateDto,
   type LicaoUpdateDto,
   type ModuloCreateDto,
   type ModuloUpdateDto,
 } from '@/entities/turma';
-import { ModulosAPI } from '@/entities/turma';
 import type { Licao, Modulo } from '@/shared/api/types/database';
 
 const textareaClassName =
@@ -52,7 +52,7 @@ const ModulosManagementPage: React.FC = () => {
     setLoadingModulos(true);
     setError(null);
     try {
-      const data = await ModulosAPI.listar();
+      const data = await moduleApi.list();
       setModulos(Array.isArray(data) ? data : []);
 
       // Se não houver seleção e não estiver criando, seleciona o primeiro
@@ -71,7 +71,7 @@ const ModulosManagementPage: React.FC = () => {
     setLoadingLicoes(true);
     setError(null);
     try {
-      const data = await LicoesAPI.listar({ modulo_id: moduloId });
+      const data = await lessonApi.list({ modulo_id: moduloId });
       const list = Array.isArray(data) ? data : [];
       setLicoes(list.sort((a, b) => a.ordem - b.ordem));
     } catch (e) {
@@ -142,13 +142,13 @@ const ModulosManagementPage: React.FC = () => {
           carga_horaria: typeof moduleForm.carga_horaria === 'number' ? moduleForm.carga_horaria : undefined,
         };
 
-        const created = await ModulosAPI.criar(createPayload);
+        const created = await moduleApi.create(createPayload);
         showFeedback('success', 'Salvo', 'Módulo criado com sucesso.');
         setCreatingModulo(false);
         await carregarModulos();
         if (created?.id) setSelectedModuloId(String(created.id));
       } else {
-        await ModulosAPI.atualizar(selectedModuloId, payload);
+        await moduleApi.update(selectedModuloId, payload);
         showFeedback('success', 'Salvo', 'Módulo atualizado com sucesso.');
         await carregarModulos();
       }
@@ -184,7 +184,7 @@ const ModulosManagementPage: React.FC = () => {
     if (!selectedModuloId) return;
     showConfirm('Excluir módulo', 'Tem certeza que deseja excluir este módulo? As lições serão removidas junto.', async () => {
       try {
-        await ModulosAPI.deletar(selectedModuloId);
+        await moduleApi.delete(selectedModuloId);
         showFeedback('success', 'Excluído', 'Módulo excluído com sucesso.');
         setSelectedModuloId('');
         setModuleForm({});
@@ -218,7 +218,7 @@ const ModulosManagementPage: React.FC = () => {
         descricao: newLesson.descricao || undefined,
       };
 
-      await LicoesAPI.criar(payload);
+      await lessonApi.create(payload);
       showFeedback('success', 'Criada', 'Lição criada com sucesso.');
       setNewLesson({ ordem: '', titulo: '', descricao: '' });
       await carregarLicoes(selectedModuloId);
@@ -242,7 +242,7 @@ const ModulosManagementPage: React.FC = () => {
         liberacao_data: licao.liberacao_data,
         duracao_minutos: licao.duracao_minutos,
       };
-      await LicoesAPI.atualizar(licao.id, payload);
+      await lessonApi.update(licao.id, payload);
       showFeedback('success', 'Salvo', `Lição ${licao.ordem} atualizada.`);
     } catch (e) {
       console.error('Erro ao salvar lição:', e);
@@ -255,7 +255,7 @@ const ModulosManagementPage: React.FC = () => {
   const deletarLicao = async (licao: Licao) => {
     showConfirm('Excluir lição', `Tem certeza que deseja excluir a lição ${licao.ordem}?`, async () => {
       try {
-        await LicoesAPI.deletar(licao.id);
+        await lessonApi.delete(licao.id);
         showFeedback('success', 'Excluída', 'Lição excluída com sucesso.');
         if (selectedModuloId) await carregarLicoes(selectedModuloId);
       } catch (e) {

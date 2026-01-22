@@ -1,9 +1,9 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { Polo } from '@/types';
 import { poloApi as PoloService } from '@/entities/polo';
-import type { Polo as DbPolo } from '@/types/database';
+import type { Polo as DbPolo } from '@/shared/model/database';
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';

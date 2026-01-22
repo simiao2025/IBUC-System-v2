@@ -2,7 +2,7 @@
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { EventosAPI, type Evento } from '@/features/event-management';
 
 interface EventFormProps {

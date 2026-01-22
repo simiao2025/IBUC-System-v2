@@ -37,4 +37,16 @@ export const FinanceiroService = {
   async buscarConfiguracao(): Promise<any> {
     return api.get('/mensalidades/configuracao');
   },
+
+  async atualizarConfiguracao(data: any): Promise<any> {
+    return api.put('/mensalidades/configuracao', data);
+  },
+
+  async listarPagamentosPendentes() {
+    return api.get('/mensalidades/pagamentos/pendentes');
+  },
+
+  async aprovarPagamento(id: string, diretorId: string) {
+    return api.post(`/mensalidades/pagamentos/${id}/aprovar`, { diretor_id: diretorId });
+  },
 };

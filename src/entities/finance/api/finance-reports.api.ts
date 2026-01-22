@@ -1,6 +1,6 @@
 ﻿import { api } from '@/shared/api';
 
-export const financeReportsApi = {
+export const FinanceReportsAPI = {
   relatorioDracmas: (filtros: any) => {
     const params = new URLSearchParams();
     Object.entries(filtros).forEach(([key, value]) => {

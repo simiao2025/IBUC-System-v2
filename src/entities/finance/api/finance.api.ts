@@ -1,5 +1,5 @@
 ﻿import { api } from '@/shared/api';
-import type { Mensalidade } from '@/types/database';
+import type { Mensalidade } from '@/shared/model/database';
 
 export interface FinanceConfig {
   chave_pix: string;

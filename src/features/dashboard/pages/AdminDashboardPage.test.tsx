@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import AdminDashboard from './AdminDashboardPage';
 
 // Mock dependÃªncias do contexto e hooks
-vi.mock('@/context/AppContext', () => ({
+vi.mock('@/app/providers/AppContext', () => ({
   useApp: () => ({
     students: [],
     enrollments: [],
@@ -15,7 +15,7 @@ vi.mock('@/context/AppContext', () => ({
   })
 }));
 
-vi.mock('@/components/AccessControl', () => ({
+vi.mock('@/features/auth/ui/AccessControl', () => ({
   useAccessControl: () => ({
     canManageStaff: () => true,
     canManagePolos: () => true,
@@ -25,7 +25,7 @@ vi.mock('@/components/AccessControl', () => ({
   })
 }));
 
-vi.mock('@/hooks/useNavigationConfirm', () => ({
+vi.mock('@/shared/lib/hooks/useNavigationConfirm', () => ({
   useNavigationConfirm: () => ({
     isDialogOpen: false,
     confirmNavigation: vi.fn(),

@@ -1,8 +1,8 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Put, Get, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MensalidadesService } from './mensalidades.service';
-import { CreateCobrancaLoteDto, ConfirmarPagamentoDto } from './dto';
+import { CreateCobrancaLoteDto, ConfirmarPagamentoDto, UpdateConfiguracaoFinanceiraDto } from './dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
@@ -34,7 +34,7 @@ export class MensalidadesController {
   }
 
   @Post(':id/confirmar')
-  @ApiOperation({ summary: 'Confirmar pagamento de uma cobrança' })
+  @ApiOperation({ summary: 'Confirmar pagamento de uma cobrança (Aluno ou Baixa)' })
   confirmarPagamento(
     @Param('id') id: string,
     @Body() dto?: ConfirmarPagamentoDto
@@ -42,9 +42,30 @@ export class MensalidadesController {
     return this.service.confirmarPagamento(id, dto);
   }
 
+  @Get('pagamentos/pendentes')
+  @ApiOperation({ summary: 'Listar pagamentos aguardando validação' })
+  listarPendentes() {
+    return this.service.listarPagamentosPendentes();
+  }
+
+  @Post('pagamentos/:id/aprovar')
+  @ApiOperation({ summary: 'Aprovar um pagamento pendente' })
+  aprovarPagamento(
+    @Param('id') id: string,
+    @Body('diretor_id') diretorId: string
+  ) {
+    return this.service.aprovarPagamento(id, diretorId);
+  }
+
   @Get('configuracao')
   @ApiOperation({ summary: 'Buscar configuração financeira (chave PIX)' })
   buscarConfiguracao() {
     return this.service.buscarConfiguracaoFinanceira();
+  }
+
+  @Put('configuracao')
+  @ApiOperation({ summary: 'Atualizar configuração financeira' })
+  atualizarConfiguracao(@Body() dto: UpdateConfiguracaoFinanceiraDto) {
+    return this.service.atualizarConfiguracaoFinanceira(dto);
   }
 }

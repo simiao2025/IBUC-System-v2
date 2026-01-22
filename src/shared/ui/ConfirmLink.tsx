@@ -1,6 +1,6 @@
 ﻿import React, { ReactNode, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
+import { useNavigationConfirm } from '../lib/hooks/useNavigationConfirm';
 import { ConfirmDialog } from './ConfirmDialog';
 
 interface ConfirmLinkProps {

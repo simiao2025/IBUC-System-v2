@@ -3,9 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { DiretoriaService } from '../../../services/diretoria.service';
+import { PolosAPI as DiretoriaService } from '@/features/polo-management';
 import { UserService } from '@/entities/user';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import type { AdminUser, AdminRole } from '../../../types';
 import {
   Crown,

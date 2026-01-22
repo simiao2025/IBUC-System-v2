@@ -4,7 +4,7 @@ import type {
   Documento, 
   OwnerType, 
   TipoDocumento 
-} from '@/types/database';
+} from '@/shared/model/database';
 
 export interface DocumentResponse {
   aluno_id: string;
@@ -102,7 +102,7 @@ export class DocumentService {
         file_name: file.name,
         validade: expiryDate ? new Date(expiryDate).toISOString() : null,
         validado: false,
-      })
+      } as any)
       .select()
       .single();
 
@@ -140,7 +140,7 @@ export class DocumentService {
         file_name: fileName,
         validade: expiryDate ? new Date(expiryDate).toISOString() : null,
         validado: false,
-      })
+      } as any)
       .select()
       .single();
 
@@ -199,7 +199,7 @@ export class DocumentService {
     if (!document) throw new Error('Document not found');
 
     // Remove from Storage
-    const filePath = document.url.split('/').pop();
+    const filePath = (document as any).url.split('/').pop();
     if (filePath) {
       const { error: storageError } = await supabase.storage
         .from(this.BUCKET_NAME)
@@ -237,7 +237,7 @@ export class DocumentService {
         validado: isValidated,
         validado_por: isValidated ? validatedBy : null,
         validado_em: isValidated ? new Date().toISOString() : null
-      })
+      } as any)
       .eq('id', id)
       .select()
       .single();

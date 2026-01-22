@@ -18,6 +18,10 @@ export interface Turma {
   horario_fim?: string;
   local?: string;
   status: StatusTurma;
+  data_inicio?: string;
+  data_previsao_termino?: string;
+  data_conclusao?: string;
+  migracao_concluida: boolean;
   created_at: string;
 }
 
@@ -36,7 +40,7 @@ export interface Modulo {
   numero: number;
   titulo: string;
   descricao?: string;
-  duracao_sugestive?: number;
+  duracao_sugestiva?: number;
   requisitos?: string;
   objetivos?: string;
   carga_horaria?: number;
@@ -53,7 +57,7 @@ export interface Licao {
   material_pdf_url?: string;
   liberacao_data?: string;
   duracao_minutos?: number;
-  created_at?: string;
+  created_at: string;
 }
 
 export type ModuloCreateDto = Omit<Modulo, 'id' | 'created_at'>;
