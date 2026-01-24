@@ -3,13 +3,13 @@ import { useLocation, Link } from 'react-router-dom';
 import { Users, BookOpen, MapPin, Award, ChevronDown, ChevronUp, Phone, Mail } from 'lucide-react';
 import { Button, Card } from '@/shared/ui';
 import { poloApi } from '@/entities/polo';
-import { ConfiguracoesService } from '@/entities/system';
-import { ListaEsperaService } from '@/entities/enrollment';
+import { useEnrollmentPeriod } from '@/entities/system';
+import { enrollmentApi as WaitlistAPI, ListaEsperaService } from '@/entities/enrollment';
 
 const Home: React.FC = () => {
   const [polosAtivos, setPolosAtivos] = useState<any[]>([]);
   const [loadingPolos, setLoadingPolos] = useState(true);
-  const [isEnrollmentOpen, setIsEnrollmentOpen] = useState(true);
+  const { isEnrollmentOpen, loading: loadingEnrollment } = useEnrollmentPeriod();
   const [waitlistData, setWaitlistData] = useState({ nome: '', email: '', telefone: '', cidade: '', bairro: '' });
   const [submittingWaitlist, setSubmittingWaitlist] = useState(false);
   const [waitlistSuccess, setWaitlistSuccess] = useState(false);
@@ -29,18 +29,8 @@ const Home: React.FC = () => {
     const fetchInitialData = async () => {
       try {
         // Buscar Polos
-        const polosData = await poloApi.listar();
+        const polosData = await poloApi.list();
         setPolosAtivos(polosData.filter((p: any) => p.ativo !== false));
-
-        // Buscar Configurações de Matrícula
-        const config = await ConfiguracoesService.buscarTodasComoObjeto();
-        if (config.periodo_matricula) {
-          const now = new Date();
-          const start = new Date(config.periodo_matricula.start);
-          const end = new Date(config.periodo_matricula.end);
-
-          setIsEnrollmentOpen(now >= start && now <= end);
-        }
       } catch (error) {
         console.error('Erro ao buscar dados iniciais na home:', error);
       } finally {

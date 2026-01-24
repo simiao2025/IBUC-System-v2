@@ -2,13 +2,13 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 import { DocumentAPI } from '@/shared/api';
 import type { Documento } from '@/shared/model/database';
 import { FileText, Download, Upload, X } from 'lucide-react';
 
 const AppDocumentos: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [error, setError] = useState<string | null>(null);

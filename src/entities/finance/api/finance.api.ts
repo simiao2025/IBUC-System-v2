@@ -8,7 +8,7 @@ export interface FinanceConfig {
 }
 
 export const financeApi = {
-  listCobrancas: (params: { aluno_id?: string; polo_id?: string; status?: string }) => {
+  listCharges: (params: { aluno_id?: string; polo_id?: string; status?: string }) => {
     const searchParams = new URLSearchParams();
     if (params.aluno_id) searchParams.append('aluno_id', params.aluno_id);
     if (params.polo_id) searchParams.append('polo_id', params.polo_id);
@@ -25,8 +25,14 @@ export const financeApi = {
   confirmPayment: (id: string, comprovanteUrl: string) => 
     api.post<Mensalidade>(`/financeiro/mensalidades/${id}/confirmar`, { comprovante_url: comprovanteUrl }),
 
-  listPedidosMateriais: () => api.get<any[]>('/financeiro/pedidos-materiais'),
+  listMaterialOrders: () => api.get<any[]>('/financeiro/pedidos-materiais'),
 
-  // Aliases for backward compatibility
-  listarCobrancas: (params: { aluno_id?: string; polo_id?: string; status?: string }) => financeApi.listCobrancas(params),
+  listPendingPayments: () => api.get<any[]>('/financeiro/pagamentos-pendentes'),
+
+  approvePayment: (id: string, adminId: string) => 
+    api.post(`/financeiro/pagamentos/${id}/aprovar`, { aprovado_por: adminId }),
+
+  // Compatibility Aliases
+  listCobrancas: (params: any) => financeApi.listCharges(params),
+  listPagamentosPendentes: () => financeApi.listPendingPayments(),
 };

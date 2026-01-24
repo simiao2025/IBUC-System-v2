@@ -1,13 +1,26 @@
 import { Module } from '@nestjs/common';
-import { MensalidadesController } from './mensalidades.controller';
+import { BillingController } from './mensalidades.controller';
 import { MensalidadesService } from './mensalidades.service';
+import { BillingDomainService } from './billing-domain.service';
+import { PaymentIntentDomainService } from './payment-intent-domain.service';
+import { NotificacoesModule } from '../notificacoes/notificacoes.module';
 
 @Module({
-  controllers: [MensalidadesController],
-  providers: [MensalidadesService],
-  exports: [MensalidadesService],
+  imports: [NotificacoesModule],
+  controllers: [BillingController],
+  providers: [
+    MensalidadesService,
+    BillingDomainService,
+    PaymentIntentDomainService,
+  ],
+  exports: [
+    MensalidadesService,
+    BillingDomainService,
+    PaymentIntentDomainService,
+  ],
 })
 export class MensalidadesModule {}
+
 
 
 

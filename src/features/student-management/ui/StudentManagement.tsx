@@ -1,7 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '@/app/providers/AppContext';
-import { AlunoService, AlunosAPI } from '../api/student.service';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
+import { usePolos } from '@/entities/polo';
+import { Aluno, useStudents, useStudentMutations } from '@/entities/student';
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
@@ -11,84 +13,88 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  Eye,
   Filter,
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Printer,
+  Loader2
 } from 'lucide-react';
+import StudentForm from './StudentForm';
+import { StudentReportsAPI } from '@/entities/student';
+import { toast } from 'sonner';
 
 const StudentManagement: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser, showFeedback, polos } = useApp();
-  const [alunos, setAlunos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editingStudent, setEditingStudent] = useState<any | null>(null);
-  const [editingLoading, setEditingLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('todos');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
+  const { currentUser } = useAuth();
+  const { showFeedback } = useUI();
+  const { polos } = usePolos();
+  
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId;
 
-  useEffect(() => {
-    const fetchAlunos = async () => {
-      try {
-        setLoading(true);
-        const data = isPoloScoped && userPoloId
-          ? await AlunoService.listarAlunos({ poloId: userPoloId })
-          : await AlunosAPI.listar();
-        setAlunos(data);
-      } catch (error) {
-        console.error('Erro ao buscar alunos:', error);
-        showFeedback('error', 'Erro ao carregar', 'Não foi possível carregar a lista de alunos. Tente novamente mais tarde.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // React Query Hooks
+  const { data: fetchAlunosData, isLoading: loading } = useStudents(
+    isPoloScoped && userPoloId ? { polo_id: userPoloId } : {}
+  );
+  const { updateStudent, isSubmitting: editingLoading } = useStudentMutations();
 
-    fetchAlunos();
-  }, [isPoloScoped, userPoloId, showFeedback]);
+  const alunos = fetchAlunosData || [];
+  const [editingStudent, setEditingStudent] = useState<Aluno | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('todos');
+  const [isPrinting, setIsPrinting] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Removido useEffect manual - React Query gerencia agora
+
+  const handleImprimirFicha = async (alunoId: string) => {
+    setIsPrinting(alunoId);
+    const toastId = toast.loading('Gerando Ficha do Aluno...');
+    try {
+      const res = await StudentReportsAPI.gerarFichaAluno(alunoId);
+      if (res.success && res.url) {
+        toast.success('Ficha gerada!', { id: toastId });
+        window.open(res.url, '_blank');
+      } else {
+        toast.error('Erro ao gerar ficha.', { id: toastId });
+      }
+    } catch (error) {
+      console.error('Erro ao imprimir ficha:', error);
+      toast.error('Falha na comunicação com o servidor.', { id: toastId });
+    } finally {
+      setIsPrinting(null);
+    }
+  };
 
   const handleEdit = async (alunoId: string) => {
     try {
-      setEditingLoading(true);
-      const aluno = await AlunosAPI.buscarPorId(alunoId);
+      // Usamos studentsApi.getById diretamente para edição pois React Query já tem cache
+      // mas para edição garantimos os dados mais recentes
+      const { studentApi } = await import('@/entities/student');
+      const aluno = await studentApi.getById(alunoId);
       setEditingStudent(aluno);
     } catch (error) {
       console.error('Erro ao carregar aluno para edição:', error);
       showFeedback('error', 'Erro ao editar', 'Não foi possível carregar os dados do aluno para edição.');
-    } finally {
-      setEditingLoading(false);
     }
   };
 
-  const handleSaveEdit = async (studentData: any) => {
+  const handleSaveEdit = async (studentData: Partial<Aluno>) => {
     if (!editingStudent?.id) return;
     try {
-      setEditingLoading(true);
-      await AlunoService.atualizarAluno(editingStudent.id, studentData);
-      showFeedback('success', 'Sucesso', 'Aluno atualizado com sucesso.');
+      await updateStudent({ id: editingStudent.id, data: studentData });
       setEditingStudent(null);
-
-      const data = isPoloScoped && userPoloId
-        ? await AlunoService.listarAlunos({ poloId: userPoloId })
-        : await AlunosAPI.listar();
-      setAlunos(data);
     } catch (error) {
       console.error('Erro ao salvar edição do aluno:', error);
-      showFeedback('error', 'Erro ao salvar', 'Não foi possível salvar as alterações do aluno.');
-    } finally {
-      setEditingLoading(false);
     }
   };
 
-  const filteredAlunos = alunos.filter(aluno => {
+  const filteredAlunos = alunos.filter((aluno: Aluno) => {
     const matchesSearch = 
       aluno.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      aluno.cpf.includes(searchTerm);
+      (aluno.cpf || '').includes(searchTerm);
     
     const matchesStatus = filterStatus === 'todos' || aluno.status === filterStatus;
     
@@ -114,11 +120,11 @@ const StudentManagement: React.FC = () => {
     }
   };
 
-  const getPoloLabel = (aluno: any) => {
+  const getPoloLabel = (aluno: Aluno) => {
     const poloId = aluno?.polo_id;
     if (!poloId) return '—';
-    const found = polos?.find((p: any) => p.id === poloId);
-    return (found as any)?.nome || (found as any)?.name || '—';
+    const found = polos?.find((p: any) => p.id === poloId) as any;
+    return found?.nome || found?.name || '—';
   };
 
   return (
@@ -186,7 +192,7 @@ const StudentManagement: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedAlunos.map((aluno) => (
+                paginatedAlunos.map((aluno: Aluno) => (
                   <tr key={aluno.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
@@ -201,11 +207,16 @@ const StudentManagement: React.FC = () => {
                     <td className="px-6 py-4">
                       {getStatusBadge(aluno.status || 'ativo')}
                     </td>
-                    <td className="px-6 py-4">{new Date(aluno.data_criacao || aluno.created_at || new Date()).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">{new Date(aluno.data_criacao || new Date()).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end space-x-2">
-                        <button className="p-1 hover:bg-gray-100 rounded text-gray-600" title="Ver">
-                          <Eye className="h-4 w-4" />
+                        <button
+                          className="p-1 hover:bg-gray-100 rounded text-purple-600 disabled:opacity-50"
+                          title="Imprimir Ficha"
+                          onClick={() => handleImprimirFicha(aluno.id)}
+                          disabled={isPrinting === aluno.id}
+                        >
+                          {isPrinting === aluno.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                         </button>
                         <button
                           className="p-1 hover:bg-gray-100 rounded text-blue-600"
@@ -238,7 +249,7 @@ const StudentManagement: React.FC = () => {
                 variant="secondary" 
                 size="sm" 
                 disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
+                onClick={() => setCurrentPage((p: number) => p - 1)}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -246,7 +257,7 @@ const StudentManagement: React.FC = () => {
                 variant="secondary" 
                 size="sm"
                 disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
+                onClick={() => setCurrentPage((p: number) => p + 1)}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -256,14 +267,15 @@ const StudentManagement: React.FC = () => {
       </Card>
       </div>
 
-      {/* editingStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-           <div className="bg-white p-6 rounded-lg">
-             <h3 className="text-xl mb-4">EdiÃ§Ã£o de Aluno IndisponÃ­vel (Componente em ManutenÃ§Ã£o)</h3>
-             <Button onClick={() => setEditingStudent(null)}>Fechar</Button>
-           </div>
-        </div>
-      ) */}
+       {editingStudent && (
+        <StudentForm
+          student={editingStudent}
+          polos={polos as any}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditingStudent(null)}
+          loading={editingLoading}
+        />
+      )}
     </div>
   );
 };

@@ -4,7 +4,26 @@ import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import AdminDashboard from './AdminDashboardPage';
 
-// Mock dependÃªncias do contexto e hooks
+// Mock dependências do contexto e hooks
+vi.mock('@/entities/user', () => ({
+  useAuth: () => ({
+    currentUser: { adminUser: { role: 'super_admin', name: 'Admin Test', email: 'admin@test.com' } },
+    logout: vi.fn(),
+  }),
+}));
+
+vi.mock('@/entities/polo', () => ({
+  usePolos: () => ({
+    polos: []
+  })
+}));
+
+vi.mock('@/shared/lib/providers/UIProvider', () => ({
+  useUI: () => ({
+    showFeedback: vi.fn()
+  })
+}));
+
 vi.mock('@/app/providers/AppContext', () => ({
   useApp: () => ({
     students: [],

@@ -4,13 +4,13 @@ import { Select } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { FinanceReportsAPI } from '@/entities/finance/api/finance-reports.api';
-import { AlunosAPI } from '@/features/student-management';
+import { studentApi as AlunosAPI } from '@/entities/student';
 import { TurmasAPI as TurmaService } from '@/entities/turma';
 import { Loader2, FileText, Download, Award, Search } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 
 const DracmasReportView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   

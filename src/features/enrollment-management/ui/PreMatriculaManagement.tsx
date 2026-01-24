@@ -4,12 +4,38 @@ import { Button } from '@/shared/ui';
 import { PageHeader } from '@/shared/ui';
 import { usePreMatricula } from '../model/hooks/usePreMatricula';
 import { REQUIRED_DOCUMENTS, PRE_MATRICULA_STATUS_OPTIONS as STATUS_OPTIONS } from '@/constants/enrollment';
-import type { StatusPreMatricula, TipoDocumento } from '@/entities/enrollment';
+import type { StatusPreMatricula, TipoDocumento } from '@/shared/model/database';
 import { RegistrationCard } from './RegistrationCard';
 import { Printer, User as UserIcon, Edit, Save, X, Trash2 } from 'lucide-react';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { usePreMatriculaManagement } from '@/features/enrollment-management/model/usePreMatriculaManagement';
+import { enrollmentApi as PreMatriculasAPI } from '@/entities/enrollment';
+import { toast } from 'sonner';
+
+const formatDate = (dateStr: string | undefined | null) => {
+  if (!dateStr) return 'N/A';
+  try {
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const calculateAge = (birthDate: string): number => {
+  if (!birthDate) return 0;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 export const PreMatriculaManagement: React.FC = () => {
   const {
@@ -48,10 +74,34 @@ export const PreMatriculaManagement: React.FC = () => {
     handleEditChange,
     handleUpdateData,
     handleDelete,
+    pendingStatus,
+    handleLocalStatusChange,
+    preMatriculasConcluidas,
   } = usePreMatriculaManagement();
 
-  const handlePrint = () => {
-    window.print();
+  const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
+
+  const handlePrint = async () => {
+    if (!selectedPreMatricula) return;
+    
+    setIsGeneratingPdf(true);
+    const toastId = toast.loading('Gerando Ficha de Matrícula...');
+    
+    try {
+      const response = await PreMatriculasAPI.gerarFicha(selectedPreMatricula, selectedTurmaId);
+      
+      if (response.success && response.url) {
+        toast.success('Ficha gerada com sucesso!', { id: toastId });
+        window.open(response.url, '_blank');
+      } else {
+        toast.error('Não foi possível gerar o PDF.', { id: toastId });
+      }
+    } catch (error) {
+      console.error('Erro ao gerar ficha:', error);
+      toast.error('Erro ao conectar com o servidor.', { id: toastId });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   if (isLoading && !selectedPreMatricula) {
@@ -305,7 +355,7 @@ export const PreMatriculaManagement: React.FC = () => {
                                   />
                                 ) : (
                                   <p className="text-sm text-gray-900">
-                                    {selectedData.data_nascimento ? new Date(selectedData.data_nascimento).toLocaleDateString() : 'N/A'}
+                                    {selectedData.data_nascimento ? formatDate(selectedData.data_nascimento) : 'N/A'}
                                   </p>
                                 )}
                               </div>
@@ -392,58 +442,13 @@ export const PreMatriculaManagement: React.FC = () => {
                                   />
                                 ) : (
                                   <p className="text-sm text-gray-900">
-                                    {selectedData?.rg_data_expedicao ? new Date(selectedData.rg_data_expedicao).toLocaleDateString() : 'N/A'}
+                                    {selectedData?.rg_data_expedicao ? formatDate(selectedData.rg_data_expedicao) : 'N/A'}
                                   </p>
                                 )}
                               </div>
                             </div>
                           </div>
 
-                          {/* Seção: Institucional / Escolar */}
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Escolaridade e Nível</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div>
-                                <label className="text-xs font-medium text-gray-500">Nível Desejado</label>
-                                {isEditing ? (
-                                  <Select
-                                    value={editFormData?.nivel_id || ''}
-                                    onChange={(val) => handleEditChange('nivel_id', val)}
-                                    options={niveis.map(n => ({ value: n.id, label: n.nome }))}
-                                    className="mt-1"
-                                  />
-                                ) : (
-                                  <p className="text-sm text-gray-900 font-bold">
-                                    {niveis.find(n => n.id === (selectedData?.nivel_id || (selectedData as any)?.nivel_atual_id))?.nome || 'N/A'}
-                                  </p>
-                                )}
-                              </div>
-                              <div>
-                                <label className="text-xs font-medium text-gray-500">Escola de Origem</label>
-                                {isEditing ? (
-                                  <Input
-                                    value={editFormData?.escola_origem || ''}
-                                    onChange={(e) => handleEditChange('escola_origem', e.target.value)}
-                                    className="mt-1"
-                                  />
-                                ) : (
-                                  <p className="text-sm text-gray-900">{selectedData?.escola_origem || 'N/A'}</p>
-                                )}
-                              </div>
-                              <div>
-                                <label className="text-xs font-medium text-gray-500">Ano Escolar</label>
-                                {isEditing ? (
-                                  <Input
-                                    value={editFormData?.ano_escolar || ''}
-                                    onChange={(e) => handleEditChange('ano_escolar', e.target.value)}
-                                    className="mt-1"
-                                  />
-                                ) : (
-                                  <p className="text-sm text-gray-900">{selectedData?.ano_escolar || 'N/A'}</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
 
@@ -865,53 +870,65 @@ export const PreMatriculaManagement: React.FC = () => {
                   <div className="w-full md:w-auto">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
                     <select
-                      className="block w-full md:w-80 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      disabled={selectedData?.status === 'concluido'}
+                      className="block w-full md:w-80 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                       value={selectedTurmaId}
                       onChange={(e) => setSelectedTurmaId(e.target.value)}
                     >
-                      <option value="">Selecione uma turma...</option>
+                      <option value="">{selectedData?.status === 'concluido' ? (turmas.find(t => t.id === selectedTurmaId)?.nome || 'Turma não identificada') : 'Selecione uma turma...'}</option>
                       {(() => {
                         const poloId = selectedData?.polo_id;
-                        const turmasFiltradas = poloId
+                        const birthDate = selectedData?.data_nascimento;
+                        
+                        let turmasFiltradas = poloId
                           ? turmas.filter((t) => t.polo_id === poloId)
                           : turmas;
+
+                        if (birthDate) {
+                           const age = calculateAge(birthDate);
+                           turmasFiltradas = turmasFiltradas.filter(t => {
+                               const nivel = niveis.find(n => n.id === (t as any).nivel_id);
+                               if (!nivel) return true;
+                               return age >= nivel.idade_min && age <= nivel.idade_max;
+                           });
+                        }
 
                         return turmasFiltradas.map((turma) => {
                           const nivel = niveis.find(n => n.id === (turma as any).nivel_id)?.nome;
                           const modulo = (turma as any).modulo_titulo || 'Módulo ?';
+                          const vagas = (turma as any).vagas_disponiveis ?? 0;
+                          
                           return (
                             <option key={turma.id} value={turma.id}>
-                              {turma.nome} [{nivel} - {modulo}]
+                              {turma.nome} [{nivel} - {modulo}] ({vagas} vagas)
                             </option>
                           );
                         });
                       })()}
                     </select>
-                    {selectedTurmaId && (
+                    {selectedTurmaId && selectedData?.status !== 'concluido' && (
                       <div className="mt-2 p-2 bg-green-50 border border-green-100 rounded text-[10px] text-green-700">
                         <p className="font-bold">O aluno será vinculado a:</p>
                         <p>
                           Nível: {niveis.find(n => n.id === (turmas.find(t => t.id === selectedTurmaId) as any)?.nivel_id)?.nome || '—'} | 
-                          Módulo: {(turmas.find(t => t.id === selectedTurmaId) as any)?.modulo_titulo || '—'}
+                          Módulo: {(turmas.find(t => t.id === selectedTurmaId) as any)?.modulo_titulo || '—'} |
+                          <span className="font-bold ml-1">Vagas: {(turmas.find(t => t.id === selectedTurmaId) as any)?.vagas_disponiveis ?? 0}</span>
                         </p>
                       </div>
                     )}
                   </div>
 
                   <select
-                    className="block pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    defaultValue=""
+                    disabled={selectedData?.status === 'concluido'}
+                    className="block pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                    value={pendingStatus || selectedData?.status || ''}
                     onChange={(e) => {
                       const status = e.target.value as StatusPreMatricula;
                       if (status) {
-                        void handleUpdateStatus(status);
+                        handleLocalStatusChange(status);
                       }
-                      e.target.value = '';
                     }}
                   >
-                    <option value="" disabled>
-                      Alterar status...
-                    </option>
                     {STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -928,20 +945,26 @@ export const PreMatriculaManagement: React.FC = () => {
                     Imprimir Ficha
                   </Button>
 
-                  <Button
-                    variant="primary"
-                    onClick={() => void handleConcluir()}
-                    disabled={isUploading || isConcluding || !allRequiredDocumentsUploaded || !selectedTurmaId}
-                    title={
-                      !allRequiredDocumentsUploaded
-                        ? 'Todos os documentos obrigatórios devem ser enviados antes de aprovar.'
-                        : !selectedTurmaId
-                          ? 'Selecione uma turma antes de concluir.'
-                        : ''
-                    }
-                  >
-                    Concluir matrícula
-                  </Button>
+                  {selectedData?.status !== 'concluido' && (
+                    <Button
+                      variant="primary"
+                      onClick={() => void handleConcluir()}
+                      disabled={
+                        isUploading || 
+                        isConcluding || 
+                        (pendingStatus === 'concluido' && (!allRequiredDocumentsUploaded || !selectedTurmaId))
+                      }
+                      title={
+                        pendingStatus === 'concluido' && !allRequiredDocumentsUploaded
+                          ? 'Todos os documentos obrigatórios devem ser enviados antes de aprovar.'
+                          : pendingStatus === 'concluido' && !selectedTurmaId
+                            ? 'Selecione uma turma antes de concluir.'
+                          : ''
+                      }
+                    >
+                      {pendingStatus === 'concluido' ? 'Concluir matrícula' : 'Atualizar Status'}
+                    </Button>
+                  )}
                 </div>
               </div>
             </>

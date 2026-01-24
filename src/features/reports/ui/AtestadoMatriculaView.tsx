@@ -3,13 +3,13 @@ import { Card } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { StudentReportsAPI } from '@/entities/student/api/student-reports.api';
-import { AlunosAPI } from '@/features/student-management';
+import { studentApi as AlunosAPI } from '@/entities/student';
 import { poloApi as PolosAPI } from '@/entities/polo';
 import { Loader2, FileText, Download, FileCheck2, Search, Building2 } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 
 const AtestadoMatriculaView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const isAdminGlobal = !currentUser?.adminUser?.poloId;
 
   const [alunoId, setAlunoId] = useState('');
@@ -41,7 +41,7 @@ const AtestadoMatriculaView: React.FC = () => {
       filters.poloId = selectedPolo;
     }
 
-    AlunosAPI.listar(filters).then(setAlunos);
+    AlunosAPI.list(filters).then(setAlunos);
   }, [selectedPolo, isAdminGlobal]);
 
   const handleGerar = async () => {

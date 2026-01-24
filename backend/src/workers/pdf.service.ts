@@ -21,6 +21,7 @@ import axios from 'axios';
 import * as crypto from 'crypto';
 import { PDFDocument as LibPDFDocument, StandardFonts } from 'pdf-lib';
 import { PoloScopeUtil } from '../auth/utils/polo-scope.util';
+import { CurrentUser } from '../auth/interfaces/current-user.interface';
 
 @Injectable()
 export class PdfService {
@@ -1167,5 +1168,461 @@ export class PdfService {
   async gerarReciboPagamento(pagamentoId: string) {
     // Implementar lógica de recibo de pagamento se necessário
     return { success: true, path: '' };
+  }
+
+  async gerarFichaPreMatricula(preMatriculaId: string, turmaIdOverride?: string) {
+    try {
+      const client = this.supabase.getAdminClient();
+
+      // 1. Buscar Dados (Busca Manual para evitar erro de FK ausente)
+      console.log(`[gerarFichaPreMatricula] [V3-TIMESTAMP-FIX] Fetching ID: ${preMatriculaId}, OverrideTurma: ${turmaIdOverride}`);
+      
+      // 1.1 Buscar Pré-matrícula (Flat)
+      const { data: preRaw, error } = await client
+        .from('pre_matriculas')
+        .select('*')
+        .eq('id', preMatriculaId)
+        .single();
+
+      if (error) {
+        console.error('[gerarFichaPreMatricula] DB Error:', error);
+        throw new Error(`Erro ao buscar pré-matrícula: ${error.message}`);
+      }
+      if (!preRaw) {
+        console.error('[gerarFichaPreMatricula] Not Found:', preMatriculaId);
+        throw new Error('Pré-matrícula não encontrada');
+      }
+
+      // 1.2 Buscar Relacionamentos Manualmente
+      const pre: any = { ...preRaw, polo: null, turma: null, nivel: null, modulo: null };
+
+      // Polo
+      if (preRaw.polo_id) {
+        const { data: polo } = await client.from('polos').select('nome').eq('id', preRaw.polo_id).single();
+        if (polo) pre.polo = polo;
+      }
+
+      // Determine efficient Turma ID (Override > DB)
+      const effectiveTurmaId = turmaIdOverride || preRaw.turma_id;
+
+      // Turma logic
+      if (effectiveTurmaId) {
+          const { data: turma } = await client.from('turmas').select('nome, nivel_id, modulo_atual_id').eq('id', effectiveTurmaId).single();
+          if (turma) {
+              pre.turma = { nome: turma.nome };
+              
+              // If we have a turma, we can infer Nivel and Modulo from it if not explicitly set on pre-matricula
+              // OR we can trust the turma's current state as the intended target.
+              
+              // Nivel from Turma
+              if (turma.nivel_id) {
+                  const { data: nivelTurma } = await client.from('niveis').select('nome').eq('id', turma.nivel_id).single();
+                  if (nivelTurma) {
+                      pre.turma.nivel = nivelTurma;
+                      // Also set main nivel if missing
+                      if (!pre.nivel) pre.nivel = nivelTurma; 
+                  }
+              }
+
+              // Modulo from Turma (Current Module)
+              if (turma.modulo_atual_id && !pre.modulo) {
+                   const { data: mod } = await client.from('modulos').select('titulo, numero').eq('id', turma.modulo_atual_id).single();
+                   if (mod) pre.modulo = mod;
+              }
+          }
+      }
+
+      // Fallback Nivel (if not set by Turma)
+      if (!pre.nivel && preRaw.nivel_id) {
+          const { data: nivel } = await client.from('niveis').select('nome').eq('id', preRaw.nivel_id).single();
+          if (nivel) pre.nivel = nivel;
+      }
+
+      // Fallback Modulo (if not set by Turma)
+      if (!pre.modulo && preRaw.modulo_id) {
+          const { data: modulo } = await client.from('modulos').select('titulo').eq('id', preRaw.modulo_id).single();
+          if (modulo) pre.modulo = modulo;
+      }
+
+      // 2. Configurar PDF
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+
+      // --- CABEÇALHO ---
+      try {
+          const logo = await this.getLogo();
+          if (logo) {
+            doc.image(logo, 60, 40, { width: 80 });
+          }
+      } catch (e) { console.error('Logo error', e); }
+      
+      doc.fillColor('#000000');
+      doc.fontSize(16).font('Helvetica-Bold').text('FICHA DE PRÉ-MATRÍCULA', 0, 50, { align: 'center' });
+      doc.fontSize(10).font('Helvetica').text('Instituto Bíblico Único Caminho', 0, 70, { align: 'center' });
+      doc.text(`Protocolo: ${pre.id.substring(0, 8).toUpperCase()}`, 0, 85, { align: 'center' });
+
+      doc.moveTo(40, 110).lineTo(555, 110).stroke();
+
+      let y = 130;
+      const lineHeight = 15;
+
+      // Helper para campos
+      const addField = (label: string, value: string, x: number, w: number) => {
+        const safeValue = value ? String(value) : '---';
+        doc.font('Helvetica-Bold').text(label, x, y, { continued: true });
+        doc.font('Helvetica').text(safeValue);
+      };
+
+      // --- DADOS PESSOAIS ---
+      doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO ALUNO', 40, y);
+      y += 20;
+
+      doc.fontSize(10);
+      addField('Nome Completo: ', pre.nome_completo, 40, 500);
+      y += lineHeight;
+      
+      addField('CPF: ', pre.cpf, 40, 200);
+      addField('RG: ', pre.rg, 300, 200);
+      y += lineHeight;
+
+      const dataNasc = pre.data_nascimento ? new Date(pre.data_nascimento).toLocaleDateString('pt-BR') : '---';
+      addField('Data Nasc.: ', dataNasc, 40, 200);
+      
+      const sexo = pre.sexo === 'M' ? 'Masculino' : pre.sexo === 'F' ? 'Feminino' : String(pre.sexo || '---');
+      addField('Sexo: ', sexo, 300, 200);
+      y += lineHeight;
+
+      addField('Naturalidade: ', pre.naturalidade, 40, 200);
+      addField('Nacionalidade: ', pre.nacionalidade, 300, 200);
+      y += 25;
+
+      // --- ENDEREÇO ---
+      doc.fontSize(12).font('Helvetica-Bold').text('ENDEREÇO', 40, y);
+      y += 20;
+
+      const end = pre.endereco || pre;
+
+      doc.fontSize(10);
+      addField('Endereço: ', `${end.rua || pre.rua || ''}, ${end.numero || pre.numero || ''}`, 40, 400);
+      y += lineHeight;
+      addField('Bairro: ', end.bairro || pre.bairro, 40, 200);
+      addField('Complemento: ', end.complemento || pre.complemento, 300, 200);
+      y += lineHeight;
+      addField('Cidade/UF: ', `${end.cidade || pre.cidade || ''}/${end.estado || pre.estado || ''}`, 40, 300);
+      addField('CEP: ', end.cep || pre.cep, 300, 200);
+      y += 25;
+
+      // --- RESPONSÁVEIS ---
+      doc.fontSize(12).font('Helvetica-Bold').text('RESPONSÁVEIS', 40, y);
+      y += 20;
+      
+      doc.fontSize(10);
+      addField('Nome Resp.: ', pre.nome_responsavel, 40, 300);
+      addField('Parentesco: ', pre.tipo_parentesco, 400, 150);
+      y += lineHeight;
+      addField('CPF Resp.: ', pre.cpf_responsavel, 40, 200);
+      addField('Telefone: ', pre.telefone_responsavel, 300, 200);
+      y += lineHeight;
+      addField('Email: ', pre.email_responsavel, 40, 500);
+      
+      // Resp 2
+      if (pre.nome_responsavel_2) {
+        y += lineHeight * 2;
+        addField('Nome Resp. 2: ', pre.nome_responsavel_2, 40, 300);
+        addField('Parentesco: ', pre.tipo_parentesco_2, 400, 150);
+        y += lineHeight;
+        addField('Telefone: ', pre.telefone_responsavel_2, 300, 200);
+      }
+      y += 25;
+
+      // --- SAÚDE ---
+      doc.fontSize(12).font('Helvetica-Bold').text('INFORMAÇÕES DE SAÚDE', 40, y);
+      y += 20;
+
+      const saude = pre.saude || pre;
+      
+      addField('Alergias: ', saude.alergias || pre.alergias, 40, 500);
+      y += lineHeight;
+      addField('Restrições Alim.: ', saude.restricao_alimentar || pre.restricao_alimentar, 40, 500);
+      y += lineHeight;
+      addField('Doenças Crônicas: ', saude.doencas_cronicas || pre.doencas_cronicas, 40, 500);
+      y += lineHeight;
+      addField('Medicação Contínua: ', saude.medicacao_continua || pre.medicacao_continua, 40, 500);
+      y += lineHeight;
+      
+      const contatoEmergenciaNome = saude.contato_emergencia_nome || pre.contato_emergencia_nome;
+      if (contatoEmergenciaNome) {
+         const contatoTel = saude.contato_emergencia_telefone || pre.contato_emergencia_telefone || '';
+         addField('Contato Emergência: ', `${contatoEmergenciaNome} (${contatoTel})`, 40, 500);
+          y += lineHeight;
+      }
+
+      y += 25;
+
+      // --- INTENÇÃO DE MATRÍCULA ---
+      doc.fontSize(12).font('Helvetica-Bold').text('INTENÇÃO DE MATRÍCULA', 40, y);
+      y += 20;
+
+      addField('Polo: ', pre.polo?.nome, 40, 300);
+      y += lineHeight;
+      if (pre.turma) {
+          addField('Turma Pretendida: ', `${pre.turma.nome} (${pre.turma.nivel?.nome || ''})`, 40, 400);
+      } else {
+          addField('Turma Pretendida: ', 'Não selecionada', 40, 400);
+      }
+      y += lineHeight;
+      
+      if (pre.nivel) {
+          addField('Nível: ', pre.nivel.nome, 40, 400);
+          y += lineHeight;
+      }
+      
+      if (pre.modulo) {
+          addField('Módulo: ', pre.modulo.titulo, 40, 400);
+          y += lineHeight;
+      }
+
+      // --- ASSINATURAS ---
+      const signY = 720;
+      doc.lineWidth(1).moveTo(100, signY).lineTo(495, signY).stroke();
+      doc.fontSize(10).text('Assinatura do Responsável', 0, signY + 5, { align: 'center' });
+
+      doc.fontSize(8).text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 40, 760);
+      doc.text('ibuc.com.br', 500, 760);
+
+      doc.end();
+
+      const buffer = await new Promise<Buffer>((resolve, reject) => {
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+      });
+
+      // Upload Supabase (Overwrite)
+      const fileName = `ficha_pre_matricula_${Date.now()}.pdf`; 
+      const storagePath = `pre_matriculas/${preMatriculaId}/${fileName}`;
+
+      console.log(`[gerarFichaPreMatricula] [V3] Upload to ${storagePath}`);
+      const { data: uploadData, error: uploadError } = await client.storage
+        .from('documentos')
+        .upload(storagePath, buffer, { 
+          contentType: 'application/pdf', 
+          upsert: true 
+        });
+
+      if (uploadError) {
+         console.error('[gerarFichaPreMatricula] Upload Error', uploadError);
+         throw uploadError;
+      }
+
+      // Get Public URL
+      const { data: publicUrl } = client.storage
+        .from('documentos')
+        .getPublicUrl(storagePath);
+      
+      console.log(`[gerarFichaPreMatricula] Success URL: ${publicUrl.publicUrl}`);
+
+       return { 
+        success: true, 
+        url: publicUrl.publicUrl 
+      };
+    } catch (e: any) {
+       console.error('[gerarFichaPreMatricula] CRITICAL:', e);
+       throw new Error(`Falha ao gerar PDF: ${e.message}`);
+    }
+  }
+
+  async gerarFichaAluno(alunoId: string, user?: CurrentUser) {
+    try {
+      const client = this.supabase.getAdminClient();
+
+      // 1. Buscar Dados do Aluno
+      const { data: aluno, error } = await client
+        .from('alunos')
+        .select(`
+          *,
+          polo:polos!fk_polo(id, nome),
+          nivel:niveis!fk_nivel(id, nome),
+          turma:turmas!fk_turma(
+            id, 
+            nome,
+            modulo:modulos!modulo_atual_id(titulo)
+          )
+        `)
+        .eq('id', alunoId)
+        .single();
+
+      if (error || !aluno) {
+        throw new Error(`Erro ao buscar aluno: ${error?.message || 'não encontrado'}`);
+      }
+
+      // 2. Configurar PDF
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+
+      // --- CABEÇALHO ---
+      try {
+          const logo = await this.getLogo();
+          if (logo) {
+            doc.image(logo, 60, 40, { width: 80 });
+          }
+      } catch (e) { console.error('Logo error', e); }
+      
+      doc.fillColor('#000000');
+      doc.fontSize(16).font('Helvetica-Bold').text('FICHA CADASTRAL DO ALUNO', 0, 50, { align: 'center' });
+      doc.fontSize(10).font('Helvetica').text('Instituto Bíblico Único Caminho', 0, 70, { align: 'center' });
+      doc.text(`Identificação: ${aluno.id.substring(0, 8).toUpperCase()}`, 0, 85, { align: 'center' });
+
+      doc.moveTo(40, 110).lineTo(555, 110).stroke();
+
+      let y = 130;
+      const lineHeight = 15;
+
+      // Helper para campos
+      const addField = (label: string, value: string, x: number) => {
+        const safeValue = value ? String(value) : '---';
+        doc.font('Helvetica-Bold').text(label, x, y, { continued: true });
+        doc.font('Helvetica').text(safeValue);
+      };
+
+      // --- DADOS PESSOAIS ---
+      doc.fontSize(12).font('Helvetica-Bold').text('DADOS DO ALUNO', 40, y);
+      y += 20;
+
+      doc.fontSize(10);
+      addField('Nome Completo: ', aluno.nome, 40);
+      y += lineHeight;
+      
+      addField('CPF: ', aluno.cpf, 40);
+      addField('RG: ', aluno.rg, 300);
+      y += lineHeight;
+
+      const dataNasc = aluno.data_nascimento ? new Date(aluno.data_nascimento).toLocaleDateString('pt-BR') : '---';
+      addField('Data Nasc.: ', dataNasc, 40);
+      
+      const sexo = aluno.sexo === 'M' ? 'Masculino' : aluno.sexo === 'F' ? 'Feminino' : String(aluno.sexo || '---');
+      addField('Sexo: ', sexo, 300);
+      y += lineHeight;
+
+      addField('Naturalidade: ', aluno.naturalidade, 40);
+      addField('Nacionalidade: ', aluno.nacionalidade, 300);
+      y += 25;
+
+      // --- ENDEREÇO ---
+      doc.fontSize(12).font('Helvetica-Bold').text('ENDEREÇO', 40, y);
+      y += 20;
+
+      const end = aluno.endereco || {};
+
+      doc.fontSize(10);
+      addField('Endereço: ', `${end.rua || ''}, ${end.numero || ''}`, 40);
+      y += lineHeight;
+      addField('Bairro: ', end.bairro, 40);
+      addField('Complemento: ', end.complemento, 300);
+      y += lineHeight;
+      addField('Cidade/UF: ', `${end.cidade || ''}/${end.estado || ''}`, 40);
+      addField('CEP: ', end.cep, 300);
+      y += 25;
+
+      // --- RESPONSÁVEIS ---
+      doc.fontSize(12).font('Helvetica-Bold').text('RESPONSÁVEIS', 40, y);
+      y += 20;
+      
+      doc.fontSize(10);
+      addField('Nome Resp.: ', aluno.nome_responsavel, 40);
+      addField('Parentesco: ', aluno.tipo_parentesco, 400);
+      y += lineHeight;
+      addField('CPF Resp.: ', aluno.cpf_responsavel, 40);
+      addField('Telefone: ', aluno.telefone_responsavel, 300);
+      y += lineHeight;
+      addField('Email: ', aluno.email_responsavel, 40);
+      
+      // Resp 2
+      if (aluno.nome_responsavel_2) {
+        y += lineHeight * 2;
+        addField('Nome Resp. 2: ', aluno.nome_responsavel_2, 40);
+        addField('Parentesco: ', aluno.tipo_parentesco_2, 400);
+        y += lineHeight;
+        addField('Telefone: ', aluno.telefone_responsavel_2, 300);
+      }
+      y += 25;
+
+      // --- SAÚDE ---
+      doc.fontSize(12).font('Helvetica-Bold').text('INFORMAÇÕES DE SAÚDE', 40, y);
+      y += 20;
+
+      doc.fontSize(10);
+      addField('Alergias: ', aluno.alergias, 40);
+      y += lineHeight;
+      addField('Restrições Alim.: ', aluno.restricao_alimentar, 40);
+      y += lineHeight;
+      addField('Doenças Crônicas: ', aluno.doencas_cronicas, 40);
+      y += lineHeight;
+      addField('Medicação Contínua: ', aluno.medicacao_continua, 40);
+      y += lineHeight;
+      
+      if (aluno.contato_emergencia_nome) {
+         addField('Contato Emergência: ', `${aluno.contato_emergencia_nome} (${aluno.contato_emergencia_telefone || ''})`, 40);
+          y += lineHeight;
+      }
+
+      y += 25;
+
+      // --- DADOS ACADÊMICOS ---
+      doc.fontSize(12).font('Helvetica-Bold').text('DADOS ACADÊMICOS', 40, y);
+      y += 20;
+
+      doc.fontSize(10);
+      addField('Polo: ', aluno.polo?.nome, 40);
+      y += lineHeight;
+      addField('Nível: ', aluno.nivel?.nome, 40);
+      y += lineHeight;
+      addField('Turma: ', aluno.turma?.nome, 40);
+      y += lineHeight;
+      addField('Módulo: ', (aluno.turma as any)?.modulo?.titulo, 40);
+      y += lineHeight;
+      addField('Status: ', (aluno.status || 'Pendente').toUpperCase(), 40);
+
+      // --- ASSINATURAS ---
+      const signY = 720;
+      doc.lineWidth(1).moveTo(100, signY).lineTo(495, signY).stroke();
+      doc.fontSize(10).text('Assinatura do Responsável', 0, signY + 5, { align: 'center' });
+
+      doc.fontSize(8).text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 40, 760);
+      doc.text('ibuc.com.br', 500, 760);
+
+      doc.end();
+
+      const buffer = await new Promise<Buffer>((resolve, reject) => {
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+      });
+
+      // Upload Supabase (Overwrite)
+      const fileName = `ficha_aluno_${Date.now()}.pdf`; 
+      const storagePath = `fichas_alunos/${alunoId}/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await client.storage
+        .from('documentos')
+        .upload(storagePath, buffer, { 
+          contentType: 'application/pdf', 
+          upsert: true 
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrl } = client.storage
+        .from('documentos')
+        .getPublicUrl(storagePath);
+      
+      return { 
+        success: true, 
+        url: publicUrl.publicUrl 
+      };
+    } catch (e: any) {
+       console.error('[gerarFichaAluno] ERROR:', e);
+       throw new Error(`Falha ao gerar PDF da ficha: ${e.message}`);
+    }
   }
 }

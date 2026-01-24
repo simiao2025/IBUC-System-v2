@@ -1,27 +1,27 @@
-﻿import type { TipoDocumento, StatusPreMatricula } from '../types/database';
+﻿import type { TipoDocumento, StatusPreMatricula } from '@/shared/model/database';
 
 /**
- * Documentos obrigatÃ³rios para o processo de prÃ©-matrÃ­cula e matrÃ­cula
+ * Documentos obrigatórios para o processo de pré-matrícula e matrícula
  */
 export const REQUIRED_DOCUMENTS: { value: TipoDocumento; label: string }[] = [
   { value: 'rg', label: 'Documento de Identidade (RG)' },
-  { value: 'certidao', label: 'CertidÃ£o de Nascimento' },
-  { value: 'comprovante_residencia', label: 'Comprovante de ResidÃªncia' },
+  { value: 'certidao', label: 'Certidão de Nascimento' },
+  { value: 'comprovante_residencia', label: 'Comprovante de Residência' },
   { value: 'foto', label: 'Foto 3x4' },
 ];
 
 /**
- * OpÃ§Ãµes de status para prÃ©-matrÃ­cula
+ * Opções de status para pré-matrícula
  */
 export const PRE_MATRICULA_STATUS_OPTIONS: Array<{ value: StatusPreMatricula; label: string }> = [
-  { value: 'em_analise', label: 'Em anÃ¡lise' },
+  { value: 'em_analise', label: 'Em análise' },
   { value: 'ativo', label: 'Ativo' },
   { value: 'trancado', label: 'Trancado' },
-  { value: 'concluido', label: 'ConcluÃ­do' },
+  { value: 'concluido', label: 'Concluído' },
 ];
 
 /**
- * OpÃ§Ãµes de gÃªnero (comum em formulÃ¡rios)
+ * Opções de gênero (comum em formulários)
  */
 export const GENDER_OPTIONS = [
   { value: 'M', label: 'Masculino' },
@@ -29,34 +29,34 @@ export const GENDER_OPTIONS = [
 ];
 
 /**
- * OpÃ§Ãµes de estados (comum em formulÃ¡rios)
+ * Opções de estados (comum em formulários)
  */
 export const STATE_OPTIONS = [
   { value: 'AC', label: 'Acre' },
   { value: 'AL', label: 'Alagoas' },
-  { value: 'AP', label: 'AmapÃ¡' },
+  { value: 'AP', label: 'Amapá' },
   { value: 'AM', label: 'Amazonas' },
   { value: 'BA', label: 'Bahia' },
-  { value: 'CE', label: 'CearÃ¡' },
+  { value: 'CE', label: 'Ceará' },
   { value: 'DF', label: 'Distrito Federal' },
-  { value: 'ES', label: 'EspÃ­rito Santo' },
-  { value: 'GO', label: 'GoiÃ¡s' },
-  { value: 'MA', label: 'MaranhÃ£o' },
+  { value: 'ES', label: 'Espírito Santo' },
+  { value: 'GO', label: 'Goiás' },
+  { value: 'MA', label: 'Maranhão' },
   { value: 'MT', label: 'Mato Grosso' },
   { value: 'MS', label: 'Mato Grosso do Sul' },
   { value: 'MG', label: 'Minas Gerais' },
-  { value: 'PA', label: 'ParÃ¡' },
-  { value: 'PB', label: 'ParaÃ­ba' },
-  { value: 'PR', label: 'ParanÃ¡' },
+  { value: 'PA', label: 'Pará' },
+  { value: 'PB', label: 'Paraíba' },
+  { value: 'PR', label: 'Paraná' },
   { value: 'PE', label: 'Pernambuco' },
-  { value: 'PI', label: 'PiauÃ­' },
+  { value: 'PI', label: 'Piauí' },
   { value: 'RJ', label: 'Rio de Janeiro' },
   { value: 'RN', label: 'Rio Grande do Norte' },
   { value: 'RS', label: 'Rio Grande do Sul' },
-  { value: 'RO', label: 'RondÃ´nia' },
+  { value: 'RO', label: 'Rondônia' },
   { value: 'RR', label: 'Roraima' },
   { value: 'SC', label: 'Santa Catarina' },
-  { value: 'SP', label: 'SÃ£o Paulo' },
+  { value: 'SP', label: 'São Paulo' },
   { value: 'SE', label: 'Sergipe' },
   { value: 'TO', label: 'Tocantins' },
 ];

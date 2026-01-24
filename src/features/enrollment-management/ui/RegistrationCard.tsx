@@ -1,5 +1,11 @@
 ﻿import React from 'react';
-import type { PreMatricula } from '../types/database';
+import type { PreMatricula } from '@/shared/model/database';
+
+const formatLocalDate = (dateStr: string) => {
+  if (!dateStr) return 'N/A';
+  const [year, month, day] = dateStr.split('T')[0].split('-');
+  return `${day}/${month}/${year}`;
+};
 
 interface RegistrationCardProps {
   data: PreMatricula;
@@ -57,7 +63,7 @@ export const RegistrationCard: React.FC<RegistrationCardProps> = ({ data, photoU
               </div>
               <div>
                 <span className="text-[10px] font-semibold text-gray-500 block uppercase">Data de Nascimento</span>
-                <span>{new Date(data.data_nascimento).toLocaleDateString('pt-BR')}</span>
+                <span>{formatLocalDate(data.data_nascimento)}</span>
               </div>
               <div>
                 <span className="text-[10px] font-semibold text-gray-500 block uppercase">Sexo</span>

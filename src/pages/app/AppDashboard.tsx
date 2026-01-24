@@ -2,18 +2,13 @@
 import { Link } from 'react-router-dom';
 import { Card, Button, Icon3D } from '@/shared/ui';
 import { Calendar, BookOpen, ClipboardList, Wallet, FolderOpen } from 'lucide-react';
-import { EventosAPI } from '@/features/event-management/api/eventos.api';
+import { eventApi as EventosAPI } from '@/features/event-management/api/eventos.api';
 import type { Evento } from '@/features/event-management/model/types';
-
-
-
+import { NotificationWidget } from '@/shared/ui/NotificationWidget';
 
 const AppDashboard: React.FC = () => {
-  // const { currentUser } = useApp(); // Removed unused
   const [upcomingEvents, setUpcomingEvents] = useState<Evento[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
-
-
 
   // Load Events
   useEffect(() => {
@@ -21,7 +16,7 @@ const AppDashboard: React.FC = () => {
       try {
         const today = new Date().toISOString().split('T')[0];
         // RLS on backend handles filtering by user's polo automatically
-        const data = await EventosAPI.listar({
+        const data = await EventosAPI.list({
           date_from: today,
           limit: 3,
           include_geral: true
@@ -35,8 +30,6 @@ const AppDashboard: React.FC = () => {
     };
     loadEvents();
   }, []);
-
-
 
   interface QuickAction {
     title: string;
@@ -76,7 +69,6 @@ const AppDashboard: React.FC = () => {
       iconName: 'personalizado',
       fallbackIcon: FolderOpen,
     },
-
   ];
 
   return (
@@ -162,12 +154,7 @@ const AppDashboard: React.FC = () => {
           )}
         </Card>
 
-        <Card className="flex items-center justify-center min-h-[200px] bg-gray-50 border-dashed">
-          <p className="text-gray-400 text-sm text-center">
-            Mais funcionalidades em breve<br />
-            (conteúdos detalhados por módulo)
-          </p>
-        </Card>
+        <NotificationWidget />
       </div>
     </div>
   );

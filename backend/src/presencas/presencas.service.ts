@@ -213,6 +213,38 @@ export class PresencasService {
   }
 
   /**
+   * Lança presenças e drácmas de forma atômica utilizando RPC SQL
+   */
+  async lancarFrequenciaCompleta(body: {
+    turma_id: string;
+    data: string;
+    licao_id?: string;
+    registrado_por: string;
+    presencas: { aluno_id: string; status: string; observacao?: string }[];
+    dracmas: { aluno_id: string; quantidade: number; tipo: string; descricao?: string }[];
+  }) {
+    const { turma_id, data, licao_id, registrado_por, presencas, dracmas } = body;
+
+    const { data: result, error } = await this.supabase
+      .getAdminClient()
+      .rpc('lancar_frequencia_completa', {
+        p_turma_id: turma_id,
+        p_data: data,
+        p_licao_id: licao_id || null,
+        p_registrado_por: registrado_por,
+        p_presencas: presencas,
+        p_dracmas: dracmas
+      });
+
+    if (error) {
+      console.error('Erro RPC Frequência Atômica:', error);
+      throw new BadRequestException(`Erro ao processar frequência atômica: ${error.message}`);
+    }
+
+    return result;
+  }
+
+  /**
    * Exclui um registro individual de presença
    */
   async excluirPresenca(id: string) {

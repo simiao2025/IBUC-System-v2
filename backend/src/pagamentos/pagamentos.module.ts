@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
-import { PagamentosController } from './pagamentos.controller';
+import { SupabaseModule } from '../supabase/supabase.module';
+import { PaymentsController } from './pagamentos.controller';
 import { PagamentosService } from './pagamentos.service';
 
 @Module({
-  controllers: [PagamentosController],
+  imports: [SupabaseModule],
+  controllers: [PaymentsController],
   providers: [PagamentosService],
   exports: [PagamentosService],
 })

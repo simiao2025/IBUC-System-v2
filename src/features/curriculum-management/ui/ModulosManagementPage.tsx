@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { PageHeader } from '@/shared/ui';
 import AccessControl from '@/features/auth/ui/AccessControl';
-import { useApp } from '@/app/providers/AppContext';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import {
   moduleApi,
   lessonApi,
@@ -30,7 +30,7 @@ type NewLessonState = {
 };
 
 const ModulosManagementPage: React.FC = () => {
-  const { showFeedback, showConfirm } = useApp();
+  const { showFeedback, showConfirm } = useUI();
 
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [licoes, setLicoes] = useState<Licao[]>([]);
@@ -182,17 +182,21 @@ const ModulosManagementPage: React.FC = () => {
 
   const excluirModulo = async () => {
     if (!selectedModuloId) return;
-    showConfirm('Excluir módulo', 'Tem certeza que deseja excluir este módulo? As lições serão removidas junto.', async () => {
-      try {
-        await moduleApi.delete(selectedModuloId);
-        showFeedback('success', 'Excluído', 'Módulo excluído com sucesso.');
-        setSelectedModuloId('');
-        setModuleForm({});
-        setLicoes([]);
-        await carregarModulos();
-      } catch (e) {
-        console.error('Erro ao excluir módulo:', e);
-        showFeedback('error', 'Erro ao excluir', 'Não foi possível excluir o módulo.');
+    showConfirm({
+      title: 'Excluir módulo',
+      message: 'Tem certeza que deseja excluir este módulo? As lições serão removidas junto.',
+      onConfirm: async () => {
+        try {
+          await moduleApi.delete(selectedModuloId);
+          showFeedback('success', 'Excluído', 'Módulo excluído com sucesso.');
+          setSelectedModuloId('');
+          setModuleForm({});
+          setLicoes([]);
+          await carregarModulos();
+        } catch (e) {
+          console.error('Erro ao excluir módulo:', e);
+          showFeedback('error', 'Erro ao excluir', 'Não foi possível excluir o módulo.');
+        }
       }
     });
   };
@@ -253,14 +257,18 @@ const ModulosManagementPage: React.FC = () => {
   };
 
   const deletarLicao = async (licao: Licao) => {
-    showConfirm('Excluir lição', `Tem certeza que deseja excluir a lição ${licao.ordem}?`, async () => {
-      try {
-        await lessonApi.delete(licao.id);
-        showFeedback('success', 'Excluída', 'Lição excluída com sucesso.');
-        if (selectedModuloId) await carregarLicoes(selectedModuloId);
-      } catch (e) {
-        console.error('Erro ao excluir lição:', e);
-        showFeedback('error', 'Erro ao excluir', 'Não foi possível excluir la lição.');
+    showConfirm({
+      title: 'Excluir lição',
+      message: `Tem certeza que deseja excluir a lição ${licao.ordem}?`,
+      onConfirm: async () => {
+        try {
+          await lessonApi.delete(licao.id);
+          showFeedback('success', 'Excluída', 'Lição excluída com sucesso.');
+          if (selectedModuloId) await carregarLicoes(selectedModuloId);
+        } catch (e) {
+          console.error('Erro ao excluir lição:', e);
+          showFeedback('error', 'Erro ao excluir', 'Não foi possível excluir la lição.');
+        }
       }
     });
   };

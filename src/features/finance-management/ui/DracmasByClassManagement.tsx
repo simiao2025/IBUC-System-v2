@@ -1,8 +1,9 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import { Card, Button, Input, PageHeader } from '@/shared/ui';
-import { DracmasAPI } from '../api/dracmas.service';
+import { dracmasApi as DracmasAPI } from '@/entities/finance';
 import AccessControl from '@/features/auth/ui/AccessControl';
 
 type DracmaTransacao = {
@@ -27,7 +28,8 @@ type DracmasPorTurmaResponse = {
 };
 
 const DracmasByClassManagement: React.FC = () => {
-  const { currentUser, showFeedback } = useApp();
+  const { currentUser } = useAuth();
+  const { showFeedback } = useUI();
   const [turmaId, setTurmaId] = useState('');
   const [inicio, setInicio] = useState('');
   const [fim, setFim] = useState('');
@@ -51,8 +53,8 @@ const DracmasByClassManagement: React.FC = () => {
       const fetchData = async () => {
         setLoading(true);
         try {
-          const response = await DracmasAPI.porTurma(urlTurmaId);
-          setData(response as DracmasPorTurmaResponse);
+          const response = await DracmasAPI.listByClass(urlTurmaId);
+          setData(response as unknown as DracmasPorTurmaResponse);
         } catch (err) {
           console.error('Erro ao buscar Drácmas da turma:', err);
           setError('Não foi possível carregar as informações da turma.');
@@ -75,8 +77,8 @@ const DracmasByClassManagement: React.FC = () => {
     setError(null);
 
     try {
-      const response = await DracmasAPI.porTurma(turmaId, inicio || undefined, fim || undefined);
-      setData(response as DracmasPorTurmaResponse);
+      const response = await DracmasAPI.listByClass(turmaId, inicio || undefined, fim || undefined);
+      setData(response as unknown as DracmasPorTurmaResponse);
     } catch (err) {
       console.error('Erro ao buscar Drácmas da turma:', err);
       setError('Não foi possível carregar as informações de Drácmas da turma.');
@@ -90,7 +92,7 @@ const DracmasByClassManagement: React.FC = () => {
 
     setResgateLoading(true);
     try {
-      const result: any = await DracmasAPI.resgatar({
+      const result: any = await DracmasAPI.redeem({
         turma_id: turmaId,
         resgatado_por: currentUser.id
       });

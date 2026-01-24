@@ -4,6 +4,7 @@ import { Express } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/public.decorator';
 import { DocumentosService } from './documentos.service';
 
 @UseGuards(JwtAuthGuard)
@@ -46,6 +47,7 @@ export class DocumentosController {
     return this.service.listarDocumentosMatricula(id);
   }
 
+  @Public()
   @Post('pre-matriculas/:id')
   @ApiOperation({ summary: 'Upload de documentos da pré-matrícula' })
   @ApiConsumes('multipart/form-data')
@@ -74,6 +76,7 @@ export class DocumentosController {
     return this.service.uploadDocumentosPreMatricula(id, tipo, files);
   }
 
+  @Public()
   @Get('pre-matriculas/:id')
   @ApiOperation({ summary: 'Listar documentos da pré-matrícula' })
   async listarDocumentosPreMatricula(@Param('id') id: string) {

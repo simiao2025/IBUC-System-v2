@@ -2,7 +2,7 @@
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
-import { PresencasAPI } from '../api/attendance.service';
+import { PresencaService } from '@/entities/attendance/api/attendance.service';
 
 const AttendanceByClassManagement: React.FC = () => {
   const [turmaId, setTurmaId] = useState('');
@@ -23,7 +23,7 @@ const AttendanceByClassManagement: React.FC = () => {
     setError(null);
 
     try {
-      const response = await PresencasAPI.porTurma(turmaId, inicio || undefined, fim || undefined);
+      const response = await PresencaService.listarPorTurma(turmaId, inicio || undefined, fim || undefined);
       setData(response);
     } catch (err) {
       console.error('Erro ao buscar frequência da turma:', err);

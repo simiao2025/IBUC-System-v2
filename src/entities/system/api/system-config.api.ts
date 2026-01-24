@@ -47,5 +47,9 @@ export const systemConfigApi = {
       systemConfigApi.update(chave, valor)
     );
     return Promise.all(promises);
-  }
+  },
+
+  // Compatibility Aliases
+  listar: () => systemConfigApi.listAll(),
+  atualizar: (chave: string, valor: any) => systemConfigApi.update(chave, valor),
 };

@@ -15,6 +15,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TurmasService } from './turmas.service';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -50,6 +51,7 @@ export class TurmasController {
     return this.service.deletarTurma(id);
   }
 
+  @Public()
   @Get()
   @ApiOperation({ summary: 'Listar turmas' })
   async listar(

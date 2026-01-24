@@ -3,7 +3,7 @@ import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { Card } from '@/shared/ui';
 import { MapPin } from 'lucide-react';
-import type { PreMatriculaFormData } from '../hooks/usePreMatricula';
+import type { PreMatriculaFormData } from '../../model/hooks/usePreMatricula';
 
 interface FormularioEnderecoProps {
     formData: PreMatriculaFormData;
@@ -22,16 +22,16 @@ export const FormularioEndereco: React.FC<FormularioEnderecoProps> = ({
 }) => {
     const estados = [
         { value: 'TO', label: 'Tocantins' },
-        { value: 'SP', label: 'SÃ£o Paulo' },
+        { value: 'SP', label: 'São Paulo' },
         { value: 'RJ', label: 'Rio de Janeiro' },
-        // ... Adicionar outros estados se necessÃ¡rio, ou usar um hook de estados
+        // ... Adicionar outros estados se necessário, ou usar um hook de estados
     ];
 
     return (
         <Card>
             <div className="flex items-center space-x-2 mb-6 border-b pb-4">
                 <MapPin className="h-6 w-6 text-red-600" />
-                <h2 className="text-xl font-semibold text-gray-900 uppercase">EndereÃ§o</h2>
+                <h2 className="text-xl font-semibold text-gray-900 uppercase">Endereço</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -59,7 +59,7 @@ export const FormularioEndereco: React.FC<FormularioEnderecoProps> = ({
                 </div>
 
                 <Input
-                    label="NÃºmero *"
+                    label="Número *"
                     name="numero"
                     value={formData.numero}
                     onChange={handleChange}

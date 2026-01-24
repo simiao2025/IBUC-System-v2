@@ -6,10 +6,10 @@ import { Button } from '@/shared/ui';
 import { FinanceReportsAPI } from '@/entities/finance/api/finance-reports.api';
 import { poloApi as PolosAPI } from '@/entities/polo';
 import { Loader2, Download, DollarSign, Search, AlertCircle, Phone } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 
 const InadimplenciaReportView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [polos, setPolos] = useState<any[]>([]);

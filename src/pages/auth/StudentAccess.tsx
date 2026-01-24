@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 import { useNavigationConfirm } from '@/shared/lib/hooks/useNavigationConfirm';
 import { Input } from '@/shared/ui';
 import { Button } from '@/shared/ui';
@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/shared/ui';
 import { User, Lock } from 'lucide-react';
 
 const StudentAccess: React.FC = () => {
-  const { login, currentUser, authLoading } = useApp();
+  const { login, currentUser, authLoading } = useAuth();
   const navigate = useNavigate();
 
   const { isDialogOpen, confirmNavigation, handleConfirm, handleCancel } = useNavigationConfirm({

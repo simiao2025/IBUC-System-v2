@@ -37,7 +37,7 @@ export class PreMatriculasController {
     return this.service.remover(id);
   }
 
-  @Put(':id/status')
+  @Patch(':id/status')
   @ApiOperation({ summary: 'Atualizar status da pré-matrícula' })
   async atualizarStatus(@Param('id') id: string, @Body() dto: UpdatePreMatriculaStatusDto) {
     return this.service.atualizarStatus(id, dto);

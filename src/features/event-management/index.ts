@@ -1,4 +1,4 @@
 export { default as EventManagement } from './ui/EventManagement';
-export * from './api/eventos.api';
-export * from './model';
+export { eventApi } from './api/eventos.api';
+export * from './model/types';
 

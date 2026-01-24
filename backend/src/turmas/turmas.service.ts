@@ -157,6 +157,11 @@ export class TurmasService {
       throw new BadRequestException(error.message);
     }
 
+    // Notificar início das aulas se a data estiver definida
+    if (data.data_inicio) {
+      this.notificacoesService.notificarInicioAulas(data.id).catch(e => console.error('Erro ao notificar início de aulas:', e));
+    }
+
     return data;
   }
 
@@ -229,6 +234,11 @@ export class TurmasService {
       throw new BadRequestException(error.message);
     }
 
+    // Se a data de início foi alterada ou definida, notifica novamente (ou pela primeira vez)
+    if (dto.data_inicio && data.data_inicio) {
+      this.notificacoesService.notificarInicioAulas(data.id).catch(e => console.error('Erro ao notificar início de aulas:', e));
+    }
+
     return data;
   }
 
@@ -257,7 +267,7 @@ export class TurmasService {
     let query = this.supabase
       .getAdminClient()
       .from('turmas')
-      .select('*, modulos!modulo_atual_id(titulo)')
+      .select('*, modulo:modulos!modulo_atual_id(titulo)')
       .order('nome');
 
     if (filtros?.polo_id) {

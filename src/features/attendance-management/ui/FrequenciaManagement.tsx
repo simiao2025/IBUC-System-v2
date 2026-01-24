@@ -1,17 +1,17 @@
 ﻿
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { PageHeader } from '@/shared/ui';
-import { AlunosAPI } from '@/features/student-management';
-import { DracmasAPI } from '@/features/finance-management';
-import { PresencasAPI } from '../api/attendance.service';
-import { TurmasAPI } from '@/features/turma-management';
-import { ModulosAPI as LicoesAPI } from '@/entities/turma';
-import { PolosAPI } from '@/features/polo-management';
-import { useApp } from '@/app/providers/AppContext';
+import { studentApi } from '@/entities/student';
+import { dracmasApi } from '@/entities/finance';
+import { attendanceApi as presencaApi } from '@/entities/attendance';
+import { turmaApi, lessonApi as licaoApiExport } from '@/entities/turma';
+import { poloApi } from '@/entities/polo';
+import { useAuth } from '@/entities/user';
+import { useUI as useSharedUI } from '@/shared/lib/providers/UIProvider';
 import { BookOpen, GraduationCap, Beaker, Trash2, Edit2, History, X, User, Banknote } from 'lucide-react';
 
 type TurmaOption = {
@@ -24,6 +24,11 @@ type TurmaOption = {
 
 type AlunoOption = {
   aluno_id: string;
+  nome: string;
+};
+
+type Polo = {
+  id: string;
   nome: string;
 };
 
@@ -41,17 +46,21 @@ type LinhaLancamento = {
 };
 
 const AdminFrequencia: React.FC = () => {
-  const { currentUser } = useApp();
-  // const navigate = useNavigate(); // Removed unused navigation
+  const { currentUser } = useAuth();
+  
+  const adminUser = (currentUser as any)?.adminUser;
+  const isProfessor = adminUser?.role === 'professor';
+  const isGlobalAdmin = adminUser?.accessLevel === 'geral';
 
-  const [data, setData] = useState(() => {
+  // State definitions (Cleaned)
+  const [data] = useState(() => {
     const d = new Date();
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
-  const [polos, setPolos] = useState<any[]>([]);
+  const [polos, setPolos] = useState<Polo[]>([]);
   const [filterPoloId, setFilterPoloId] = useState('');
   const [turmas, setTurmas] = useState<TurmaOption[]>([]);
   const [turmaId, setTurmaId] = useState('');
@@ -64,7 +73,7 @@ const AdminFrequencia: React.FC = () => {
   const [licoes, setLicoes] = useState<{ id: string, titulo: string, ordem: number }[]>([]);
   const [licoesConcluidas, setLicoesConcluidas] = useState<string[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [dracmasTransactions, setDracmasTransactions] = useState<any[]>([]); // To store all transactions for redemption calculation
+  const [dracmasTransactions, setDracmasTransactions] = useState<any[]>([]);
 
   const [resgateModalData, setResgateModalData] = useState<{
     alunoId: string;
@@ -73,11 +82,7 @@ const AdminFrequencia: React.FC = () => {
     breakdown: Record<string, number>;
   } | null>(null);
 
-  const { showFeedback, showConfirm } = useApp();
-
-  const adminUser = (currentUser as any)?.adminUser;
-  const isProfessor = adminUser?.role === 'professor';
-  const isGlobalAdmin = adminUser?.accessLevel === 'geral';
+  const { showFeedback, showConfirm } = useSharedUI();
 
   const hasAnyPresence = useMemo(() => alunos.some(a => Boolean(a.status)), [alunos]);
   const hasAnyDracmas = useMemo(() => alunos.some(a => Object.values(a.dracmas).some(v => v > 0)), [alunos]);
@@ -86,11 +91,12 @@ const AdminFrequencia: React.FC = () => {
     return licoes.filter(l => !licoesConcluidas.includes(l.id));
   }, [licoes, licoesConcluidas]);
 
+
   useEffect(() => {
     // Carregar critérios de Drácmas
     const carregarCriterios = async () => {
       try {
-        const response: any = await DracmasAPI.listarCriterios();
+        const response: any = await dracmasApi.listCriterios();
         const lista = Array.isArray(response) ? response : [];
         const ativos = lista.filter((c: any) => c.ativo);
 
@@ -107,7 +113,7 @@ const AdminFrequencia: React.FC = () => {
     const carregarPolos = async () => {
       if (!isGlobalAdmin) return;
       try {
-        const response: any = await PolosAPI.listar(true);
+        const response: any = await poloApi.list(true);
         setPolos(Array.isArray(response) ? response : []);
       } catch (error) {
         console.error('Erro ao carregar polos:', error);
@@ -134,7 +140,10 @@ const AdminFrequencia: React.FC = () => {
           return;
         }
 
-        const params: any = { status: 'ativa' }; // Filtra apenas turmas ativas para todos
+        const params: any = { 
+            status: 'ativa',
+            select: '*,modulos(titulo,numero)' 
+        }; 
         if (isProfessor) {
           params.professor_id = adminUser?.id;
         } else if (isGlobalAdmin) {
@@ -143,11 +152,14 @@ const AdminFrequencia: React.FC = () => {
           params.polo_id = poloId;
         }
 
-        const response = await TurmasAPI.listar(params as any);
+        const response = await turmaApi.list(params as any);
+  // ...
         const lista = (response as any) as any[];
         const mappedTurmas = (Array.isArray(lista) ? lista : []).map(t => {
-          // PostgREST pode retornar objeto ou array dependendo da PK/FK
-          const mod = Array.isArray(t.modulos) ? t.modulos[0] : t.modulos;
+          // Backend pode retornar 'modulo' ou 'modulos' dependendo da rota/alias
+          const modBase = t.modulo || t.modulos;
+          const mod = Array.isArray(modBase) ? modBase[0] : modBase;
+          
           return {
             id: String(t.id),
             nome: String(t.nome ?? t.id),
@@ -172,7 +184,49 @@ const AdminFrequencia: React.FC = () => {
     };
 
     carregarTurmas();
-  }, [currentUser, filterPoloId]); // Added filterPoloId as dependency
+  }, [currentUser, filterPoloId, isGlobalAdmin, isProfessor, adminUser?.id, turmaId]);
+
+  const carregarHistorico = useCallback(async () => {
+    if (!turmaId) return;
+    setLoadingHistory(true);
+    try {
+      const [presencasResponse, dracmasResponse] = await Promise.all([
+        presencaApi.listByClass(turmaId),
+        dracmasApi.listByClass(turmaId)
+      ]);
+
+      const presencas = (Array.isArray(presencasResponse) ? presencasResponse : (presencasResponse as any)?.registros || []);
+      const dracmas = (Array.isArray(dracmasResponse) ? dracmasResponse : (dracmasResponse as any)?.transacoes || []);
+
+      setDracmasTransactions(dracmas);
+
+      const idsConcluidos = new Set(presencas.filter((p: any) => p.licao_id).map((p: any) => String(p.licao_id)));
+      setLicoesConcluidas(Array.from(idsConcluidos) as string[]);
+
+      setAlunos(prev => prev.map(aluno => {
+        const alunoPresencas = presencas.filter((r: any) => r.aluno_id === aluno.aluno_id);
+        const historicoCombinado = alunoPresencas.map((p: any) => {
+          const dracmasDoDia = dracmas.filter((d: any) => d.aluno_id === aluno.aluno_id && d.data === p.data);
+          const totalDracmas = dracmasDoDia.reduce((acc: number, curr: any) => acc + (curr.quantidade || 0), 0);
+          const dracmasPorTipo = dracmasDoDia.reduce((acc: any, curr: any) => {
+            acc[curr.tipo] = (acc[curr.tipo] || 0) + curr.quantidade;
+            return acc;
+          }, {});
+
+          return { ...p, dracmas: totalDracmas, dracmasPorTipo };
+        });
+
+        return {
+          ...aluno,
+          historico: historicoCombinado.reverse()
+        };
+      }));
+    } catch (err) {
+      console.error('Erro ao carregar histórico:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [turmaId]);
 
   useEffect(() => {
     const carregarDadosTurma = async () => {
@@ -190,7 +244,7 @@ const AdminFrequencia: React.FC = () => {
 
         // Se não encontrou no state (ex: primeira carga), busca os detalhes da turma
         if (!moduloId) {
-          const tDetail = await TurmasAPI.buscarPorId(turmaId) as any;
+          const tDetail = await turmaApi.getById(turmaId) as any;
           moduloId = tDetail?.modulo_atual_id;
         }
 
@@ -198,8 +252,8 @@ const AdminFrequencia: React.FC = () => {
 
         // Carregar alunos e lições em paralelo
         const [alunosRes, licoesRes] = await Promise.all([
-          AlunosAPI.listar({ turma_id: turmaId }),
-          moduloId ? LicoesAPI.listar({ modulo_id: moduloId }) : Promise.resolve([])
+          studentApi.list({ turma_id: turmaId }),
+          moduloId ? (licaoApiExport as any).list({ modulo_id: moduloId }) : Promise.resolve([])
         ]);
 
         const listaAlunos = (alunosRes as any) as any[];
@@ -240,7 +294,7 @@ const AdminFrequencia: React.FC = () => {
     };
 
     carregarDadosTurma();
-  }, [turmaId, data, turmas]);
+  }, [turmaId, data, turmas, carregarHistorico]);
 
   const updateStatus = (alunoId: string, status: StatusPresenca) => {
     setAlunos(prev => prev.map(a => (a.aluno_id === alunoId ? { ...a, status } : a)));
@@ -273,56 +327,6 @@ const AdminFrequencia: React.FC = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const carregarHistorico = async () => {
-    if (!turmaId) return;
-    setLoadingHistory(true);
-    try {
-      const [presencasResponse, dracmasResponse] = await Promise.all([
-        PresencasAPI.porTurma(turmaId),
-        DracmasAPI.porTurma(turmaId)
-      ]);
-
-      const presencas = (presencasResponse as any)?.registros || [];
-      const dracmas = (dracmasResponse as any)?.transacoes || [];
-
-      setDracmasTransactions(dracmas);
-
-      // Calcular lições que já possuem registro
-      const idsConcluidos = new Set(presencas.filter((p: any) => p.licao_id).map((p: any) => String(p.licao_id)));
-      setLicoesConcluidas(Array.from(idsConcluidos) as string[]);
-
-      setAlunos(prev => prev.map(aluno => {
-        // Encontra presenças do aluno
-        const alunoPresencas = presencas.filter((r: any) => r.aluno_id === aluno.aluno_id);
-
-        // Mapeia histórico combinando presença com drácmas daquela data
-        const historicoCombinado = alunoPresencas.map((p: any) => {
-          // Filtra drácmas desta data para este aluno
-          const dracmasDoDia = dracmas.filter((d: any) => d.aluno_id === aluno.aluno_id && d.data === p.data);
-
-          const totalDracmas = dracmasDoDia.reduce((acc: number, curr: any) => acc + (curr.quantidade || 0), 0);
-
-          // Agrupa por tipo (código do critério)
-          const dracmasPorTipo = dracmasDoDia.reduce((acc: any, curr: any) => {
-            acc[curr.tipo] = (acc[curr.tipo] || 0) + curr.quantidade;
-            return acc;
-          }, {});
-
-          return { ...p, dracmas: totalDracmas, dracmasPorTipo };
-        });
-
-        return {
-          ...aluno,
-          historico: historicoCombinado.reverse()
-        };
-      }));
-    } catch (err) {
-      console.error('Erro ao carregar histórico:', err);
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
-
   const [editingModalData, setEditingModalData] = useState<{
     alunoId: string;
     alunoNome: string;
@@ -332,6 +336,60 @@ const AdminFrequencia: React.FC = () => {
     observacao: string;
     dracmas: Record<string, number | string>;
   } | null>(null);
+
+  if (currentUser && !isProfessor && !isGlobalAdmin) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center p-8 bg-white rounded-lg shadow-md border border-red-100">
+            <h2 className="text-xl font-bold text-red-600 mb-2">Acesso Negado</h2>
+            <p className="text-gray-600">Esta área é restrita apenas a professores.</p>
+          </div>
+        </div>
+      );
+  }
+
+  const handleOpenResgate = (alunoId: string) => {
+    const aluno = alunos.find(a => a.aluno_id === alunoId);
+    if (!aluno) return;
+
+    const studentDracmas = dracmasTransactions.filter(t => t.aluno_id === alunoId);
+    const total = studentDracmas.reduce((acc, t) => acc + (t.quantidade || 0), 0);
+
+    const breakdown: Record<string, number> = {};
+    studentDracmas.forEach(t => {
+      const typeName = t.tipo;
+      breakdown[typeName] = (breakdown[typeName] || 0) + (t.quantidade || 0);
+    });
+
+    setResgateModalData({
+      alunoId,
+      alunoNome: aluno.nome,
+      saldo: total,
+      breakdown
+    });
+  };
+
+  const handleConfirmResgate = async () => {
+    if (!resgateModalData || !turmaId) return;
+
+    setSubmitting(true);
+    try {
+      await dracmasApi.redeem({
+        turma_id: turmaId,
+        aluno_id: resgateModalData.alunoId,
+        resgatado_por: currentUser!.id
+      });
+
+      showFeedback('success', 'Resgate Realizado', `Foram resgatadas ${resgateModalData.saldo} drácmas com sucesso.`);
+      setResgateModalData(null);
+      carregarHistorico();
+    } catch (err) {
+      console.error('Erro ao resgatar:', err);
+      showFeedback('error', 'Erro', 'Falha ao realizar o resgate.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleEditRecord = (alunoId: string, record: any) => {
     const aluno = alunos.find(a => a.aluno_id === alunoId);
@@ -343,7 +401,7 @@ const AdminFrequencia: React.FC = () => {
       originalRecord: record,
       data: record.data,
       status: record.status,
-      observacao: record.observacao || '',
+      observacao: record.observacoes || '',
       dracmas: record.dracmasPorTipo ? { ...record.dracmasPorTipo } : {}
     });
   };
@@ -356,26 +414,7 @@ const AdminFrequencia: React.FC = () => {
     if (!editingModalData) return;
     setSubmitting(true);
     try {
-      // 1. Atualizar Presença (Upsert)
-      await PresencasAPI.lancarLote([{
-        aluno_id: editingModalData.alunoId,
-        turma_id: turmaId,
-        data: editingModalData.data,
-        licao_id: editingModalData.originalRecord.licao_id || null,
-        status: editingModalData.status,
-        observacao: editingModalData.observacao,
-        lancado_por: currentUser!.id
-      }]);
-
-      // 2. Atualizar Drácmas
-      // Primeiro limpar antigas DESTE ALUNO nesta data
-      await DracmasAPI.excluirLoteAluno({
-        turma_id: turmaId,
-        aluno_id: editingModalData.alunoId,
-        data: editingModalData.data
-      });
-
-      // Preparar novas drácmas
+      // Usar a nova chamada unificada (atômica)
       const dracmasList: any[] = [];
       Object.entries(editingModalData.dracmas).forEach(([tipo, qtd]) => {
         const quantidade = Number(qtd);
@@ -383,21 +422,24 @@ const AdminFrequencia: React.FC = () => {
           dracmasList.push({
             aluno_id: editingModalData.alunoId,
             quantidade,
-            tipo
+            tipo,
+            descricao: `Ajuste manual do aluno ${editingModalData.alunoNome}`
           });
         }
       });
 
-      if (dracmasList.length > 0) {
-        await DracmasAPI.lancarLote({
-          turma_id: turmaId,
-          data: editingModalData.data,
-          tipo: 'AJUSTE',
-          descricao: `Ajuste manual do aluno ${editingModalData.alunoNome}`,
-          registrado_por: currentUser!.id,
-          transacoes: dracmasList
-        });
-      }
+      await presencaApi.submitUnified({
+        turma_id: turmaId,
+        data: editingModalData.data,
+        licao_id: editingModalData.originalRecord.licao_id || undefined,
+        registrado_por: currentUser!.id,
+        presencas: [{
+          aluno_id: editingModalData.alunoId,
+          status: (editingModalData.status === 'falta' ? 'ausente' : (editingModalData.status === 'justificativa' ? 'justificado' : 'presente')) as any,
+          observacao: editingModalData.observacao
+        }],
+        dracmas: dracmasList
+      });
 
       showFeedback('success', 'Atualizado', 'Registro atualizado com sucesso.');
       await carregarHistorico();
@@ -411,12 +453,12 @@ const AdminFrequencia: React.FC = () => {
   };
 
   const handleDeleteRecord = (id: string) => {
-    showConfirm(
-      'Excluir Presença',
-      'Tem certeza que deseja excluir este registro de presença individual?',
-      async () => {
+    showConfirm({
+      title: 'Excluir Presença',
+      message: 'Tem certeza que deseja excluir este registro de presença individual?',
+      onConfirm: async () => {
         try {
-          await PresencasAPI.excluir(id);
+          await presencaApi.delete(id);
           showFeedback('success', 'Excluído', 'Registro excluído com sucesso.');
           carregarHistorico();
         } catch (err) {
@@ -424,7 +466,7 @@ const AdminFrequencia: React.FC = () => {
           showFeedback('error', 'Erro', 'Não foi possível excluir o registro.');
         }
       }
-    );
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -448,46 +490,37 @@ const AdminFrequencia: React.FC = () => {
     setError(null);
 
     try {
-      if (hasAnyPresence) {
-        const presencasPayload = alunos
-          .filter(a => Boolean(a.status))
-          .map(a => ({
-            aluno_id: a.aluno_id,
-            turma_id: turmaId,
-            data: a.data || data,
-            licao_id: a.licao_id || undefined,
-            status: a.status,
-            lancado_por: currentUser.id,
-            observacao: a.observacao || undefined,
-          }));
+      const presencasPayload = alunos
+        .filter(a => Boolean(a.status))
+        .map(a => ({
+          aluno_id: a.aluno_id,
+          status: (a.status === 'falta' ? 'ausente' : (a.status === 'justificativa' ? 'justificado' : 'presente')) as any,
+          observacao: a.observacao || undefined,
+        }));
 
-        await PresencasAPI.lancarLote(presencasPayload);
-      }
-
-      if (hasAnyDracmas) {
-        // Agrupar por tipo de Drácma
-        const porTipo: Record<string, { aluno_id: string; quantidade: number; tipo: string }[]> = {};
-
-        alunos.forEach(a => {
-          Object.entries(a.dracmas).forEach(([tipo, quantidade]) => {
-            if (quantidade > 0) {
-              if (!porTipo[tipo]) porTipo[tipo] = [];
-              porTipo[tipo].push({ aluno_id: a.aluno_id, quantidade, tipo });
-            }
-          });
+      const dracmasPayload: any[] = [];
+      alunos.forEach(a => {
+        Object.entries(a.dracmas).forEach(([tipo, quantidade]) => {
+          if (quantidade > 0) {
+            dracmasPayload.push({
+              aluno_id: a.aluno_id,
+              quantidade,
+              tipo,
+              descricao: `Ref: Lançamento de frequência ${data}`
+            });
+          }
         });
+      });
 
-        // Lançar um lote para cada tipo
-        for (const [tipo, transacoes] of Object.entries(porTipo)) {
-          await DracmasAPI.lancarLote({
-            turma_id: turmaId,
-            data,
-            tipo,
-            registrado_por: currentUser.id,
-            transacoes,
-          });
-        }
-      }
+      // Única chamada atômica para todo o lote
+      await presencaApi.submitUnified({
+        turma_id: turmaId,
+        data,
+        licao_id: (alunos.find(a => a.licao_id)?.licao_id) || undefined, // Pega a primeira licao_id definida (se houver)
+        registrado_por: currentUser.id,
+        presencas: presencasPayload,
+        dracmas: dracmasPayload
+      });
 
       setAlunos(prev => prev.map(a => ({
         ...a,
@@ -504,51 +537,6 @@ const AdminFrequencia: React.FC = () => {
       console.error('Erro ao lançar frequência/drácmas:', err);
       const apiMessage = err.response?.data?.message || err.message;
       setError(apiMessage || 'Não foi possível salvar o lançamento.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleOpenResgate = (alunoId: string) => {
-    const aluno = alunos.find(a => a.aluno_id === alunoId);
-    if (!aluno) return;
-
-    // Filter transactions for this student
-    const studentDracmas = dracmasTransactions.filter(t => t.aluno_id === alunoId);
-    const total = studentDracmas.reduce((acc, t) => acc + (t.quantidade || 0), 0);
-
-    // Breakdown
-    const breakdown: Record<string, number> = {};
-    studentDracmas.forEach(t => {
-      const typeName = t.tipo; // Or map to friendly name if available
-      breakdown[typeName] = (breakdown[typeName] || 0) + (t.quantidade || 0);
-    });
-
-    setResgateModalData({
-      alunoId,
-      alunoNome: aluno.nome,
-      saldo: total,
-      breakdown
-    });
-  };
-
-  const handleConfirmResgate = async () => {
-    if (!resgateModalData || !turmaId) return;
-
-    setSubmitting(true);
-    try {
-      await DracmasAPI.resgatar({
-        turma_id: turmaId,
-        aluno_id: resgateModalData.alunoId,
-        resgatado_por: currentUser!.id
-      });
-
-      showFeedback('success', 'Resgate Realizado', `Foram resgatadas ${resgateModalData.saldo} drácmas com sucesso.`);
-      setResgateModalData(null);
-      carregarHistorico(); // Refresh to clear balance
-    } catch (err) {
-      console.error('Erro ao resgatar:', err);
-      showFeedback('error', 'Erro', 'Falha ao realizar o resgate.');
     } finally {
       setSubmitting(false);
     }
@@ -648,7 +636,7 @@ const AdminFrequencia: React.FC = () => {
                 </div>
               )}
 
-              {!loadingAlunos && turmaId && turmas.find(t => t.id === turmaId)?.alunos_matriculados! > 0 && alunos.length === 0 && (
+              {!loadingAlunos && turmaId && (turmas.find(t => t.id === turmaId)?.alunos_matriculados ?? 0) > 0 && alunos.length === 0 && (
                 <p className="text-sm text-gray-600">Nenhum aluno encontrado para a turma selecionada.</p>
               )}
 
@@ -750,7 +738,7 @@ const AdminFrequencia: React.FC = () => {
                           <Beaker className="w-3 h-3 text-blue-500" />
                           <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest">Premiação em Drácmas</span>
                         </div>
-                        <div className="flex flex-wrap gap-4">
+                        <div className="flex flex-wrap items-center gap-2">
                           {criteriosDracma.map(c => (
                             <div key={c.codigo} className="flex flex-col space-y-1 min-w-[120px]">
                               <label className="text-[9px] font-bold text-gray-500 truncate" title={c.nome}>
@@ -922,7 +910,7 @@ const AdminFrequencia: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center">
+                <label className="flex items-center text-xs font-bold text-gray-500 uppercase mb-2">
                   Drácmas <span className="ml-2 text-[9px] font-normal normal-case text-gray-400">(Deixe vazio para 0)</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

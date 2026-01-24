@@ -6,10 +6,10 @@ import { AttendanceReportsAPI } from '@/entities/attendance/api/attendance-repor
 import { turmaApi as TurmaService } from '@/entities/turma';
 import { poloApi as PolosAPI } from '@/entities/polo';
 import { Loader2, Download, ClipboardCheck, Search, Building2 } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 
 const ListaChamadaView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const isAdminGlobal = !currentUser?.adminUser?.poloId;
 
   const [turmaId, setTurmaId] = useState('');

@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { Documento, TipoDocumento } from '../types/database';
+import { Documento, TipoDocumento } from '@/shared/model/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/shared/ui';

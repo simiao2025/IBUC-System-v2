@@ -764,6 +764,11 @@ export class RelatoriosService {
     return await this.workers.gerarListaAlunosPdf(scopeFiltros, user);
   }
 
+  async gerarFichaPreMatricula(preMatriculaId: string, turmaId?: string, user?: CurrentUser) {
+    // Validar acesso se necessário (futuro: validar se pre-matrícula é do polo do usuário)
+    return await this.workers.gerarFichaPreMatricula(preMatriculaId, turmaId);
+  }
+
   async relatorioAtestadoMatricula(alunoId: string, user?: CurrentUser) {
     await this.validarAcessoAoAluno(alunoId, user);
     try {
@@ -990,6 +995,11 @@ export class RelatoriosService {
     await this.validarAcessoAoAluno(alunoId, user);
     const result = await this.workers.gerarCertificado(alunoId, nivelId, turmaId);
     return { status: 'completed', result };
+  }
+
+  async gerarFichaAluno(alunoId: string, user?: CurrentUser) {
+    await this.validarAcessoAoAluno(alunoId, user);
+    return await this.workers.gerarFichaAluno(alunoId);
   }
 }
 

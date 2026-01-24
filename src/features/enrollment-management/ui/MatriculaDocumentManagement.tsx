@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader, Card, Button } from '@/shared/ui';
 import { DocumentUpload } from '@/shared/ui';
 import { ArrowLeft, FileText } from 'lucide-react';
-import { MatriculaService as DocumentosAPI } from '../api/enrollment.service';
+import { studentDocumentsApi as DocumentosAPI } from '@/entities/student';
 
 interface DocumentoMatricula {
   name: string;

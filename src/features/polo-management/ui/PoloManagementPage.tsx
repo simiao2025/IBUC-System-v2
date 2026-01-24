@@ -1,6 +1,8 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { usePolos } from '@/entities/polo';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import { Polo } from '@/types';
 import { poloApi as PoloService } from '@/entities/polo';
 import type { Polo as DbPolo } from '@/shared/model/database';
@@ -19,7 +21,9 @@ import {
 } from 'lucide-react';
 
 const PoloManagementPage: React.FC = () => {
-  const { polos, addPolo, updatePolo, deletePolo, showFeedback, showConfirm } = useApp();
+  const { currentUser } = useAuth();
+  const { polos, addPolo, updatePolo, deletePolo } = usePolos();
+  const { showFeedback, showConfirm } = useUI();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [editingPolo, setEditingPolo] = useState<Polo | null>(null);
@@ -181,13 +185,13 @@ const PoloManagementPage: React.FC = () => {
         showFeedback('success', 'Sucesso', 'Polo cadastrado com sucesso!');
 
         // Pergunta se deseja cadastrar a Diretoria
-        showConfirm(
-          'Diretoria do Polo',
-          'Polo cadastrado com sucesso! Deseja cadastrar a Diretoria (Diretor, Coordenador, etc.) deste novo polo agora?',
-          () => {
+        showConfirm({
+          title: 'Diretoria do Polo',
+          message: 'Polo cadastrado com sucesso! Deseja cadastrar a Diretoria (Diretor, Coordenador, etc.) deste novo polo agora?',
+          onConfirm: () => {
             navigate(`/admin/diretoria?poloId=${newPolo.id}&mode=polo`);
           }
-        );
+        });
       }
 
       resetForm();
@@ -200,10 +204,10 @@ const PoloManagementPage: React.FC = () => {
   };
 
   const handleDeletePolo = (poloId: string) => {
-    showConfirm(
-      'Confirmar Exclusão',
-      'Tem certeza que deseja excluir este polo? Esta ação não pode ser desfeita.',
-      async () => {
+    showConfirm({
+      title: 'Confirmar Exclusão',
+      message: 'Tem certeza que deseja excluir este polo? Esta ação não pode ser desfeita.',
+      onConfirm: async () => {
         try {
           await PoloService.delete(poloId);
           deletePolo(poloId);
@@ -213,7 +217,7 @@ const PoloManagementPage: React.FC = () => {
           showFeedback('error', 'Erro', error.message || 'Erro ao deletar polo. Verifique o console.');
         }
       }
-    );
+    });
   };
 
   const stateOptions = [

@@ -3,6 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { CreatePreMatriculaDto, UpdatePreMatriculaStatusDto } from './dto';
 import * as bcrypt from 'bcryptjs';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
+import { AlunoAggregate } from '../alunos/domain/aluno.aggregate';
 
 @Injectable()
 export class PreMatriculasService {
@@ -151,7 +152,7 @@ export class PreMatriculasService {
       throw new NotFoundException('Pré-matrícula não encontrada');
     }
 
-    if (preMatricula.status !== 'em_analise' && preMatricula.status !== 'ativo') {
+    if (preMatricula.status !== 'em_analise' && preMatricula.status !== 'ativo' && preMatricula.status !== 'concluido') {
       throw new BadRequestException('Pré-matrícula não está em um status que permita conclusão');
     }
 
@@ -169,64 +170,32 @@ export class PreMatriculasService {
       throw new BadRequestException('Turma selecionada não pertence ao polo da pré-matrícula');
     }
 
-    // Buscar ou criar aluno por CPF (normalizando)
-    const cpf = String(preMatricula.cpf || '').replace(/\D/g, '');
+    // Mapear dados da pré-matrícula para o domínio de Aluno
+    const aggregate = AlunoAggregate.fromCreateDto({
+      ...preMatricula,
+      nome: preMatricula.nome_completo, // Normalizar campo de nome
+      turma_id: body.turma_id,
+      nivel_atual_id: turma.nivel_id,
+      status: 'ativo'
+    });
+    
     let alunoId: string | null = null;
 
-    if (cpf) {
-      const { data: alunoExistente } = await client
-        .from('alunos')
-        .select('id')
-        .eq('cpf', cpf)
-        .maybeSingle();
+    // Buscar aluno existente por CPF via domínio
+    const { data: alunoExistente } = await client
+      .from('alunos')
+      .select('id')
+      .eq('cpf', aggregate.cpf)
+      .maybeSingle();
 
-      if (alunoExistente?.id) {
-        alunoId = alunoExistente.id;
-      }
+    if (alunoExistente?.id) {
+      alunoId = alunoExistente.id;
     }
 
     if (!alunoId) {
       const { data: alunoCriado, error: alunoError } = await client
         .from('alunos')
-        .insert({
-          nome: preMatricula.nome_completo,
-          data_nascimento: preMatricula.data_nascimento,
-          sexo: preMatricula.sexo || 'M',
-          nacionalidade: preMatricula.nacionalidade || 'Brasileira',
-          naturalidade: preMatricula.naturalidade,
-          cpf: cpf || null,
-          rg: preMatricula.rg,
-          rg_orgao: preMatricula.rg_orgao,
-          rg_data_expedicao: preMatricula.rg_data_expedicao,
-          endereco: preMatricula.endereco || {},
-          polo_id: preMatricula.polo_id,
-          turma_id: body.turma_id,
-          nivel_atual_id: turma.nivel_id,
-          status: 'ativo',
-          // Health mapping
-          alergias: preMatricula.alergias || '',
-          restricao_alimentar: preMatricula.restricao_alimentar || '',
-          medicacao_continua: preMatricula.medicacao_continua || '',
-          doencas_cronicas: preMatricula.doencas_cronicas || '',
-          contato_emergencia_nome: preMatricula.contato_emergencia_nome || '',
-          contato_emergencia_telefone: preMatricula.contato_emergencia_telefone || '',
-          convenio_medico: preMatricula.convenio_medico || '',
-          hospital_preferencia: preMatricula.hospital_preferencia || '',
-          autorizacao_medica: preMatricula.autorizacao_medica || false,
-          // Guardian 1 mapping
-          nome_responsavel: preMatricula.nome_responsavel,
-          cpf_responsavel: preMatricula.cpf_responsavel,
-          telefone_responsavel: preMatricula.telefone_responsavel,
-          email_responsavel: preMatricula.email_responsavel,
-          tipo_parentesco: preMatricula.tipo_parentesco,
-          // Responsable 2 mapping
-          nome_responsavel_2: preMatricula.nome_responsavel_2,
-          cpf_responsavel_2: preMatricula.cpf_responsavel_2,
-          telefone_responsavel_2: preMatricula.telefone_responsavel_2,
-          email_responsavel_2: preMatricula.email_responsavel_2,
-          tipo_parentesco_2: preMatricula.tipo_parentesco_2,
-          observacoes: preMatricula.observacoes,
-        })
+        .insert(aggregate.toDatabasePersistence())
         .select('id')
         .single();
 
@@ -241,7 +210,7 @@ export class PreMatriculasService {
     const { data: usuarioExistente } = await client
       .from('usuarios')
       .select('id')
-      .eq('cpf', cpf)
+      .eq('cpf', aggregate.cpf)
       .maybeSingle();
 
     let usuarioId = usuarioExistente?.id;
@@ -253,9 +222,10 @@ export class PreMatriculasService {
       const { data: novoUsuario, error: userError } = await client
         .from('usuarios')
         .insert({
-          email: `${cpf}@aluno.ibuc.sistema`,
-          nome_completo: preMatricula.nome_completo,
-          cpf: cpf,
+          email: aggregate.generateUserEmail(),
+          nome_completo: aggregate.nome,
+          cpf: aggregate.cpf,
+          telefone: preMatricula.telefone_responsavel,
           role: 'aluno',
           password_hash: passwordHash,
           polo_id: preMatricula.polo_id,

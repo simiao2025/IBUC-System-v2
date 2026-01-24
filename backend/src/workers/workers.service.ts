@@ -46,6 +46,14 @@ export class WorkersService {
   async gerarListaAlunosPdf(filtros: any, user?: any) {
     return this.pdfService.gerarListaAlunosPdf(filtros, user);
   }
+
+  async gerarFichaPreMatricula(preMatriculaId: string, turmaId?: string) {
+    return this.pdfService.gerarFichaPreMatricula(preMatriculaId, turmaId);
+  }
+
+  async gerarFichaAluno(alunoId: string) {
+    return this.pdfService.gerarFichaAluno(alunoId);
+  }
 }
 
 

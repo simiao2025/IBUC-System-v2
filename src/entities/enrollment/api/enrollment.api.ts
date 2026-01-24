@@ -39,6 +39,7 @@ export const enrollmentApi = {
   },
   getById: (id: string) => api.get<Matricula>(`/matriculas/${id}`),
   create: (data: CreateMatriculaDto) => api.post<Matricula>('/matriculas', data),
+  createPreMatricula: (data: any) => api.post<PreMatricula>('/pre-matriculas', data),
   update: (id: string, data: any) => api.put<Matricula>(`/matriculas/${id}`, data),
   delete: (id: string) => api.delete<void>(`/matriculas/${id}`),
   approve: (id: string, data: { turma_id: string; observacoes?: string }) =>
@@ -59,9 +60,28 @@ export const enrollmentApi = {
   deletePreMatricula: (id: string) => api.delete<void>(`/pre-matriculas/${id}`),
   concludePreMatricula: (id: string, data: { turma_id: string; approved_by: string }) => 
     api.post<any>(`/pre-matriculas/${id}/concluir`, data),
+  
+  gerarFicha: (id: string, turmaId?: string) => {
+    let url = `/relatorios/ficha-pre-matricula?pre_matricula_id=${id}`;
+    if (turmaId) url += `&turma_id=${turmaId}`;
+    return api.get<{ success: boolean; url: string }>(url);
+  },
 
-  // Aliases for backward compatibility
-  listar: (params?: EnrollmentFiltros) => enrollmentApi.list(params),
-  listarPreMatriculas: (params?: EnrollmentFiltros) => enrollmentApi.listPreMatriculas(params),
-  buscarPorId: (id: string) => enrollmentApi.getById(id),
+  // Compatibility Aliases
+  listar: (params?: EnrollmentFiltros) => enrollmentApi.listPreMatriculas(params),
+  atualizar: (id: string, data: any) => enrollmentApi.updatePreMatricula(id, data),
+  atualizarStatus: (id: string, data: { status: string }) => enrollmentApi.updatePreMatriculaStatus(id, data),
+  concluir: (id: string, data: any) => enrollmentApi.concludePreMatricula(id, data),
+  criarPreMatricula: (data: any) => enrollmentApi.createPreMatricula(data),
+  deletar: (id: string) => enrollmentApi.deletePreMatricula(id),
+};
+
+export const WaitlistAPI = {
+  register: enrollmentApi.waitlistRegister,
+  list: enrollmentApi.waitlistList,
+};
+
+/** @deprecated Use WaitlistAPI.register */
+export const ListaEsperaService = {
+  cadastrar: enrollmentApi.waitlistRegister,
 };

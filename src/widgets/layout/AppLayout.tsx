@@ -1,8 +1,8 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
-import { useApp } from '@/app/providers/AppContext';
-import { AlunosAPI } from '@/features/student-management';
+import { useAuth } from '@/entities/user';
+import { studentApi as AlunosAPI } from '@/entities/student';
 import { poloApi } from '@/entities/polo';
 import { turmaApi } from '@/entities/turma';
 import type { Aluno, Nivel } from '@/shared/model/database';
@@ -17,7 +17,7 @@ type AlunoWithNames = Aluno & {
 };
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const { currentUser, logout } = useApp();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
 
   const [student, setStudent] = useState<Aluno | null>(null);

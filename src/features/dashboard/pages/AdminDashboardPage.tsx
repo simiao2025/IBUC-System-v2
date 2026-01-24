@@ -1,12 +1,14 @@
 ﻿import React from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { usePolos } from '@/entities/polo';
+import { useStudents } from '@/entities/student';
+import { useEnrollments, usePreEnrollments } from '@/entities/enrollment';
+import { NotificationWidget } from '@/shared/ui/NotificationWidget';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import { useAccessControl } from '@/features/auth/ui/AccessControl';
 import { useNavigationConfirm } from '@/shared/lib/hooks/useNavigationConfirm';
-import { Card } from '@/shared/ui';
-import { Button } from '@/shared/ui';
-import { ConfirmDialog } from '@/shared/ui';
-import { Icon3D } from '@/shared/ui';
+import { Card, Button, Icon3D, ConfirmDialog } from '@/shared/ui';
 import {
   Users,
   MapPin,
@@ -25,7 +27,9 @@ import {
 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
-  const { students, enrollments, polos, logout, currentUser, preMatriculas } = useApp();
+  const { currentUser, logout } = useAuth();
+  const { polos } = usePolos();
+  const { showFeedback } = useUI();
   const {
     canManageStaff,
     canManagePolos,
@@ -34,17 +38,27 @@ const AdminDashboard: React.FC = () => {
     getFilteredPolos
   } = useAccessControl();
 
-
   const { isDialogOpen, confirmNavigation, handleConfirm, handleCancel } = useNavigationConfirm({
     title: 'Confirmar saída',
     message: 'Você tem certeza que deseja sair do sistema?'
   });
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
+  const userPoloId = currentUser?.adminUser?.poloId;
+
+  // React Query Hooks
+  const { data: studentsData } = useStudents(isPoloScoped ? { polo_id: userPoloId } : {});
+  const { data: enrollmentsData } = useEnrollments(isPoloScoped ? { polo_id: userPoloId } : {});
+  const { data: preMatriculasData } = usePreEnrollments(isPoloScoped ? { polo_id: userPoloId } : {});
+
+  const students = studentsData || [];
+  const enrollments = enrollmentsData || [];
+  const preMatriculas = preMatriculasData || [];
 
   const [certCount, setCertCount] = React.useState<number>(0);
   const [upcomingEvents, setUpcomingEvents] = React.useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
+  const [teamCount, setTeamCount] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     const loadCertCount = async () => {
@@ -60,11 +74,30 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
+    const checkTeam = async () => {
+      if (currentUser?.adminUser?.role === 'diretor_polo' && currentUser?.adminUser?.poloId) {
+        try {
+          const { userApi } = await import('@/entities/user');
+          const poloId = currentUser.adminUser.poloId;
+          const staff = await userApi.list({ polo_id: poloId });
+          // Filtrar por cargos de equipe (professor, auxiliar) e excluir o próprio diretor se necessário
+          // O usuário quer ocultar se houver "pelo menos 1 membro de equipe"
+          const team = staff.filter(u => u.role === 'professor' || u.role === 'auxiliar');
+          setTeamCount(team.length);
+        } catch (e) {
+          console.error('Erro ao verificar equipe do polo', e);
+        }
+      }
+    };
+    checkTeam();
+  }, [currentUser]);
+
+  React.useEffect(() => {
     const loadEvents = async () => {
       try {
-        const { EventosAPI: EventosService } = await import('@/features/event-management/api/eventos.api');
+        const { eventApi } = await import('@/features/event-management/api/eventos.api');
         const today = new Date().toISOString().split('T')[0];
-        const data = await EventosService.listar({
+        const data = await eventApi.list({
           date_from: today,
           limit: 3,
           polo_id: isPoloScoped ? currentUser?.adminUser?.poloId : undefined,
@@ -117,9 +150,8 @@ const AdminDashboard: React.FC = () => {
       bgColor: 'bg-yellow-50'
     },
     {
-
       title: 'Matrículas Pendentes',
-      value: preMatriculas.filter(p => p.status === 'em_analise').length,
+      value: preMatriculas.filter((p: any) => p.status === 'em_analise').length,
       iconName: 'pre_matricula',
       fallbackIcon: Clock,
       color: 'text-orange-600',
@@ -238,7 +270,7 @@ const AdminDashboard: React.FC = () => {
     }
   ];
 
-  // Filtra aÃ§Ãµes baseado nas permissÃµes
+  // Filtra ações baseado nas permissões
   const quickActions = allQuickActions.filter(action => action.permission);
 
   return (
@@ -321,7 +353,7 @@ const AdminDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Orientation for Polo Director */}
-        {currentUser?.adminUser?.role === 'diretor_polo' && (
+        {currentUser?.adminUser?.role === 'diretor_polo' && teamCount === 0 && (
           <Card className="mb-8 border-l-4 border-l-purple-600 bg-purple-50">
             <div className="flex items-start">
               <div className="p-2 bg-purple-100 rounded-lg mr-4 underline-offset-4">
@@ -388,7 +420,12 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Notifications Widget */}
+          <div className="lg:col-span-1">
+            <NotificationWidget />
+          </div>
+
           {/* Recent Enrollments */}
           <Card>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -397,15 +434,15 @@ const AdminDashboard: React.FC = () => {
             </h3>
             {enrollments.length > 0 ? (
               <div className="space-y-3">
-                {enrollments.slice(-5).map((enrollment) => (
+                {enrollments.slice(-5).map((enrollment: any) => (
                   <div key={enrollment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
-                      <p className="font-medium text-gray-900">{enrollment.studentName}</p>
-                      <p className="text-sm text-gray-600">{enrollment.level}</p>
+                      <p className="font-medium text-gray-900">{enrollment.aluno?.nome || 'Aluno'}</p>
+                      <p className="text-sm text-gray-600">{enrollment.status}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">
-                        {new Date(enrollment.enrollmentDate).toLocaleDateString('pt-BR')}
+                        {new Date(enrollment.created_at || new Date()).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                   </div>

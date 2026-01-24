@@ -2,7 +2,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePreMatricula } from '@/features/enrollment-management/model/hooks/usePreMatricula';
 import { Button, Card, Select, PhotoUpload, DocumentUpload } from '@/shared/ui';
-import { Check, Save } from 'lucide-react';
+import { Check, Save, AlertCircle, CheckCircle, Info, Printer } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Subcomponents
 import { FormularioDadosPessoais } from '@/features/enrollment-management/ui/components/FormularioDadosPessoais';
@@ -28,22 +29,64 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
         handleInputChange,
         handleHealthChange,
         handleSubmit,
-        buscarCEP,
         setFormData,
-        resetForm
+        resetForm,
+        vacancyStatus,
+        totalVacancies,
+        buscarCEP
     } = usePreMatricula(isAdminView);
 
-    // Efeito para resetar o formulário automaticamente se for Admin (Matrícula Sequencial)
+    // Estado local para controle de impressão
+    const [isGeneratingFicha, setIsGeneratingFicha] = React.useState(false);
+    const [lastStudent, setLastStudent] = React.useState<any>(null);
+
+    // Efeito para carregar dados do aluno recém criado (apenas para Admin)
     React.useEffect(() => {
         if (submitted && isAdminView) {
-            // O hook já exibe o toast de sucesso.
-            // Aqui apenas limpamos o formulário para permitir nova matrícula imediata.
-            resetForm();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const fetchLastStudent = async () => {
+                try {
+                    const { studentApi } = await import('@/entities/student');
+                    const cleanCpf = String(formData.cpf).replace(/\D/g, '');
+                    const results = await studentApi.list({ search: cleanCpf });
+                    const student = results.find(s => String(s.cpf || '').replace(/\D/g, '') === cleanCpf);
+                    if (student) setLastStudent(student);
+                } catch (e) {
+                    console.error('Erro ao buscar aluno para impressão', e);
+                }
+            };
+            fetchLastStudent();
         }
-    }, [submitted, isAdminView, resetForm]);
+    }, [submitted, isAdminView, formData.cpf]);
 
-    if (submitted && !isAdminView) {
+    const handleImprimirFicha = async () => {
+        if (!lastStudent?.id) return;
+        setIsGeneratingFicha(true);
+        const toastId = toast.loading('Gerando Ficha do Aluno...');
+        try {
+            const { StudentReportsAPI } = await import('@/entities/student');
+            const res = await StudentReportsAPI.gerarFichaAluno(lastStudent.id);
+            if (res.success && res.url) {
+                toast.success('Ficha gerada!', { id: toastId });
+                window.open(res.url, '_blank');
+            } else {
+                toast.error('Erro ao gerar ficha.', { id: toastId });
+            }
+        } catch (e) {
+            console.error('Erro ao imprimir ficha', e);
+            toast.error('Falha na comunicação com o servidor.', { id: toastId });
+        } finally {
+            setIsGeneratingFicha(false);
+        }
+    };
+
+    const handleNewEnrollment = () => {
+        resetForm();
+        setLastStudent(null);
+        setIsGeneratingFicha(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    if (submitted) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-2xl mx-auto px-4">
@@ -52,15 +95,33 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                             <Check className="w-8 h-8 text-green-600" />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                            Pré-matrícula Realizada!
+                            {isAdminView ? 'Matrícula Realizada com Sucesso!' : 'Pré-matrícula Realizada!'}
                         </h2>
                         <p className="text-gray-600 mb-8">
-                            Sua pré-matrícula foi enviada e está em análise. Em breve entraremos em contato.
+                            {isAdminView 
+                                ? `O aluno ${formData.nome} foi cadastrado no sistema.` 
+                                : 'Sua pré-matrícula foi enviada e está em análise. Em breve entraremos em contato.'}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Button onClick={() => navigate('/')} className="w-full sm:w-auto">
-                                Voltar ao Início
-                            </Button>
+                            {isAdminView ? (
+                                <>
+                                    <Button 
+                                        variant="outline" 
+                                        onClick={handleImprimirFicha}
+                                        disabled={!lastStudent || isGeneratingFicha}
+                                    >
+                                        <Printer className="w-4 h-4 mr-2" /> 
+                                        {isGeneratingFicha ? 'Gerando...' : 'Imprimir Ficha'}
+                                    </Button>
+                                    <Button onClick={handleNewEnrollment}>
+                                        Nova Matrícula
+                                    </Button>
+                                </>
+                            ) : (
+                                <Button onClick={() => navigate('/')} className="w-full sm:w-auto">
+                                    Voltar ao Início
+                                </Button>
+                            )}
                         </div>
                     </Card>
                 </div>
@@ -147,6 +208,71 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                                         {polos[0]?.nome || 'Polo Selecionado'}
                                     </div>
                                     <p className="text-xs text-gray-500">Cadastro restrito ao seu polo.</p>
+                                </div>
+                            )}
+
+                            {/* Vacancy Feedback - Replaces Turma Selection for Public View if handled automatically, or sits alongside it */}
+                            {!isAdminView && formData.polo_id && formData.data_nascimento && (
+                                <div className="md:col-span-2 mt-4 space-y-4">
+                                    {vacancyStatus === 'available' && (
+                                        <div className="rounded-md bg-green-50 p-4 border border-green-200">
+                                            <div className="flex">
+                                                <div className="flex-shrink-0">
+                                                    <CheckCircle className="h-5 w-5 text-green-400" aria-hidden="true" />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <h3 className="text-sm font-medium text-green-800">Temos vagas disponíveis!</h3>
+                                                    <div className="mt-2 text-sm text-green-700">
+                                                        <p>Há {totalVacancies} vagas para a sua faixa etária neste polo. Pode prosseguir com a matrícula.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {vacancyStatus === 'full' && (
+                                        <div className="rounded-md bg-red-50 p-4 border border-red-200">
+                                            <div className="flex">
+                                                <div className="flex-shrink-0">
+                                                    <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <h3 className="text-sm font-medium text-red-800">Turmas Lotadas</h3>
+                                                    <div className="mt-2 text-sm text-red-700">
+                                                        <p>Infelizmente não há vagas imediatas para a sua idade neste polo.</p>
+                                                    </div>
+                                                    <div className="mt-4">
+                                                        <div className="-mx-2 -my-1.5 flex">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => navigate('/lista-espera')}
+                                                                className="bg-red-50 text-red-800 hover:bg-red-100 border-red-200"
+                                                            >
+                                                                Entrar na Lista de Espera
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {vacancyStatus === 'unavailable' && (
+                                        <div className="rounded-md bg-yellow-50 p-4 border border-yellow-200">
+                                            <div className="flex">
+                                                <div className="flex-shrink-0">
+                                                    <Info className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <h3 className="text-sm font-medium text-yellow-800">Turmas Indisponíveis</h3>
+                                                    <div className="mt-2 text-sm text-yellow-700">
+                                                        <p>Não encontramos turmas abertas para a sua idade neste polo no momento.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -271,8 +397,12 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                                 type="submit"
                                 size="lg"
                                 loading={loading}
-                                disabled={!formData.aceite_termo}
-                                className="min-w-[250px] bg-red-600 hover:bg-red-700 text-white py-4 text-xl shadow-lg"
+                                disabled={!formData.aceite_termo || (!isAdminView && (vacancyStatus === 'full' || vacancyStatus === 'unavailable'))}
+                                className={`min-w-[250px] py-4 text-xl shadow-lg text-white ${
+                                    !formData.aceite_termo || (!isAdminView && (vacancyStatus === 'full' || vacancyStatus === 'unavailable'))
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                }`}
                             >
                                 <Save className="h-5 w-5 mr-2" />
                                 {isAdminView ? 'Salvar Cadastro' : 'Enviar Pré-matrícula'}

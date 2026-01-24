@@ -6,10 +6,10 @@ import { Button } from '@/shared/ui';
 import { AttendanceReportsAPI } from '@/entities/attendance/api/attendance-reports.api';
 import { TurmasAPI as TurmaService } from '@/entities/turma';
 import { Loader2, Download, BarChart2, Search } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 
 const ConsolidadoFrequenciaView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [turmas, setTurmas] = useState<any[]>([]);

@@ -1,34 +1,31 @@
 ﻿/*
  * ------------------------------------------------------------------
- * ðŸ”’ ARQUIVO BLINDADO / SHIELDED FILE ðŸ”’
+ * 🔒 ARQUIVO BLINDADO / SHIELDED FILE 🔒
  * ------------------------------------------------------------------
- * ESTE ARQUIVO CONTÃ‰M LÃ“GICA CRÃTICA DE GERAÃ‡ÃƒO DE RELATÃ“RIOS.
- * (Certificado, HistÃ³rico, Boletim)
+ * ESTE ARQUIVO CONTÉM LÓGICA CRÍTICA DE GERAÇÃO DE RELATÓRIOS.
+ * (Certificado, Histórico, Boletim)
  *
- * NÃƒO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÃ‡ÃƒO APROVADO
- * E UMA ANÃLISE DE IMPACTO PRÃ‰VIA (/impact-analysis).
+ * NÃO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÇÃO APROVADO
+ * E UMA ANÁLISE DE IMPACTO PRÉVIA (/impact-analysis).
  *
- * QUALQUER ALTERAÃ‡ÃƒO DEVE SER ESTRITAMENTE NECESSÃRIA E VALIDADA.
+ * QUALQUER ALTERAÇÃO DEVE SER ESTRITAMENTE NECESSÁRIA E VALIDADA.
  * ------------------------------------------------------------------
  */
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { Button } from '@/shared/ui';
-import { StudentReportsAPI } from '@/entities/student/api/student-reports.api';
-import { AlunosAPI } from '@/features/student-management';
-import { turmaApi as TurmasAPI } from '@/entities/turma';
-
-import { ModulosAPI } from '@/entities/turma';
-import type { Modulo } from '@/shared/api/types/database';
-import { poloApi as PolosAPI } from '@/entities/polo';
-import { BoletimAPI, BoletimService } from '@/entities/student';
+import { studentApi, StudentReportsAPI } from '@/entities/student';
+import { turmaApi, moduleApi } from '@/entities/turma';
+import { poloApi } from '@/entities/polo';
 import { Loader2, FileText, Download, Building2, Layers, Calendar, ExternalLink, Award } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import { supabase } from '@/lib/supabase';
 
 const BoletimView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
+  const { showConfirm } = useUI();
   const isAdminGlobal = !currentUser?.adminUser?.poloId;
 
   const [polos, setPolos] = useState<{ id: string, nome: string }[]>([]);
@@ -44,13 +41,13 @@ const BoletimView: React.FC = () => {
   const [previewAlunos, setPreviewAlunos] = useState<any[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [boletinsEmitidos, setBoletinsEmitidos] = useState<Boletim[]>([]);
+  const [boletinsEmitidos, setBoletinsEmitidos] = useState<any[]>([]);
   const [loadingBoletins, setLoadingBoletins] = useState(false);
 
   // 1. Carregar Polos (apenas se admin global)
   useEffect(() => {
     if (isAdminGlobal) {
-      PolosAPI.list()
+      poloApi.list()
         .then((response: any) => {
           const dados = response?.data || response || [];
           setPolos(Array.isArray(dados) ? dados : []);
@@ -59,17 +56,17 @@ const BoletimView: React.FC = () => {
     }
   }, [isAdminGlobal]);
 
-  // 2. Carregar MÃ³dulos
+  // 2. Carregar Módulos
   useEffect(() => {
     const loadModulos = async () => {
       try {
-        const response = await ModulosAPI.list() as any;
+        const response = await moduleApi.list() as any;
         const todosModulos = (response?.data || response || []).sort((a: any, b: any) => a.numero - b.numero);
 
         if (selectedAluno) {
           try {
-            const hist = await AlunosAPI.buscarHistorico(selectedAluno) as any;
-            const dadosBoletim = await StudentReportsAPI.getDadosBoletim(selectedAluno, 'atual').catch(() => null) as any;
+            const hist = await studentApi.getHistory(selectedAluno) as any;
+            const dadosBoletim = await StudentReportsAPI.getBoletimData(selectedAluno, 'atual').catch(() => null) as any;
             const moduloAtual = dadosBoletim?.modulo?.numero;
 
             const numerosPermitidos = new Set(hist?.map((h: any) => h.modulo_info?.numero));
@@ -86,12 +83,12 @@ const BoletimView: React.FC = () => {
               setModulos(todosModulos);
             }
           } catch (e) {
-            console.warn('Erro ao filtrar mÃ³dulos do aluno:', e);
+            console.warn('Erro ao filtrar módulos do aluno:', e);
             setModulos(todosModulos);
           }
         } else if (selectedPolo) {
           try {
-            const res = await TurmasAPI.list({ polo_id: selectedPolo, status: 'ativa' }) as any;
+            const res = await turmaApi.list({ polo_id: selectedPolo, status: 'ativa' }) as any;
             const turmasAtivas = res?.data || res || [];
 
             const modulosAtivosIds = new Set(turmasAtivas.map((t: any) => t.modulo_atual_id).filter(Boolean));
@@ -110,14 +107,14 @@ const BoletimView: React.FC = () => {
               setModulos(todosModulos);
             }
           } catch (e) {
-            console.warn('Erro ao filtrar mÃ³dulos do polo:', e);
+            console.warn('Erro ao filtrar módulos do polo:', e);
             setModulos(todosModulos);
           }
         } else {
           setModulos(todosModulos);
         }
       } catch (err) {
-        console.error('Erro ao carregar mÃ³dulos:', err);
+        console.error('Erro ao carregar módulos:', err);
         setModulos([]);
       }
     };
@@ -133,7 +130,7 @@ const BoletimView: React.FC = () => {
         const filters: any = { status: 'concluida' };
         if (selectedPolo) filters.polo_id = selectedPolo;
 
-        const res = await TurmasAuthAPI.listar(filters) as any;
+        const res = await turmaApi.list(filters) as any;
         dados = res?.data || res || [];
 
         setTurmas(Array.isArray(dados) ? dados.map((t: any) => ({
@@ -165,7 +162,7 @@ const BoletimView: React.FC = () => {
       }
 
       try {
-        const response = await AlunosAPI.listar(filtros) as any;
+        const response = await studentApi.list(filtros) as any;
         const dados = response?.data || response || [];
         setAlunos(Array.isArray(dados) ? dados.map((a: any) => ({ id: a.id, nome: a.nome })) : []);
       } catch (err) {
@@ -178,7 +175,7 @@ const BoletimView: React.FC = () => {
     setSelectedAluno('');
   }, [selectedTurma, selectedPolo, isAdminGlobal]);
 
-  // Limpar visualizaÃ§Ãµes ao mudar filtros e carregar boletins se aluno mudar
+  // Limpar visualizações ao mudar filtros e carregar boletins se aluno mudar
   useEffect(() => {
     setPreviewAlunos([]);
     setShowPreview(false);
@@ -192,7 +189,7 @@ const BoletimView: React.FC = () => {
   const carregarBoletins = async (id: string) => {
     setLoadingBoletins(true);
     try {
-      const data = await BoletimAPI.listar(id);
+      const data = await StudentReportsAPI.listBoletins(id);
       const lista = data || [];
       setBoletinsEmitidos(lista);
       return lista;
@@ -204,30 +201,33 @@ const BoletimView: React.FC = () => {
     }
   };
 
-  // Novo efeito para verificar existÃªncia e gerar se necessÃ¡rio
+  // Novo efeito para verificar existência e gerar se necessário
   useEffect(() => {
     const verificarEGerar = async () => {
       if (!selectedAluno || !selectedModulo) return;
 
       const lista = await carregarBoletins(selectedAluno);
 
-      // Verificar se jÃ¡ existe para o mÃ³dulo selecionado
-      const jaExiste = lista.some((b: Boletim) => b.modulo_id === selectedModulo);
+      // Verificar se já existe para o módulo selecionado
+      const jaExiste = lista.some((b: any) => b.modulo_id === selectedModulo);
 
       if (!jaExiste) {
-        const confirm = window.confirm('Nenhum boletim encontrado para este aluno neste mÃ³dulo. Deseja gerar agora?');
-        if (confirm) {
-          try {
-            setGenerating(true);
-            await StudentReportsAPI.gerarBoletim(selectedAluno, 'atual', selectedModulo, selectedTurma);
-            await carregarBoletins(selectedAluno); // Recarregar apÃ³s gerar
-          } catch (err) {
-            console.error('Erro ao gerar boletim automÃ¡tico:', err);
-            alert('Erro ao gerar o boletim.');
-          } finally {
-            setGenerating(false);
+        showConfirm({
+          title: 'Gerar Boletim',
+          message: 'Nenhum boletim encontrado para este aluno neste módulo. Deseja gerar agora?',
+          onConfirm: async () => {
+            try {
+              setGenerating(true);
+              await StudentReportsAPI.generateBoletim(selectedAluno, 'atual', selectedModulo, selectedTurma);
+              await carregarBoletins(selectedAluno); // Recarregar após gerar
+            } catch (err) {
+              console.error('Erro ao gerar boletim automático:', err);
+              alert('Erro ao gerar o boletim.');
+            } finally {
+              setGenerating(false);
+            }
           }
-        }
+        });
       }
     };
 
@@ -245,14 +245,14 @@ const BoletimView: React.FC = () => {
       // Sempre usar modo lista (mesmo para aluno individual)
       const filtros: any = { status: 'ativo' };
 
-      // ValidaÃ§Ã£o: pelo menos um critÃ©rio alÃ©m do mÃ³dulo (para admin global)
+      // Validação: pelo menos um critério além do módulo (para admin global)
       if (isAdminGlobal && !selectedPolo && !selectedTurma && !selectedAluno) {
-        alert('Selecione ao menos um filtro (Polo, Turma ou Aluno) alÃ©m do MÃ³dulo.');
+        alert('Selecione ao menos um filtro (Polo, Turma ou Aluno) além do Módulo.');
         setGenerating(false);
         return;
       }
 
-      // Filtrar alunos por mÃ³dulo
+      // Filtrar alunos por módulo
       let alunosEncontrados: any[] = [];
 
       if (selectedTurma) {
@@ -263,27 +263,27 @@ const BoletimView: React.FC = () => {
           filtros.aluno_id = selectedAluno;
         }
 
-        alunosEncontrados = await AlunosAPI.listar(filtros);
+        alunosEncontrados = await studentApi.list(filtros);
       } else if (selectedAluno) {
         // Se apenas aluno selecionado (sem turma), buscar este aluno
-        // mas validar se ele estÃ¡ em uma turma que cursa o mÃ³dulo selecionado
+        // mas validar se ele está em uma turma que cursa o módulo selecionado
         filtros.aluno_id = selectedAluno;
 
-        const alunoData = await AlunosAPI.listar(filtros);
+        const alunoData = await studentApi.list(filtros);
 
         if (alunoData && alunoData.length > 0) {
           const aluno = alunoData[0];
 
-          // Verificar se o aluno estÃ¡ em uma turma que cursa o mÃ³dulo
+          // Verificar se o aluno está em uma turma que cursa o módulo
           if (aluno.turma_id) {
             try {
-              const turmaAlunoRes = await TurmasAPI.getById(aluno.turma_id) as any;
+              const turmaAlunoRes = await turmaApi.getById(aluno.turma_id) as any;
               const turmaAluno = turmaAlunoRes?.data || turmaAlunoRes;
 
               if (turmaAluno && turmaAluno.modulo_atual_id === selectedModulo) {
                 alunosEncontrados = alunoData;
               } else {
-                alert(`O aluno selecionado nÃ£o estÃ¡ cursando o mÃ³dulo "${modulos.find(m => m.id === selectedModulo)?.titulo || 'selecionado'}".`); setGenerating(false);
+                alert(`O aluno selecionado não está cursando o módulo "${modulos.find(m => m.id === selectedModulo)?.titulo || 'selecionado'}".`); setGenerating(false);
                 return;
               }
             } catch (err) {
@@ -293,15 +293,15 @@ const BoletimView: React.FC = () => {
               return;
             }
           } else {
-            alert('O aluno selecionado nÃ£o estÃ¡ matriculado em nenhuma turma.');
+            alert('O aluno selecionado não está matriculado em nenhuma turma.');
             setGenerating(false);
             return;
           }
         }
       } else if (selectedPolo) {
-        // Se apenas polo selecionado, buscar turmas que cursam o mÃ³dulo
+        // Se apenas polo selecionado, buscar turmas que cursam o módulo
         try {
-          const turmasDoModuloRes = await TurmasAPI.listar({
+          const turmasDoModuloRes = await turmaApi.list({
             modulo_atual_id: selectedModulo,
             status: 'ativa',
             polo_id: selectedPolo
@@ -313,13 +313,13 @@ const BoletimView: React.FC = () => {
 
             // Buscar alunos matriculados nessas turmas
             const alunosPromises = turmaIds.map(tId =>
-              AlunosAPI.listar({ ...filtros, turma_id: tId })
+              studentApi.list({ ...filtros, turma_id: tId })
             );
             const results = await Promise.all(alunosPromises);
             const todosAlunos = results.flat();
             alunosEncontrados = Array.from(new Map(todosAlunos.map((a: any) => [a.id, a])).values());
           } else {
-            alert('Nenhuma turma ativa encontrada cursando o mÃ³dulo selecionado neste polo.');
+            alert('Nenhuma turma ativa encontrada cursando o módulo selecionado neste polo.');
             setGenerating(false);
             return;
           }
@@ -330,14 +330,14 @@ const BoletimView: React.FC = () => {
           return;
         }
       } else {
-        // Caso sem polo (usuÃ¡rio de polo especÃ­fico)
+        // Caso sem polo (usuário de polo específico)
         if (selectedAluno) {
           filtros.aluno_id = selectedAluno;
-          alunosEncontrados = await AlunosAPI.listar(filtros);
+          alunosEncontrados = await studentApi.list(filtros);
         } else {
-          // Buscar turmas que cursam o mÃ³dulo (sem filtro de polo)
+          // Buscar turmas que cursam o módulo (sem filtro de polo)
           try {
-            const turmasDoModuloRes = await TurmasAPI.listar({
+            const turmasDoModuloRes = await turmaApi.list({
               modulo_atual_id: selectedModulo,
               status: 'ativa'
             }) as any;
@@ -346,13 +346,13 @@ const BoletimView: React.FC = () => {
             if (Array.isArray(turmasDoModulo) && turmasDoModulo.length > 0) {
               const turmaIds = turmasDoModulo.map(t => t.id);
               const alunosPromises = turmaIds.map(tId =>
-                AlunosAPI.listar({ ...filtros, turma_id: tId })
+                studentApi.list({ ...filtros, turma_id: tId })
               );
               const results = await Promise.all(alunosPromises);
               const todosAlunos = results.flat();
               alunosEncontrados = Array.from(new Map(todosAlunos.map((a: any) => [a.id, a])).values());
             } else {
-              alert('Nenhuma turma ativa encontrada cursando o mÃ³dulo selecionado.');
+              alert('Nenhuma turma ativa encontrada cursando o módulo selecionado.');
               setGenerating(false);
               return;
             }
@@ -387,7 +387,7 @@ const BoletimView: React.FC = () => {
     try {
       const alunoIds = previewAlunos.map(a => a.id);
 
-      const res = await StudentReportsAPI.gerarBoletimLote({
+      const res = await StudentReportsAPI.generateBoletimBatch({
         polo_id: selectedPolo || undefined,
         turma_id: selectedTurma || undefined,
         aluno_id: undefined,
@@ -410,10 +410,10 @@ const BoletimView: React.FC = () => {
         }
       } else {
         console.warn('Resposta sem path:', res);
-        alert('Erro: PDF nÃ£o retornou caminho.');
+        alert('Erro: PDF não retornou caminho.');
       }
     } catch (error) {
-      console.error('Erro ao iniciar geraÃ§Ã£o:', error);
+      console.error('Erro ao iniciar geração:', error);
       alert('Erro ao processar lote.');
     } finally {
       setGenerating(false);
@@ -423,7 +423,7 @@ const BoletimView: React.FC = () => {
   const canConsult = () => {
     if (!selectedModulo) return false;
     if (selectedAluno) return true;
-    // Para lote: precisa de pelo menos um critÃ©rio (ou ser usuÃ¡rio de polo)
+    // Para lote: precisa de pelo menos um critério (ou ser usuário de polo)
     if (isAdminGlobal && !selectedPolo && !selectedTurma) return false;
     return true;
   };
@@ -499,14 +499,14 @@ const BoletimView: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MÃ³dulo</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Módulo</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GeraÃ§Ã£o</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AÃ§Ã£o</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Geração</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ação</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {boletinsEmitidos.map((bol) => (
+                  {boletinsEmitidos.map((bol: any) => (
                     <tr key={bol.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {bol.modulo ? `${bol.modulo.numero} - ${bol.modulo.titulo}` : '-'}
@@ -526,11 +526,11 @@ const BoletimView: React.FC = () => {
                           size="sm"
                           onClick={async () => {
                             try {
-                              const url = await BoletimService.visualizarPDF(bol.id);
+                              const url = await StudentReportsAPI.viewBoletimPDF(bol.id);
                               window.open(url, '_blank');
                             } catch (err) {
                               console.error('Erro ao abrir boletim:', err);
-                              alert('NÃ£o foi possÃ­vel abrir o boletim.');
+                              alert('Não foi possível abrir o boletim.');
                             }
                           }}
                           className="inline-flex items-center"

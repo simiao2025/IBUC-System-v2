@@ -53,3 +53,5 @@ export interface PoloFiltros {
   ativo?: boolean;
   search?: string;
 }
+
+export type { Level } from '@/entities/enrollment/model/types';

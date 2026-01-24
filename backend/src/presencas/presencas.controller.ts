@@ -1,14 +1,22 @@
 import { Controller, Post, Body, Get, Query, UseGuards, Delete, Param } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PresencasService } from './presencas.service';
+import { UnifiedAttendanceDto } from './dto/unified-attendance.dto';
+import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 @ApiTags('Presenças')
 @Controller('presencas')
+@ApiTags('Presenças')
 export class PresencasController {
   constructor(private readonly service: PresencasService) { }
+
+  @Post('unified')
+  @ApiOperation({ summary: 'Lança frequências e drácmas de forma atômica (Sprint 2)' })
+  async lancarUnificado(@Body() dto: UnifiedAttendanceDto) {
+    return this.service.lancarFrequenciaCompleta(dto);
+  }
 
   @Post()
   async lancar(@Body() dto: any) {

@@ -4,20 +4,21 @@ import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { PageHeader } from '@/shared/ui';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import { Plus, Trash2, ShoppingCart, Package, List } from 'lucide-react';
 import { MaterialsAPI, MaterialOrdersAPI, type Material, type MaterialOrderItem, type MaterialOrder } from '../api/materials.service';
 import { ModulosAPI } from '@/entities/turma';
 import type { Modulo } from '@/shared/model/database';
 
 const MaterialOrderManagement: React.FC = () => {
-  const { showFeedback } = useApp();
+  const { showFeedback } = useUI();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [saving, setSaving] = useState(false);
 
   // New Order State
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [tipoCobranca, setTipoCobranca] = useState('material_aluno');
   const [selectedModuloId, setSelectedModuloId] = useState('');
   const [orderItems, setOrderItems] = useState<Partial<MaterialOrderItem>[]>([]);

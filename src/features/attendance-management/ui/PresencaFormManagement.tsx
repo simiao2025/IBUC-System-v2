@@ -4,7 +4,7 @@ import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { PresencasAPI } from '../api/attendance.service';
+import { PresencaService } from '@/entities/attendance/api/attendance.service';
 
 interface AlunoPresenca {
   aluno_id: string;
@@ -37,21 +37,35 @@ const PresencaFormManagement: React.FC = () => {
 
     try {
       const presencas = alunos
-        .filter(a => a.status)
-        .map(a => ({
-          aluno_id: a.aluno_id,
-          turma_id: turmaId,
-          data,
-          status: a.status,
-          observacao: a.status === 'justificativa' ? observacao : undefined,
-        }));
+        .filter(a => a.status !== null)
+        .map(a => {
+          let apiStatus = 'presente';
+          let obs = undefined;
+
+          if (a.status === 'falta') apiStatus = 'ausente';
+          else if (a.status === 'justificativa') {
+             apiStatus = 'justificado';
+             obs = observacao;
+          } else if (a.status === 'atraso') {
+             apiStatus = 'presente'; // API pode não ter 'atraso', tratando como presente com obs
+             obs = 'Atraso';
+          }
+
+          return {
+            aluno_id: a.aluno_id,
+            turma_id: turmaId,
+            data,
+            status: apiStatus as any, // Cast to match API expected string union
+            observacao: obs,
+          };
+        });
 
       if (presencas.length === 0) {
         alert('Selecione pelo menos um aluno com status para registrar presença.');
         return;
       }
 
-      await PresencasAPI.lancarLote(presencas);
+      await PresencaService.lancarPresencas(presencas);
 
       alert('Presença registrada com sucesso!');
     } catch (error) {
@@ -86,7 +100,7 @@ const PresencaFormManagement: React.FC = () => {
             </label>
             <Select
               value={turmaId}
-              onChange={(e) => setTurmaId(e.target.value)}
+              onChange={(e: any) => setTurmaId(e.target?.value || e)}
               required
             >
               <option value="">Selecione a turma</option>

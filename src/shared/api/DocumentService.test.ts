@@ -1,10 +1,10 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DocumentAPI, DocumentService } from './DocumentService';
-import { api } from './api';
+import { api } from './ApiClient';
 import { supabase } from '../../lib/supabase';
 
 // Mock dependencies
-vi.mock('./api', () => ({
+vi.mock('./ApiClient', () => ({
   api: {
     get: vi.fn(),
     upload: vi.fn(),

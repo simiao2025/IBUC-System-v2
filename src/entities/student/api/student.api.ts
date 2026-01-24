@@ -6,7 +6,7 @@ export const studentApi = {
     const searchParams = new URLSearchParams();
     if (params) {
       for (const [key, value] of Object.entries(params)) {
-        if (value) searchParams.append(key, value as string);
+        if (value !== undefined && value !== null) searchParams.append(key, String(value));
       }
     }
     const query = searchParams.toString();
@@ -18,9 +18,13 @@ export const studentApi = {
   delete: (id: string) => api.delete<void>(`/alunos/${id}`),
   getHistory: (id: string) => api.get<any[]>(`/alunos/${id}/historico-modulos`),
 
-  // Aliases for backward compatibility
+  // Compatibility Aliases
   listar: (params?: AlunoFiltros) => studentApi.list(params),
   buscarPorId: (id: string) => studentApi.getById(id),
+  criar: (data: AlunoCreateDto) => studentApi.create(data),
   atualizar: (id: string, data: AlunoUpdateDto) => studentApi.update(id, data),
-  buscarHistorico: (id: string) => studentApi.getHistory(id),
+  deletar: (id: string) => studentApi.delete(id),
 };
+
+/** @deprecated Use studentApi */
+export const AlunosAPI = studentApi;

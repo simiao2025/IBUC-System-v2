@@ -1,28 +1,28 @@
 ﻿/*
  * ------------------------------------------------------------------
- * ðŸ”’ ARQUIVO BLINDADO / SHIELDED FILE ðŸ”’
+ * 🔒 ARQUIVO BLINDADO / SHIELDED FILE 🔒
  * ------------------------------------------------------------------
- * ESTE ARQUIVO CONTÃ‰M LÃ“GICA CRÃTICA DE GERAÃ‡ÃƒO DE RELATÃ“RIOS.
- * (Certificado, HistÃ³rico, Boletim)
+ * ESTE ARQUIVO CONTÉM LÓGICA CRÍTICA DE GERAÇÃO DE RELATÓRIOS.
+ * (Certificado, Histórico, Boletim)
  *
- * NÃƒO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÃ‡ÃƒO APROVADO
- * E UMA ANÃLISE DE IMPACTO PRÃ‰VIA (/impact-analysis).
+ * NÃO REFATORE OU MODIFIQUE SEM UM PLANO DE REFATORAÇÃO APROVADO
+ * E UMA ANÁLISE DE IMPACTO PRÉVIA (/impact-analysis).
  *
- * QUALQUER ALTERAÃ‡ÃƒO DEVE SER ESTRITAMENTE NECESSÃRIA E VALIDADA.
+ * QUALQUER ALTERAÇÃO DEVE SER ESTRITAMENTE NECESSÁRIA E VALIDADA.
  * ------------------------------------------------------------------
  */
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { Button } from '@/shared/ui';
-import { StudentReportsAPI } from '@/entities/student/api/student-reports.api';
-import { AlunosAPI } from '@/features/student-management';
-import { TurmasAPI } from '@/features/turma-management';
-import { CertificadoAPI, CertificadoService } from '@/entities/student';
+import { studentApi } from '@/entities/student';
+import { turmaApi } from '@/entities/turma';
+import { StudentReportsAPI, CertificadoAPI } from '@/entities/student';
 import { API_BASE_URL } from '@/shared/api';
 import { Certificado } from '../../types/database';
 import { Loader2, Download, Award, Search, Users, ExternalLink, Calendar } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 
 
 interface Turma {
@@ -38,7 +38,8 @@ interface Aluno {
 }
 
 const CertificadoView: React.FC = () => {
-    const { currentUser, showFeedback } = useApp();
+    const { currentUser } = useAuth();
+    const { showFeedback, showConfirm } = useUI();
 
     const [alunoId, setAlunoId] = useState('');
     const [nivelId, setNivelId] = useState('');
@@ -58,7 +59,7 @@ const CertificadoView: React.FC = () => {
             return;
         }
 
-        TurmasAPI.listar({ polo_id: selectedPolo, status: 'concluida' }).then((data: any) => {
+        turmaApi.list({ polo_id: selectedPolo, status: 'concluida' }).then((data: any) => {
             setTurmas(Array.isArray(data) ? data : []);
             setTurmaId('');
         });
@@ -78,12 +79,12 @@ const CertificadoView: React.FC = () => {
 
         if (turmaId) filters.turma_id = turmaId;
 
-        AlunosAPI.listar(filters).then((data: any) => {
+        studentApi.list(filters).then((data: any) => {
             setAlunos(Array.isArray(data) ? data : []);
         });
     }, [selectedPolo, turmaId]);
 
-    // Ao selecionar um aluno, se nÃ£o tiver nÃ­vel selecionado pela turma, pega do aluno
+    // Ao selecionar um aluno, se não tiver nível selecionado pela turma, pega do aluno
     useEffect(() => {
         if (alunoId) {
             const aluno = alunos.find(a => a.id === alunoId);
@@ -110,60 +111,63 @@ const CertificadoView: React.FC = () => {
 
     const handleGerar = async () => {
         if (!alunoId || !nivelId) {
-            showFeedback('info', 'AtenÃ§Ã£o', 'Selecione o aluno e o nÃ­vel do certificado.');
+            showFeedback('info', 'Atenção', 'Selecione o aluno e o nível do certificado.');
             return;
         }
 
-        // 1. Verificar se o nÃ­vel selecionado jÃ¡ possui certificado emitido na lista local
+        // 1. Verificar se o nível selecionado já possui certificado emitido na lista local
         const jaPossui = certificadosEmitidos.some(c => {
             const turmaDesteCert = turmas.find(t => t.id === c.turma_id);
             return turmaDesteCert?.nivel_id === nivelId;
         });
 
         if (jaPossui) {
-            showFeedback('warning', 'Certificado Existente', 'Este aluno jÃ¡ possui um certificado emitido para este nÃ­vel e ele estÃ¡ listado abaixo.');
+            showFeedback('warning', 'Certificado Existente', 'Este aluno já possui um certificado emitido para este nível e ele está listado abaixo.');
             return;
         }
 
-        const confirm = window.confirm('Deseja gerar o certificado para este aluno?');
-        if (!confirm) return;
-
-        setLoading(true);
-        try {
-            const res = await StudentReportsAPI.gerarCertificado(alunoId, nivelId);
-            const result = (res as any)?.data?.result || (res as any)?.result || res;
-
-            if (result?.existente) {
-                showFeedback('warning', 'Certificado jÃ¡ Emitido', 'Este certificado jÃ¡ havia sido gerado anteriormente.');
-            } else {
-                showFeedback('success', 'Certificado Gerado', 'O certificado foi gerado e salvo com sucesso.');
-            }
-
-            if (result?.id) {
+        showConfirm({
+            title: 'Gerar Certificado',
+            message: 'Deseja gerar o certificado para este aluno?',
+            onConfirm: async () => {
+                setLoading(true);
                 try {
-                    const token = sessionStorage.getItem('auth_token');
-                    const viewResp = await fetch(`${API_BASE_URL}/certificados/${result.id}/view`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (viewResp.ok) {
-                        const blob = await viewResp.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        window.open(url, '_blank');
+                    const res = await StudentReportsAPI.generateCertificado(alunoId, nivelId);
+                    const result = (res as any)?.data?.result || (res as any)?.result || res;
+
+                    if (result?.existente) {
+                        showFeedback('warning', 'Certificado já Emitido', 'Este certificado já havia sido gerado anteriormente.');
+                    } else {
+                        showFeedback('success', 'Certificado Gerado', 'O certificado foi gerado e salvo com sucesso.');
                     }
-                } catch (e) {
-                    console.error('Erro ao abrir certificado gerado:', e);
+
+                    if (result?.id) {
+                        try {
+                            const token = sessionStorage.getItem('auth_token');
+                            const viewResp = await fetch(`${API_BASE_URL}/certificados/${result.id}/view`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (viewResp.ok) {
+                                const blob = await viewResp.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                window.open(url, '_blank');
+                            }
+                        } catch (e) {
+                            console.error('Erro ao abrir certificado gerado:', e);
+                        }
+                    }
+
+                    if (alunoId) carregarCertificados(alunoId); // para refletir a nova geração ou a detecção do existente
+                    await carregarCertificados(alunoId);
+
+                } catch (error) {
+                    console.error('Erro ao gerar certificado:', error);
+                    showFeedback('error', 'Falha na Geração', 'Não foi possível gerar o certificado.');
+                } finally {
+                    setLoading(false);
                 }
             }
-
-            if (alunoId) carregarCertificados(alunoId); // para refletir a nova geraÃ§Ã£o ou a detecÃ§Ã£o do existente
-            await carregarCertificados(alunoId);
-
-        } catch (error) {
-            console.error('Erro ao gerar certificado:', error);
-            showFeedback('error', 'Falha na GeraÃ§Ã£o', 'NÃ£o foi possÃ­vel gerar o certificado.');
-        } finally {
-            setLoading(false);
-        }
+        });
     };
 
     return (
@@ -175,7 +179,7 @@ const CertificadoView: React.FC = () => {
                     </div>
                     <div>
                         <h2 className="text-xl font-bold text-gray-900">Certificado do Aluno</h2>
-                        <p className="text-sm text-gray-500">Emita o certificado oficial de conclusÃ£o de nÃ­vel</p>
+                        <p className="text-sm text-gray-500">Emita o certificado oficial de conclusão de nível</p>
                     </div>
                 </div>
 
@@ -244,11 +248,11 @@ const CertificadoView: React.FC = () => {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead>
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EmissÃ£o</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Emissão</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Turma</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MÃ³dulo</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CÃ³digo</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AÃ§Ã£o</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Módulo</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ação</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -285,7 +289,7 @@ const CertificadoView: React.FC = () => {
                                                             window.open(url, '_blank');
                                                         } catch (err) {
                                                             console.error('Erro ao abrir certificado:', err);
-                                                            alert('NÃ£o foi possÃ­vel abrir o certificado.');
+                                                            alert('Não foi possível abrir o certificado.');
                                                         }
                                                     }}
                                                     className="inline-flex items-center"

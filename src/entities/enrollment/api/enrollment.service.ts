@@ -15,7 +15,7 @@ export const MatriculaAPI = {
 export const PreMatriculasAPI = {
   listar: enrollmentApi.listPreMatriculas,
   buscarPorId: enrollmentApi.getPreMatriculaById,
-  criar: (data: any) => enrollmentApi.create(data), // Note: This might still be wrong if it should create a pre-matricula, but keeping as is for now if create endpoint is shared or unknown.
+  criar: enrollmentApi.createPreMatricula,
   atualizar: enrollmentApi.updatePreMatricula,
   atualizarStatus: enrollmentApi.updatePreMatriculaStatus,
   concluir: enrollmentApi.concludePreMatricula,

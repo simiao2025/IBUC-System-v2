@@ -3,7 +3,7 @@ import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { Card } from '@/shared/ui';
 import { User } from 'lucide-react';
-import type { PreMatriculaFormData } from '../hooks/usePreMatricula';
+import type { PreMatriculaFormData } from '../../model/hooks/usePreMatricula';
 
 interface FormularioDadosPessoaisProps {
     formData: PreMatriculaFormData;
@@ -75,9 +75,27 @@ export const FormularioDadosPessoais: React.FC<FormularioDadosPessoaisProps> = (
                 />
 
                 <Input
-                    label="RG"
+                    label="RG *"
                     name="rg"
                     value={formData.rg}
+                    onChange={handleChange}
+                    error={errors.rg}
+                    required
+                />
+
+                <Input
+                    label="Órgão Emissor"
+                    name="rg_orgao"
+                    value={formData.rg_orgao}
+                    onChange={handleChange}
+                    placeholder="Ex: SSP/TO"
+                />
+
+                <Input
+                    label="Data de Expedição"
+                    name="rg_data_expedicao"
+                    type="date"
+                    value={formData.rg_data_expedicao}
                     onChange={handleChange}
                 />
 
@@ -95,6 +113,7 @@ export const FormularioDadosPessoais: React.FC<FormularioDadosPessoaisProps> = (
                     value={formData.nacionalidade}
                     onChange={handleChange}
                 />
+
             </div>
         </Card>
     );

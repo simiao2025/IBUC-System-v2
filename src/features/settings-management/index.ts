@@ -1,1 +1,2 @@
-export { default as SystemSettingsPage } from './ui/SystemSettingsPage';
+export { default as SystemSettingsPage } from './pages/SystemSettingsPage';
+export * from './api/settings.api';

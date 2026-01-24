@@ -3,7 +3,7 @@ import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { TurmaService, TurmaItem } from '../api/turma.service';
 import { AlertTriangle, CheckCircle, Loader2, XCircle } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 
 interface BatchClosureModalProps {
     turmas: TurmaItem[];
@@ -29,7 +29,7 @@ export const BatchClosureModal: React.FC<BatchClosureModalProps> = ({
     onClose,
     onSuccess,
 }) => {
-    const { showFeedback } = useApp();
+    const { showFeedback } = useUI();
     const [statuses, setStatuses] = useState<Record<string, TurmaStatus>>({});
     const [globalLoading, setGlobalLoading] = useState(true);
     const [closing, setClosing] = useState(false);

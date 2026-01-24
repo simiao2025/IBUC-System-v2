@@ -1,10 +1,10 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card } from '@/shared/ui';
-import { ModulosAPI, LicoesAPI } from '@/entities/turma';
-import type { Modulo, Licao } from '@/shared/api/types/database';
-import { useApp } from '@/app/providers/AppContext';
-import { AlunosAPI } from '@/features/student-management';
+import { moduleApi as ModulosAPI, lessonApi as LicoesAPI, turmaApi } from '@/entities/turma';
+import type { Licao } from '@/shared/api/types/database';
+import { useAuth } from '@/entities/user';
+import { studentApi as AlunosAPI, StudentReportsAPI } from '@/entities/student';
 import { BookOpen, Clock, CheckCircle } from 'lucide-react';
 
 type ModuloItem = {
@@ -20,7 +20,7 @@ type ModuloItem = {
 };
 
 const AppModulos: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [modulos, setModulos] = useState<ModuloItem[]>([]);
   const [licoesMap, setLicoesMap] = useState<Record<string, Licao[]>>({});
@@ -41,21 +41,22 @@ const AppModulos: React.FC = () => {
         console.log('[AppModulos] Carregando dados do aluno:', currentUser.studentId);
 
         // Buscar dados do aluno
-        const alunoResponse = await AlunosAPI.buscarPorId(currentUser.studentId);
-        const aluno = alunoResponse?.data || alunoResponse;
+        const alunoResponse = await AlunosAPI.getById(currentUser.studentId);
+        const aluno = (alunoResponse as any)?.data || alunoResponse;
 
         // Buscar histórico de módulos concluídos
-        const historicoResponse = await AlunosAPI.buscarHistorico(currentUser.studentId);
-        const historico = historicoResponse?.data || historicoResponse || [];
+        const historicoResponse = await StudentReportsAPI.getHistory(currentUser.studentId);
+        const historico = (historicoResponse as any)?.data || historicoResponse || [];
 
         console.log('[AppModulos] Histórico de módulos:', historico);
         console.log('[AppModulos] Dados do aluno:', aluno);
 
-        const moduloIdsParaLicoes = [];
+        const modulosLista: ModuloItem[] = [];
+        const moduloIdsParaLicoes: string[] = [];
 
         // Adicionar módulos do histórico (concluídos/aprovados)
         if (Array.isArray(historico) && historico.length > 0) {
-          for (const item of historico) {
+          for (const item of (historico as any[])) {
             if (item.modulo_info) {
               modulosLista.push({
                 id: item.modulo_info.id,
@@ -75,20 +76,19 @@ const AppModulos: React.FC = () => {
         // Buscar módulo atual (da turma)
         if (aluno?.turma_id) {
           try {
-            const { TurmasAPI } = await import('@/features/turma-management');
-            const turmaResponse: any = await TurmasAPI.buscarPorId(aluno.turma_id);
+            const turmaResponse: any = await turmaApi.getById(aluno.turma_id);
             const turma = turmaResponse?.data || turmaResponse;
 
             console.log('[AppModulos] Dados da turma:', turma);
 
             if (turma?.modulo_atual_id) {
               // Verificar se o módulo atual já não está no histórico
-              const jaNoHistorico = modulosLista.some(m => m.id === turma.modulo_atual_id);
+              const jaNoHistorico = modulosLista.some((m: any) => m.id === turma.modulo_atual_id);
 
               if (!jaNoHistorico) {
                 // Buscar informações do módulo atual
-                const moduloAtualResponse = await ModulosAPI.buscarPorId(turma.modulo_atual_id);
-                const moduloAtual = moduloAtualResponse?.data || moduloAtualResponse;
+                const moduloAtualResponse = await ModulosAPI.getById(turma.modulo_atual_id);
+                const moduloAtual = (moduloAtualResponse as any)?.data || moduloAtualResponse;
 
                 console.log('[AppModulos] Módulo atual:', moduloAtual);
 
@@ -111,7 +111,7 @@ const AppModulos: React.FC = () => {
         }
 
         // Ordenar módulos por número
-        modulosLista.sort((a, b) => a.numero - b.numero);
+        modulosLista.sort((a: any, b: any) => a.numero - b.numero);
         setModulos(modulosLista);
 
         console.log('[AppModulos] Lista final de módulos:', modulosLista);
@@ -120,8 +120,8 @@ const AppModulos: React.FC = () => {
         if (moduloIdsParaLicoes.length > 0) {
           const licoesPromises = moduloIdsParaLicoes.map(async (moduloId) => {
             try {
-              const licoesResponse = await LicoesAPI.listar({ modulo_id: moduloId });
-              const licoes = licoesResponse?.data || licoesResponse || [];
+              const licoesResponse = await LicoesAPI.list({ modulo_id: moduloId });
+              const licoes = (licoesResponse as any)?.data || licoesResponse || [];
               return { moduloId, licoes };
             } catch (e) {
               console.error(`[AppModulos] Erro ao carregar lições do módulo ${moduloId}:`, e);

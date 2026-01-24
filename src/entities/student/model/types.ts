@@ -29,7 +29,7 @@ export interface Aluno {
   nivel_atual_id: string;
   status: StatusAluno;
   observacoes?: string;
-  // Dados de saÃºde
+  // Dados de saúde unificados
   alergias?: string;
   restricao_alimentar?: string;
   medicacao_continua?: string;
@@ -40,19 +40,22 @@ export interface Aluno {
   hospital_preferencia?: string;
   autorizacao_medica?: boolean;
   observacoes_medicas?: string;
-  saude?: any;
   // Dados escolares
   escola_atual?: string;
   serie?: string;
   dificuldades_aprendizagem?: boolean;
   descricao_dificuldades?: string;
-  // ResponsÃ¡veis (compatibilidade transiÃ§Ã£o)
+  // Responsáveis (Camada 1 e 2)
+  nome_responsavel?: string;
+  cpf_responsavel?: string;
+  telefone_responsavel?: string;
+  email_responsavel?: string;
+  tipo_parentesco?: string;
   nome_responsavel_2?: string;
   cpf_responsavel_2?: string;
   telefone_responsavel_2?: string;
   email_responsavel_2?: string;
   tipo_parentesco_2?: string;
-  responsaveis?: any[];
   data_criacao: string;
   data_atualizacao: string;
 }

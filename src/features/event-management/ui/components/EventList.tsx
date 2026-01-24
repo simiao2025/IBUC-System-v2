@@ -2,14 +2,18 @@
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { useApp } from '@/app/providers/AppContext';
-import { EventosAPI, type Evento } from '@/features/event-management';
+import { useAuth } from '@/entities/user';
+import { usePolos } from '@/entities/polo';
+import { useUI } from '@/shared/lib/providers/UIProvider';
+import { eventApi as EventosAPI, type Evento } from '@/features/event-management';
 import { EventForm } from './EventForm';
 
 type ScopeMode = 'geral' | 'polo';
 
 export const EventList: React.FC = () => {
-  const { currentUser, polos, hasAccessToAllPolos, showFeedback, showConfirm } = useApp();
+  const { currentUser, hasAccessToAllPolos } = useAuth();
+  const { polos } = usePolos();
+  const { showFeedback, showConfirm } = useUI();
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId || '';
@@ -44,7 +48,7 @@ export const EventList: React.FC = () => {
 
       const includeGeral = isPoloScoped ? true : scopeMode !== 'polo';
 
-      const data = await EventosAPI.listar({
+      const data = await EventosAPI.list({
         polo_id: poloId || undefined,
         include_geral: includeGeral,
       });
@@ -74,22 +78,22 @@ export const EventList: React.FC = () => {
   };
 
   const handleDelete = (evt: Evento) => {
-    showConfirm(
-      'Excluir evento',
-      `Deseja excluir o evento "${evt.titulo}"?`,
-      async () => {
+    showConfirm({
+      title: 'Excluir evento',
+      message: `Deseja excluir o evento "${evt.titulo}"?`,
+      onConfirm: async () => {
         try {
-          await EventosAPI.deletar(evt.id);
-          showFeedback('success', 'Sucesso', 'Evento excluÃ­do.');
+          await EventosAPI.delete(evt.id);
+          showFeedback('success', 'Sucesso', 'Evento excluído.');
           await carregar();
         } catch (e) {
           console.error('Erro ao excluir evento:', e);
-          showFeedback('error', 'Erro', 'NÃ£o foi possÃ­vel excluir o evento.');
+          showFeedback('error', 'Erro', 'Não foi possível excluir o evento.');
         }
       },
-      'Excluir',
-      'Cancelar'
-    );
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar'
+    });
   };
 
   const handleSuccess = () => {

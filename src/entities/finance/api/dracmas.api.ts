@@ -45,6 +45,7 @@ export const dracmasApi = {
   },
 
   listCriterios: () => api.get<DracmasCriterio[]>('/dracmas/criterios'),
+  listCriteria: () => dracmasApi.listCriterios(),
 
   createCriterio: (data: Omit<DracmasCriterio, 'id'>) => 
     api.post<DracmasCriterio>('/dracmas/criterios', data),
@@ -70,4 +71,7 @@ export const dracmasApi = {
 
   redeem: (data: { turma_id: string; aluno_id?: string; resgatado_por: string }) => 
     api.post<void>('/dracmas/resgatar', data),
+
+  // Compatibility Aliases
+  porAluno: (alunoId: string, inicio?: string, fim?: string) => dracmasApi.listByStudent(alunoId, inicio, fim),
 };

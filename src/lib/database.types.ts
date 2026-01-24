@@ -64,6 +64,7 @@ export interface Database {
           email: string;
           nome_completo: string;
           cpf: string | null;
+          telefone: string | null;
           role: string;
           polo_id: string | null;
           ativo: boolean;

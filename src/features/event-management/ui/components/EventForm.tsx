@@ -2,8 +2,9 @@
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
-import { useApp } from '@/app/providers/AppContext';
-import { EventosAPI, type Evento } from '@/features/event-management';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
+import { eventApi as EventosAPI, type Evento } from '@/features/event-management';
 
 interface EventFormProps {
   onClose: () => void;
@@ -20,7 +21,8 @@ export const EventForm: React.FC<EventFormProps> = ({
   initialScopeMode,
   initialPoloId
 }) => {
-  const { currentUser, showFeedback } = useApp();
+  const { currentUser } = useAuth();
+  const { showFeedback } = useUI();
   const [saving, setSaving] = useState(false);
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId || '';
@@ -81,7 +83,7 @@ export const EventForm: React.FC<EventFormProps> = ({
       };
 
       if (editingEvent) {
-        await EventosAPI.atualizar(editingEvent.id, {
+        await EventosAPI.update(editingEvent.id, {
           titulo: payload.titulo,
           descricao: payload.descricao ?? null,
           local: payload.local ?? null,
@@ -91,7 +93,7 @@ export const EventForm: React.FC<EventFormProps> = ({
         });
         showFeedback('success', 'Sucesso', 'Evento atualizado com sucesso!');
       } else {
-        await EventosAPI.criar(payload);
+        await EventosAPI.create(payload);
         showFeedback('success', 'Sucesso', 'Evento criado com sucesso!');
       }
 

@@ -4,7 +4,7 @@ import { UsuariosService } from '../usuarios/usuarios.service';
 
 export interface CreateDiretoriaGeralDto {
   usuario_id?: string; // Opcional - será criado se não fornecido
-  cargo: 'diretor' | 'vice_diretor' | 'coordenador' | 'vice_coordenador' | 'secretario' | 'tesoureiro';
+  cargo: 'diretor' | 'vice_diretor' | 'coordenador' | 'vice_coordenador' | 'secretario' | 'tesoureiro' | 'primeiro_secretario' | 'segundo_secretario' | 'primeiro_tesoureiro' | 'segundo_tesoureiro';
   nome_completo: string;
   cpf?: string;
   rg?: string;
@@ -430,20 +430,28 @@ export class DiretoriaService {
 
     const roleMapGeral: Record<string, string> = {
       diretor: 'diretor_geral',
-      vice_diretor: 'auxiliar',
+      vice_diretor: 'vice_diretor_geral',
       coordenador: 'coordenador_geral',
-      vice_coordenador: 'auxiliar',
+      vice_coordenador: 'vice_coordenador_geral',
       secretario: 'secretario_geral',
+      primeiro_secretario: 'primeiro_secretario_geral',
+      segundo_secretario: 'segundo_secretario_geral',
       tesoureiro: 'tesoureiro_geral',
+      primeiro_tesoureiro: 'primeiro_tesoureiro_geral',
+      segundo_tesoureiro: 'segundo_tesoureiro_geral',
     };
 
     const roleMapPolo: Record<string, string> = {
       diretor: 'diretor_polo',
-      vice_diretor: 'auxiliar',
+      vice_diretor: 'vice_diretor_polo',
       coordenador: 'coordenador_polo',
-      vice_coordenador: 'auxiliar',
+      vice_coordenador: 'vice_coordenador_polo',
       secretario: 'secretario_polo',
+      primeiro_secretario: 'primeiro_secretario_polo',
+      segundo_secretario: 'segundo_secretario_polo',
       tesoureiro: 'tesoureiro_polo',
+      primeiro_tesoureiro: 'primeiro_tesoureiro_polo',
+      segundo_tesoureiro: 'segundo_tesoureiro_polo',
     };
 
     const role = (scope === 'geral' ? roleMapGeral : roleMapPolo)[dto.cargo] || 'auxiliar';
@@ -468,7 +476,11 @@ export class DiretoriaService {
       coordenador: 'Coordenador',
       vice_coordenador: 'Vice-Coordenador',
       secretario: 'Secretário',
+      primeiro_secretario: '1º Secretário',
+      segundo_secretario: '2º Secretário',
       tesoureiro: 'Tesoureiro',
+      primeiro_tesoureiro: '1º Tesoureiro',
+      segundo_tesoureiro: '2º Tesoureiro',
     };
     return labels[cargo] || cargo;
   }

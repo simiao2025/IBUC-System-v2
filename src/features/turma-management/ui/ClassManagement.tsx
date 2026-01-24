@@ -3,12 +3,14 @@ import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { TurmasAPI, NiveisAPI, ModulosAPI, type TurmaItem } from '@/entities/turma';
+import { turmaApi, moduleApi } from '@/entities/turma';
+import type { TurmaItem } from '@/entities/turma';
 import type { Modulo } from '@/shared/api/types/database';
-import { PolosAPI } from '@/entities/polo';
-import { UserService } from '@/entities/user';
-import { ConfiguracoesService } from '@/entities/system';
-import { useApp } from '@/app/providers/AppContext';
+import { poloApi } from '@/entities/polo';
+import { userApi as userService } from '@/entities/user';
+import { systemConfigApi } from '@/entities/system';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import { PageHeader } from '@/shared/ui';
 import { Lock, Users, UserPlus, Eye, Check } from 'lucide-react';
 
@@ -53,7 +55,8 @@ const DEFAULT_FORM: TurmaFormState = {
 };
 
 export const ClassManagement: React.FC = () => {
-  const { currentUser, showFeedback, showConfirm } = useApp();
+  const { currentUser } = useAuth();
+  const { showFeedback, showConfirm } = useUI();
   const [polos, setPolos] = useState<PoloOption[]>([]);
   const [niveis, setNiveis] = useState<NivelOption[]>([]);
   const [modulos, setModulos] = useState<Modulo[]>([]);
@@ -99,10 +102,10 @@ export const ClassManagement: React.FC = () => {
       if (isPoloScoped && userPoloId) professorFilters.polo_id = userPoloId;
 
       const [polosResp, niveisResp, modulosResp, professoresResp] = await Promise.all([
-        PolosAPI.listar(true),
-        NiveisAPI.listar(),
-        ModulosAPI.listar(),
-        UserService.list(professorFilters),
+        poloApi.list(true),
+        turmaApi.listNiveis(),
+        moduleApi.list(),
+        userService.list(professorFilters),
       ]);
 
       const polosList = (polosResp as any) as any[];
@@ -124,7 +127,7 @@ export const ClassManagement: React.FC = () => {
         nome_completo: String(u.name ?? u.email ?? u.id),
       })));
 
-      const configs = await (ConfiguracoesService as any).buscarTodasComoObjeto();
+      const configs = await systemConfigApi.getSettingsAsObject();
       setGlobalConfigs(configs);
     } catch (e) {
       console.error('Erro ao carregar opções de turma:', e);
@@ -137,7 +140,7 @@ export const ClassManagement: React.FC = () => {
     setError(null);
     try {
       const poloId = (isPoloScoped && userPoloId) ? userPoloId : (filterPolo || undefined);
-      const resp = await TurmasAPI.listar({
+      const resp = await turmaApi.list({
         polo_id: poloId,
         status: filterStatus || undefined,
       });
@@ -258,9 +261,9 @@ export const ClassManagement: React.FC = () => {
       };
 
       if (editingId) {
-        await TurmasAPI.atualizar(editingId, payload);
+        await turmaApi.update(editingId, payload);
       } else {
-        await TurmasAPI.criar(payload);
+        await turmaApi.create(payload);
       }
 
       showFeedback('success', 'Sucesso', editingId ? 'Turma atualizada com sucesso.' : 'Turma criada com sucesso.');
@@ -298,7 +301,7 @@ export const ClassManagement: React.FC = () => {
       async () => {
         setSaving(true);
         try {
-          const resp: any = await TurmasAPI.trazerAlunos(t.id, previousNum);
+          const resp: any = await turmaApi.trazerAlunos(t.id, previousNum);
           if (resp.total_migrado === 0) {
             showFeedback('info', 'Aviso', resp.message);
           } else {
@@ -323,7 +326,7 @@ export const ClassManagement: React.FC = () => {
         setError(null);
         setSaving(true);
         try {
-          await TurmasAPI.deletar(id);
+          await turmaApi.delete(id);
           showFeedback('success', 'Sucesso', 'Turma excluída com sucesso.');
           await carregarTurmas();
           if (editingId === id) {

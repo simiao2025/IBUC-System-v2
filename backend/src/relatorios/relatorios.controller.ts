@@ -145,6 +145,15 @@ export class RelatoriosController {
     return this.service.relatorioAtestadoMatricula(aluno_id, req?.user);
   }
 
+  @Get('ficha-pre-matricula')
+  async gerarFichaPreMatricula(
+    @Query('pre_matricula_id') preMatriculaId: string,
+    @Query('turma_id') turmaId: string, // Optional override
+    @Request() req
+  ) {
+    return this.service.gerarFichaPreMatricula(preMatriculaId, turmaId, req.user); // Pass turmaId
+  }
+
   @Get('lista-chamada')
   async relatorioListaChamada(
     @Query('turma_id') turma_id: string,
@@ -181,6 +190,14 @@ export class RelatoriosController {
     @Query('turma_id') turmaId?: string,
   ) {
     return this.service.gerarCertificado(alunoId, nivelId, turmaId, req.user);
+  }
+
+  @Get('ficha-aluno')
+  async gerarFichaAluno(
+    @Query('aluno_id') alunoId: string,
+    @Request() req
+  ) {
+    return this.service.gerarFichaAluno(alunoId, req.user);
   }
 }
 

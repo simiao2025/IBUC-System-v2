@@ -5,10 +5,10 @@ import { Button } from '@/shared/ui';
 import { StudentReportsAPI } from '@/entities/student/api/student-reports.api';
 import { TurmasAPI as TurmaService } from '@/entities/turma';
 import { Loader2, FileText, Download, Users, Search, Phone } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 
 const ListaAlunosView: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   

@@ -3,10 +3,10 @@ import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { DracmasAPI } from '../api/dracmas.service';
-import { TurmasAPI } from '@/features/turma-management';
-import { AlunosAPI } from '@/features/student-management';
-import { useApp } from '@/app/providers/AppContext';
+import { dracmasApi as DracmasAPI } from '@/entities/finance';
+import { turmaApi as TurmasAPI } from '@/entities/turma';
+import { studentApi as AlunosAPI } from '@/entities/student';
+import { useAuth } from '@/entities/user';
 import AccessControl from '@/features/auth/ui/AccessControl';
 
 interface AlunoDracma {
@@ -21,7 +21,7 @@ interface TurmaOption {
 }
 
 const DracmasLaunchManagement: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [criterios, setCriterios] = useState<{ codigo: string; nome: string; quantidade_padrao: number }[]>([]);
   const [data, setData] = useState(new Date().toISOString().split('T')[0]);
   const [turmaId, setTurmaId] = useState('');
@@ -41,11 +41,11 @@ const DracmasLaunchManagement: React.FC = () => {
            params.professor_id = currentUser.id;
         }
         
-        const listaTurmas = (await TurmasAPI.listar(params)) as any[];
+        const listaTurmas = (await TurmasAPI.list(params)) as any[];
         setTurmas((Array.isArray(listaTurmas) ? listaTurmas : []).map(t => ({ id: t.id, nome: t.nome })));
 
         // Carregar Critérios
-        const listaCriterios: any = await DracmasAPI.listarCriterios();
+        const listaCriterios: any = await DracmasAPI.listCriteria();
         const ativos = Array.isArray(listaCriterios) ? listaCriterios.filter((c: any) => c.ativo) : [];
         setCriterios(ativos);
         
@@ -70,7 +70,7 @@ const DracmasLaunchManagement: React.FC = () => {
       }
 
       try {
-        const lista = (await AlunosAPI.listar({ turma_id: turmaId })) as any[];
+        const lista = (await AlunosAPI.list({ turma_id: turmaId })) as any[];
         setAlunos((Array.isArray(lista) ? lista : []).map(a => ({ aluno_id: a.id, nome: a.nome, quantidade: 0 })));
       } catch (error) {
         console.error('Erro ao carregar alunos da turma:', error);
@@ -112,7 +112,7 @@ const DracmasLaunchManagement: React.FC = () => {
 
     setLoading(true);
     try {
-      await DracmasAPI.lancarLote({
+      await DracmasAPI.submitBatch({
         turma_id: turmaId,
         data,
         tipo,

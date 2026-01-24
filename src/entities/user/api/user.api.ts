@@ -73,12 +73,28 @@ export const userApi = {
     },
 
     create: async (userData: any) => {
-        const data = await api.post<BackendUsuario>('/usuarios', userData);
+        const { permissions, ...rest } = userData;
+        const payload = {
+            ...rest,
+            metadata: {
+                ...rest.metadata,
+                permissions
+            }
+        };
+        const data = await api.post<BackendUsuario>('/usuarios', payload);
         return userApi.mapToAdminUser(data);
     },
 
     update: async (id: string, userData: any) => {
-        const data = await api.put<BackendUsuario>(`/usuarios/${id}`, userData);
+        const { permissions, ...rest } = userData;
+        const payload = {
+            ...rest,
+            metadata: {
+                ...rest.metadata,
+                permissions
+            }
+        };
+        const data = await api.put<BackendUsuario>(`/usuarios/${id}`, payload);
         return userApi.mapToAdminUser(data);
     },
 
@@ -98,7 +114,11 @@ export const userApi = {
 
     listAccessLevels: () => api.get<{ value: string; label: string }[]>('/usuarios/meta/access-levels'),
 
-    // Aliases for backward compatibility
-    listar: (filtros: UserFiltros = {}) => userApi.list(filtros),
+    // Compatibility Aliases
+    listar: (f?: UserFiltros) => userApi.list(f),
     buscarPorId: (id: string) => userApi.getById(id),
+    buscarPorEmail: (email: string) => userApi.getByEmail(email),
+    criar: (data: any) => userApi.create(data),
+    atualizar: (id: string, data: any) => userApi.update(id, data),
+    deletar: (id: string) => userApi.delete(id),
 };

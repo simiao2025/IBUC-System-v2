@@ -1,8 +1,9 @@
-﻿import { useState, useEffect } from 'react';
-import { AlunoService } from '@/features/student-management';
-import { MatriculaService } from '../../api/enrollment.service';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { studentApi } from '@/entities/student';
+import { enrollmentApi } from '@/entities/enrollment';
 import { toast } from 'sonner';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { usePolos } from '@/entities/polo';
 import { poloApi as PoloService } from '@/entities/polo';
 import { turmaApi as TurmaService } from '@/entities/turma';
 // import { NiveisModulosService } from '../../../services/modulos.service';
@@ -32,18 +33,16 @@ export interface PreMatriculaFormData {
     cidade: string;
     estado: string;
 
-    // Saúde
-    saude: {
-        alergias: string;
-        restricao_alimentar: string;
-        medicacao_continua: string;
-        doencas_cronicas: string;
-        contato_emergencia_nome: string;
-        contato_emergencia_telefone: string;
-        convenio_medico: string;
-        hospital_preferencia: string;
-        autorizacao_medica: boolean;
-    };
+    // Saúde (Aplanado)
+    alergias: string;
+    restricao_alimentar: string;
+    medicacao_continua: string;
+    doencas_cronicas: string;
+    contato_emergencia_nome: string;
+    contato_emergencia_telefone: string;
+    convenio_medico: string;
+    hospital_preferencia: string;
+    autorizacao_medica: boolean;
 
     // Responsável
     nome_responsavel: string;
@@ -96,17 +95,15 @@ const INITIAL_FORM_DATA: PreMatriculaFormData = {
     cidade: '',
     estado: '',
 
-    saude: {
-        alergias: '',
-        restricao_alimentar: '',
-        medicacao_continua: '',
-        doencas_cronicas: '',
-        contato_emergencia_nome: '',
-        contato_emergencia_telefone: '',
-        convenio_medico: '',
-        hospital_preferencia: '',
-        autorizacao_medica: false,
-    },
+    alergias: '',
+    restricao_alimentar: '',
+    medicacao_continua: '',
+    doencas_cronicas: '',
+    contato_emergencia_nome: '',
+    contato_emergencia_telefone: '',
+    convenio_medico: '',
+    hospital_preferencia: '',
+    autorizacao_medica: false,
 
     nome_responsavel: '',
     tipo_parentesco: 'pai',
@@ -144,7 +141,8 @@ export function usePreMatricula(isAdminView = false) {
     const [turmas, setTurmas] = useState<any[]>([]);
     const [niveis, setNiveis] = useState<any[]>([]);
 
-    const { currentUser, hasAccessToAllPolos, getUserAllowedPolos, polos: appPolos } = useApp();
+    const { currentUser, hasAccessToAllPolos, getUserAllowedPolos } = useAuth();
+    const { polos: appPolos } = usePolos();
 
     useEffect(() => {
         loadAuxiliaryData();
@@ -153,12 +151,12 @@ export function usePreMatricula(isAdminView = false) {
     // Effect to set initial polo if user is restricted
     useEffect(() => {
         if (isAdminView && !hasAccessToAllPolos()) {
-            const allowed = getUserAllowedPolos();
+            const allowed = getUserAllowedPolos(appPolos.map(p => p.id));
             if (allowed.length > 0 && !formData.polo_id) {
                 setFormData(prev => ({ ...prev, polo_id: allowed[0] }));
             }
         }
-    }, [isAdminView, currentUser, appPolos]);
+    }, [isAdminView, currentUser, appPolos, hasAccessToAllPolos, getUserAllowedPolos]);
 
     useEffect(() => {
         if (formData.polo_id && formData.data_nascimento) {
@@ -192,8 +190,12 @@ export function usePreMatricula(isAdminView = false) {
         }
     }
 
-    async function loadTurmasDisponiveis(poloId: string, dataNasc: string) {
+    const [vacancyStatus, setVacancyStatus] = useState<'idle' | 'available' | 'full' | 'unavailable'>('idle');
+    const [totalVacancies, setTotalVacancies] = useState(0);
+
+    const loadTurmasDisponiveis = useCallback(async (poloId: string, dataNasc: string) => {
         try {
+            setVacancyStatus('idle');
             const age = calculateAge(dataNasc);
             const turmasData = await TurmaService.list({ polo_id: poloId, status: 'ativa' });
             const list = Array.isArray(turmasData) ? turmasData : [];
@@ -205,6 +207,17 @@ export function usePreMatricula(isAdminView = false) {
                 return age >= nivel.idade_min && age <= nivel.idade_max;
             });
 
+            const total = filtered.reduce((acc: number, t: any) => acc + (t.vagas_disponiveis || 0), 0);
+            setTotalVacancies(total);
+
+            if (filtered.length === 0) {
+                setVacancyStatus('unavailable');
+            } else if (total <= 0) {
+                setVacancyStatus('full');
+            } else {
+                setVacancyStatus('available');
+            }
+
             setTurmas(filtered);
 
             // Auto-select level based on age
@@ -214,8 +227,9 @@ export function usePreMatricula(isAdminView = false) {
             }
         } catch (error) {
             console.error('Erro ao buscar turmas:', error);
+            setVacancyStatus('unavailable');
         }
-    }
+    }, [niveis, formData.turma_id]);
 
     const buscarCEP = async (cep: string) => {
         if (!cep || cep.length < 8) return;
@@ -255,14 +269,12 @@ export function usePreMatricula(isAdminView = false) {
         }
     };
 
-    const handleHealthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value, type, checked } = e.target as HTMLInputElement;
+    const handleHealthChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = e.target;
+        const checked = (e.target as HTMLInputElement).checked;
         setFormData(prev => ({
             ...prev,
-            saude: {
-                ...prev.saude,
-                [name]: type === 'checkbox' ? checked : value
-            }
+            [name]: type === 'checkbox' ? checked : value
         }));
     };
 
@@ -280,7 +292,7 @@ export function usePreMatricula(isAdminView = false) {
                 sexo: formData.sexo,
                 rg: formData.rg,
                 rg_orgao: formData.rg_orgao,
-                rg_data_expedicao: formData.rg_data_expedicao,
+                rg_data_expedicao: formData.rg_data_expedicao || undefined,
                 naturalidade: formData.naturalidade,
                 nacionalidade: formData.nacionalidade,
                 // email: formData.email_responsavel, // Email removido pois nao existe no DTO
@@ -298,45 +310,100 @@ export function usePreMatricula(isAdminView = false) {
                 //     mae: formData.tipo_parentesco === 'mae' ? formData.nome_responsavel : '',
                 //     pai: formData.tipo_parentesco === 'pai' ? formData.nome_responsavel : '',
                 // },
-                responsaveis: [
-                    {
-                        nome: formData.nome_responsavel,
-                        cpf: formData.cpf_responsavel,
-                        telefone: formData.telefone_responsavel,
-                        email: formData.email_responsavel,
-                        parentesco: formData.tipo_parentesco
-                    }
-                ],
-                saude: formData.saude, // Assumindo compatibilidade de tipos
+                // responsaveis: [
+                //     {
+                //         nome: formData.nome_responsavel,
+                //         cpf: formData.cpf_responsavel,
+                //         telefone: formData.telefone_responsavel,
+                //         email: formData.email_responsavel,
+                //         parentesco: formData.tipo_parentesco
+                //     }
+                // ],
+                alergias: formData.alergias,
+                restricao_alimentar: formData.restricao_alimentar,
+                medicacao_continua: formData.medicacao_continua,
+                doencas_cronicas: formData.doencas_cronicas,
+                contato_emergencia_nome: formData.contato_emergencia_nome,
+                contato_emergencia_telefone: formData.contato_emergencia_telefone,
+                convenio_medico: formData.convenio_medico,
+                hospital_preferencia: formData.hospital_preferencia,
+                autorizacao_medica: formData.autorizacao_medica,
                 status: isAdminView && formData.turma_id ? 'ativo' : 'pendente',
                 polo_id: formData.polo_id,
-                nivel_atual_id: formData.nivel_id || '' // Campo obrigatório
+                nivel_atual_id: (formData.nivel_id || '') as string 
             };
 
-            // Cria aluno
-            const novoAluno = await AlunoService.criarAluno(alunoDto);
+            let studentOrPreMatriculaId = '';
+            let isPreMatricula = false;
 
-            // Se tiver turma selecionada (admin), cria matrícula direta
-            if (formData.turma_id) {
-                await MatriculaService.criar({
-                    aluno_id: novoAluno.id,
-                    polo_id: formData.polo_id,
-                    turma_id: formData.turma_id,
-                    // nivel_id e modulo_id seriam inferidos no backend ou passados aqui se necessário
-                    status: isAdminView ? 'ativa' : 'pendente',
-                    observacoes: formData.observacoes
-                });
+            if (isAdminView) {
+                // --- FLUXO ADMINISTRATIVO (Secretário/Admin) ---
+                // Cria aluno e matrícula diretamente (exige autenticação)
+                const novoAluno = await studentApi.create(alunoDto);
+                studentOrPreMatriculaId = novoAluno.id;
+                isPreMatricula = false;
+
+                if (formData.turma_id) {
+                    await enrollmentApi.create({
+                        aluno_id: novoAluno.id,
+                        polo_id: formData.polo_id,
+                        turma_id: formData.turma_id,
+                        tipo: 'matricula',
+                    });
+                }
             } else {
-                // Apenas pré-matrícula (sem turma definida ainda)
-                // Pode-se criar uma matrícula com status 'pendente' e sem turma, ou usar uma tabela de pre-matriculas separada
-                // Neste refactor, assumimos unificação na tabela de matrículas
-                await MatriculaService.criar({
-                    aluno_id: novoAluno.id,
+                // --- FLUXO PÚBLICO (Site) ---
+                // Cria apenas o registro de pré-matrícula (Endpoint @Public)
+                const preMatriculaDto = {
+                    nome_completo: formData.nome,
+                    cpf: formData.cpf,
+                    rg: formData.rg,
+                    rg_orgao: formData.rg_orgao,
+                    rg_data_expedicao: formData.rg_data_expedicao || undefined,
+                    data_nascimento: formData.data_nascimento,
+                    sexo: formData.sexo,
+                    naturalidade: formData.naturalidade,
+                    nacionalidade: formData.nacionalidade,
+                    email_responsavel: formData.email_responsavel,
+                    telefone_responsavel: formData.telefone_responsavel,
+                    nome_responsavel: formData.nome_responsavel,
+                    cpf_responsavel: formData.cpf_responsavel,
+                    tipo_parentesco: formData.tipo_parentesco,
+                    endereco: {
+                        cep: formData.cep,
+                        rua: formData.rua,
+                        numero: formData.numero,
+                        complemento: formData.complemento,
+                        bairro: formData.bairro,
+                        cidade: formData.cidade,
+                        estado: formData.estado,
+                    },
+                    // Campos de saúde (achatados para a tabela pre_matriculas)
+                    alergias: formData.alergias,
+                    restricao_alimentar: formData.restricao_alimentar,
+                    medicacao_continua: formData.medicacao_continua,
+                    doencas_cronicas: formData.doencas_cronicas,
+                    contato_emergencia_nome: formData.contato_emergencia_nome,
+                    contato_emergencia_telefone: formData.contato_emergencia_telefone,
+                    convenio_medico: formData.convenio_medico,
+                    hospital_preferencia: formData.hospital_preferencia,
+                    autorizacao_medica: formData.autorizacao_medica,
+                    // Responsável 2
+                    nome_responsavel_2: formData.nome_responsavel_2,
+                    cpf_responsavel_2: formData.cpf_responsavel_2,
+                    telefone_responsavel_2: formData.telefone_responsavel_2,
+                    email_responsavel_2: formData.email_responsavel_2,
+                    tipo_parentesco_2: formData.tipo_parentesco_2,
+                    
                     polo_id: formData.polo_id,
-                    turma_id: undefined,
-                    status: 'pendente',
-                    observacoes: 'Pré-matrícula Online'
-                });
+                    nivel_id: formData.nivel_id || undefined,
+                    observacoes: formData.observacoes,
+                    status: 'em_analise'
+                };
+
+                const preMatriculaResponse = await enrollmentApi.createPreMatricula(preMatriculaDto);
+                studentOrPreMatriculaId = preMatriculaResponse.id;
+                isPreMatricula = true;
             }
 
             // Upload de documentos (se houver)
@@ -356,7 +423,11 @@ export function usePreMatricula(isAdminView = false) {
                         const formDataUpload = new FormData();
                         formDataUpload.append('files', file!);
 
-                        await DocumentAPI.uploadByStudent(novoAluno.id, formDataUpload, tipo);
+                        if (isPreMatricula) {
+                            await DocumentAPI.uploadByPreEnrollment(studentOrPreMatriculaId, formDataUpload, tipo);
+                        } else {
+                            await DocumentAPI.uploadByStudent(studentOrPreMatriculaId, formDataUpload, tipo);
+                        }
                     }
                 } catch (uploadError) {
                     console.error('Erro ao fazer upload de documentos:', uploadError);
@@ -369,7 +440,17 @@ export function usePreMatricula(isAdminView = false) {
 
         } catch (error: any) {
             console.error(error);
-            toast.error(error.message || 'Erro ao processar matrícula');
+            let errorMessage = error.message || 'Erro ao processar matrícula';
+            
+            if (errorMessage.includes('pre_matriculas_email_unique')) {
+                errorMessage = 'Este e-mail já possui uma pré-matrícula em andamento.';
+            } else if (errorMessage.includes('pre_matriculas_cpf_unique')) {
+                errorMessage = 'Este CPF já possui uma pré-matrícula em andamento.';
+            } else if (errorMessage.includes('Failed to fetch')) {
+                errorMessage = 'Não foi possível conectar ao servidor. Verifique se o backend está rodando.';
+            }
+
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -390,7 +471,7 @@ export function usePreMatricula(isAdminView = false) {
     };
 
     const availablePolos = isAdminView && !hasAccessToAllPolos()
-        ? polos.filter(p => getUserAllowedPolos().includes(p.id))
+        ? polos.filter(p => getUserAllowedPolos(polos.map(pl => pl.id)).includes(p.id))
         : polos;
 
     const resetForm = () => {
@@ -412,6 +493,8 @@ export function usePreMatricula(isAdminView = false) {
         handleHealthChange,
         buscarCEP,
         handleSubmit,
-        resetForm
+        resetForm,
+        vacancyStatus,
+        totalVacancies
     };
 }

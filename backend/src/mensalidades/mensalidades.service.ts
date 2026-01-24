@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { CreateCobrancaLoteDto, ConfirmarPagamentoDto, UpdateConfiguracaoFinanceiraDto } from './dto';
+import { CreateCobrancaLoteDto, UpdateConfiguracaoFinanceiraDto } from './dto';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 
 @Injectable()
 export class MensalidadesService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(
+    private supabase: SupabaseService,
+    private notificacoesService: NotificacoesService
+  ) {}
 
   /**
    * Gera cobranças para todos os alunos de uma turma
@@ -43,6 +47,11 @@ export class MensalidadesService {
       .select();
 
     if (error) throw new BadRequestException(error.message);
+
+    // Notificar alunos no painel
+    for (const cobranca of data) {
+      this.notificarCobranca(cobranca.aluno_id, cobranca.titulo, cobranca.valor_cents);
+    }
 
     return {
       total_gerado: data.length,
@@ -90,6 +99,11 @@ export class MensalidadesService {
 
     if (error) throw new BadRequestException(error.message);
 
+    // Notificar alunos no painel
+    for (const cobranca of data) {
+      this.notificarCobranca(cobranca.aluno_id, cobranca.titulo, cobranca.valor_cents);
+    }
+
     return {
       total_gerado: data.length,
       cobrancas: data,
@@ -125,93 +139,7 @@ export class MensalidadesService {
     return data;
   }
 
-  /**
-   * Confirmar pagamento (Aluno enviando comprovante ou Baixa manual imediata)
-   */
-  async confirmarPagamento(id: string, dto?: ConfirmarPagamentoDto) {
-    const client = this.supabase.getAdminClient();
-    
-    // 1. Buscar a mensalidade para ter o valor exato (incluindo juros/descontos que podem ter sido aplicados)
-    const { data: mensalidade } = await client
-      .from('mensalidades')
-      .select('valor_cents, juros_cents, desconto_cents')
-      .eq('id', id)
-      .single();
-    
-    if (!mensalidade) throw new BadRequestException('Mensalidade não encontrada');
-    
-    const valorFinal = (mensalidade.valor_cents || 0) + (mensalidade.juros_cents || 0) - (mensalidade.desconto_cents || 0);
 
-    // 2. Registrar na tabela de pagamentos
-    // Se houver comprovante, fica 'pending' para a Diretoria validar.
-    // Se não houver comprovante (baixa direta), já entra como 'success'.
-    const statusGateway = dto?.comprovante_url ? 'pending' : 'success';
-
-    const { data: pagamento, error: pagError } = await client
-      .from('pagamentos')
-      .insert({
-        mensalidade_id: id,
-        metodo: 'pix',
-        valor_cents: valorFinal,
-        status_gateway: statusGateway,
-        comprovante_url: dto?.comprovante_url || null,
-        data_recebimento: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (pagError) throw new BadRequestException(pagError.message);
-
-    // 3. A TRIGGER 'update_mensalidade_status' no banco cuidará de atualizar a tabela 'mensalidades'.
-    // Buscamos o estado atualizado para retornar ao front.
-    const { data: updated } = await client
-      .from('mensalidades')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    return updated;
-  }
-
-  /**
-   * Aprovar um pagamento pendente (Diretoria Geral)
-   */
-  async aprovarPagamento(pagamentoId: string, diretorId: string) {
-    const { data, error } = await this.supabase
-      .getAdminClient()
-      .from('pagamentos')
-      .update({
-        status_gateway: 'success',
-        recebido_por: diretorId,
-      })
-      .eq('id', pagamentoId)
-      .select()
-      .single();
-
-    if (error) throw new BadRequestException(error.message);
-    return data;
-  }
-
-  /**
-   * Listar pagamentos para validação
-   */
-  async listarPagamentosPendentes() {
-    const { data, error } = await this.supabase
-      .getAdminClient()
-      .from('pagamentos')
-      .select(`
-        *,
-        mensalidade:mensalidades!fk_mensalidade(
-          id, titulo,
-          aluno:alunos!fk_aluno(id, nome)
-        )
-      `)
-      .eq('status_gateway', 'pending')
-      .order('created_at', { ascending: false });
-
-    if (error) throw new BadRequestException(error.message);
-    return data;
-  }
 
   /**
    * Buscar configurações financeiras (chave PIX)
@@ -259,5 +187,38 @@ export class MensalidadesService {
     const { data, error } = await query.select().single();
     if (error) throw new BadRequestException(error.message);
     return data;
+  }
+
+  // Método auxiliar para notificar cobrança buscando usuario_id
+  private async notificarCobranca(alunoId: string, titulo: string, valorCents: number) {
+    try {
+      const { data: aluno } = await this.supabase.getAdminClient()
+        .from('alunos')
+        .select('usuario_id')
+        .eq('id', alunoId)
+        .single();
+      
+      if (aluno?.usuario_id) {
+        await this.notificacoesService.enviarNotificacaoCobrancaGerada(aluno.usuario_id, titulo, valorCents);
+      }
+    } catch (e) {
+      console.error('Erro ao notificar cobrança:', e);
+    }
+  }
+
+  /**
+   * Publicar/Notificar uma cobrança específica (Disponibilizar endpoint)
+   */
+  async publishBilling(id: string) {
+      const { data: cobranca, error } = await this.supabase.getAdminClient()
+        .from('mensalidades')
+        .select('aluno_id, titulo, valor_cents')
+        .eq('id', id)
+        .single();
+
+      if (error || !cobranca) throw new BadRequestException('Cobrança não encontrada');
+
+      await this.notificarCobranca(cobranca.aluno_id, cobranca.titulo, cobranca.valor_cents);
+      return { message: 'Cobrança publicada e notificada com sucesso' };
   }
 }

@@ -1,15 +1,19 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { usePolos } from '@/entities/polo';
 import { DocumentAPI } from '@/shared/api';
-import { PreMatriculasAPI } from '@/entities/enrollment';
+import { enrollmentApi as PreMatriculasAPI } from '@/entities/enrollment';
+import { toast } from 'sonner';
 import { turmaApi as TurmaService } from '@/entities/turma';
 import { REQUIRED_DOCUMENTS } from '@/constants/enrollment';
 import type { PreMatricula, StatusPreMatricula, TipoDocumento, Nivel } from '@/shared/model/database';
 
 export const usePreMatriculaManagement = () => {
-  const { getUserAllowedPolos, hasAccessToAllPolos, polos, currentUser } = useApp();
+  const { getUserAllowedPolos, hasAccessToAllPolos, currentUser } = useAuth();
+  const { polos } = usePolos();
   const [preMatriculasEmAnalise, setPreMatriculasEmAnalise] = useState<PreMatricula[]>([]);
   const [preMatriculasAtivas, setPreMatriculasAtivas] = useState<PreMatricula[]>([]);
+  const [preMatriculasConcluidas, setPreMatriculasConcluidas] = useState<PreMatricula[]>([]);
   const [selectedPreMatricula, setSelectedPreMatricula] = useState<string | null>(null);
   const [documentos, setDocumentos] = useState<Array<{ name: string; path: string; url: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,7 +23,7 @@ export const usePreMatriculaManagement = () => {
   const [validadeDocumento, setValidadeDocumento] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPoloId, setSelectedPoloId] = useState<string>('all');
-  const [turmas, setTurmas] = useState<Array<{ id: string; nome: string; polo_id: string }>>([]);
+  const [turmas, setTurmas] = useState<Array<{ id: string; nome: string; polo_id: string; vagas_disponiveis?: number; modulo_titulo?: string }>>([]);
   const [niveis, setNiveis] = useState<Nivel[]>([]);
   const [selectedTurmaId, setSelectedTurmaId] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
@@ -101,7 +105,7 @@ export const usePreMatriculaManagement = () => {
   const loadPreMatriculas = useCallback(async () => {
     try {
       setIsLoading(true);
-      const allowedPolos = getUserAllowedPolos();
+      const allowedPolos = getUserAllowedPolos(polos.map(p => p.id));
       let poloFilter: string | undefined;
 
       if (hasAccessToAllPolos()) {
@@ -110,21 +114,26 @@ export const usePreMatriculaManagement = () => {
         poloFilter = allowedPolos[0] || undefined;
       }
 
-      const emAnalise = (await PreMatriculasAPI.listar({
+      const emAnalise = (await PreMatriculasAPI.listPreMatriculas({
         polo_id: poloFilter,
         status: 'em_analise',
       })) as PreMatricula[];
-      const ativas = (await PreMatriculasAPI.listar({
+      const ativas = (await PreMatriculasAPI.listPreMatriculas({
         polo_id: poloFilter,
         status: 'ativo',
+      })) as PreMatricula[];
+      const concluidas = (await PreMatriculasAPI.listPreMatriculas({
+        polo_id: poloFilter,
+        status: 'concluido',
       })) as PreMatricula[];
       
       setPreMatriculasEmAnalise(emAnalise.map(normalizePreMatriculaData));
       setPreMatriculasAtivas(ativas.map(normalizePreMatriculaData));
+      setPreMatriculasConcluidas(concluidas.map(normalizePreMatriculaData));
       
       // Carregar níveis se ainda não foram carregados
       if (niveis.length === 0) {
-        const dadosNiveis = await TurmaService.listarNiveis();
+        const dadosNiveis = await TurmaService.listNiveis();
         setNiveis(dadosNiveis as Nivel[]);
       }
       
@@ -159,6 +168,7 @@ export const usePreMatriculaManagement = () => {
             nivel_id: String(t.nivel_id),
             modulo_atual_id: t.modulo_atual_id,
             modulo_titulo: t.modulo?.titulo,
+            vagas_disponiveis: t.vagas_disponiveis,
           })));
         }
       } catch (error) {
@@ -211,7 +221,7 @@ export const usePreMatriculaManagement = () => {
   const handleUpdateStatus = async (status: StatusPreMatricula) => {
     if (!selectedPreMatricula) return;
     try {
-      await PreMatriculasAPI.atualizarStatus(selectedPreMatricula, { status });
+      await PreMatriculasAPI.updatePreMatriculaStatus(selectedPreMatricula, { status });
       await loadPreMatriculas();
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
@@ -221,8 +231,9 @@ export const usePreMatriculaManagement = () => {
 
   const selectedData = useMemo(() => 
     preMatriculasEmAnalise.find((p) => p.id === selectedPreMatricula) ||
-    preMatriculasAtivas.find((p) => p.id === selectedPreMatricula),
-  [preMatriculasEmAnalise, preMatriculasAtivas, selectedPreMatricula]);
+    preMatriculasAtivas.find((p) => p.id === selectedPreMatricula) ||
+    preMatriculasConcluidas.find((p) => p.id === selectedPreMatricula),
+  [preMatriculasEmAnalise, preMatriculasAtivas, preMatriculasConcluidas, selectedPreMatricula]);
 
   const handleEditToggle = () => {
     if (!isEditing && selectedData) {
@@ -251,7 +262,7 @@ export const usePreMatriculaManagement = () => {
     if (!selectedPreMatricula) return;
     try {
       setIsLoading(true);
-      await PreMatriculasAPI.atualizar(selectedPreMatricula, editFormData);
+      await PreMatriculasAPI.updatePreMatricula(selectedPreMatricula, editFormData);
       await loadPreMatriculas();
       setIsEditing(false);
     } catch (error) {
@@ -262,22 +273,66 @@ export const usePreMatriculaManagement = () => {
     }
   };
 
+  const [pendingStatus, setPendingStatus] = useState<StatusPreMatricula | null>(null);
+
+  useEffect(() => {
+    if (selectedData?.status) {
+      setPendingStatus(selectedData.status as StatusPreMatricula);
+    } else {
+      setPendingStatus(null);
+    }
+  }, [selectedData]);
+
+  const handleLocalStatusChange = (status: StatusPreMatricula) => {
+    setPendingStatus(status);
+  };
+
   const handleConcluir = async () => {
-    if (!selectedPreMatricula || !selectedTurmaId) return;
+    if (!selectedPreMatricula) return;
     if (!currentUser?.id) {
       alert('Usuário não identificado.');
       return;
     }
+
+    // Se o status local é diferente de CONCLUÍDO, apenas atualizamos o status
+    if (pendingStatus !== 'concluido') {
+        if (!pendingStatus) return;
+        
+        try {
+            setIsConcluding(true);
+            await handleUpdateStatus(pendingStatus);
+            toast.success('Status atualizado com sucesso!');
+        } catch (error) {
+            console.error('Erro ao atualizar status:', error);
+            toast.error('Erro ao atualizar status.');
+        } finally {
+            setIsConcluding(false);
+        }
+        return;
+    }
+
+    // Se o status é CONCLUÍDO, prosseguimos com a lógica completa de matrícula
+    if (!selectedTurmaId) {
+        toast.error('Selecione uma turma para concluir a matrícula.');
+        return;
+    }
+
     try {
       setIsConcluding(true);
-      await PreMatriculasAPI.concluir(selectedPreMatricula, {
+      await PreMatriculasAPI.concludePreMatricula(selectedPreMatricula, {
         turma_id: selectedTurmaId,
         approved_by: currentUser.id,
       });
+      // O backend já deve atualizar o status para concluido, mas garantimos aqui
       await handleUpdateStatus('concluido');
+      toast.success('Matrícula concluída com sucesso!');
+      
+      // Limpar seleção para indicar fim do processo
+      setSelectedPreMatricula(null);
+      setPendingStatus(null);
     } catch (error) {
       console.error('Erro ao concluir pré-matrícula:', error);
-      alert('Erro ao concluir pré-matrícula.');
+      toast.error('Erro ao concluir pré-matrícula.');
     } finally {
       setIsConcluding(false);
     }
@@ -289,7 +344,7 @@ export const usePreMatriculaManagement = () => {
     
     try {
       setIsLoading(true);
-      await PreMatriculasAPI.deletar(selectedPreMatricula);
+      await PreMatriculasAPI.deletePreMatricula(selectedPreMatricula);
       setSelectedPreMatricula(null);
       await loadPreMatriculas();
     } catch (error) {
@@ -302,9 +357,21 @@ export const usePreMatriculaManagement = () => {
 
   const isDocumentMissing = useCallback((type: TipoDocumento) => {
     const typeLower = type.toLowerCase();
+    
+    // Mapa de aliases para compatibilidade com nomes legados
+    const aliases: Record<string, string[]> = {
+      'certidao': ['certidao', 'certidao_nascimento'],
+      'rg': ['rg', 'identidade'],
+      'cpf': ['cpf'],
+      'comprovante_residencia': ['comprovante_residencia', 'residencia', 'endereco'],
+      'foto': ['foto', 'foto_3x4']
+    };
+
+    const validNames = aliases[typeLower] || [typeLower];
+
     return !documentos.some((doc) => {
       const segments = doc.path?.toLowerCase().split('/');
-      return segments?.includes(typeLower);
+      return segments?.some(seg => validNames.includes(seg));
     });
   }, [documentos]);
 
@@ -323,6 +390,7 @@ export const usePreMatriculaManagement = () => {
   return {
     preMatriculasEmAnalise,
     preMatriculasAtivas,
+    preMatriculasConcluidas,
     selectedPreMatricula,
     setSelectedPreMatricula,
     documentos,
@@ -356,5 +424,7 @@ export const usePreMatriculaManagement = () => {
     handleEditChange,
     handleUpdateData,
     handleDelete,
+    pendingStatus: pendingStatus || (selectedData?.status as StatusPreMatricula),
+    handleLocalStatusChange,
   };
 };

@@ -2,8 +2,8 @@
 import { Card } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Input } from '@/shared/ui';
-import { DracmasAPI } from '@/features/finance-management';
-import { AlunoService } from '../api/student.service';
+import { dracmasApi } from '@/entities/finance';
+import { studentApi as studentApiEntity } from '@/entities/student';
 import AccessControl from '@/features/auth/ui/AccessControl';
 
 type DracmaTransacao = {
@@ -41,10 +41,10 @@ const DracmasByStudentManagement: React.FC = () => {
     setError(null);
 
     try {
-      const response = await DracmasAPI.porAluno(alunoId, inicio || undefined, fim || undefined);
-      setData(response as DracmasPorAlunoResponse);
+      const response = await dracmasApi.listByStudent(alunoId, inicio || undefined, fim || undefined);
+      setData(response as any);
       
-      const hist = await AlunoService.buscarHistoricoModulos(alunoId);
+      const hist = await studentApiEntity.getHistory(alunoId);
       setHistorico(hist);
     } catch (err) {
       console.error('Erro ao buscar Drácmas do aluno:', err);

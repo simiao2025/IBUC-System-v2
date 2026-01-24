@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Search, User } from 'lucide-react';
-import { AlunosAPI } from '@/features/student-management';
-import type { Aluno } from '../../types/database';
+import { studentApi } from '@/entities/student';
+import type { Aluno } from '@/shared/model/database';
 
 interface StudentSearchProps {
   value: string;
@@ -28,7 +28,7 @@ const StudentSearch: React.FC<StudentSearchProps> = ({
     const carregarAlunos = async () => {
       try {
         setLoading(true);
-        const data = await AlunosAPI.listar({ polo_id: poloId });
+        const data = await studentApi.list({ polo_id: poloId });
         setStudents(data || []);
       } catch (error) {
         console.error('Erro ao carregar alunos:', error);

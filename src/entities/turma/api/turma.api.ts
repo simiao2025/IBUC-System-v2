@@ -32,11 +32,15 @@ export const turmaApi = {
     api.post(`/turmas/${id}/trazer-alunos`, { modulo_anterior_numero: moduloAnteriorNumero }),
   getOccupancy: (id: string) => api.get<{ count: number }>(`/turmas/${id}/occupancy`),
 
-  // Aliases for backward compatibility
+  // Compatibility Aliases
   listar: (params?: TurmaFiltros) => turmaApi.list(params),
+  listarTurmas: (params?: TurmaFiltros) => turmaApi.list(params),
   buscarPorId: (id: string) => turmaApi.getById(id),
   listarNiveis: () => turmaApi.listNiveis(),
 };
+
+/** @deprecated Use turmaApi */
+export const TurmasAPI = turmaApi;
 
 export const moduleApi = {
   list: () => api.get<Modulo[]>('/modulos'),
@@ -44,10 +48,6 @@ export const moduleApi = {
   create: (data: ModuloCreateDto) => api.post<Modulo>('/modulos', data),
   update: (id: string, data: ModuloUpdateDto) => api.put<Modulo>(`/modulos/${id}`, data),
   delete: (id: string) => api.delete<void>(`/modulos/${id}`),
-
-  // Aliases for backward compatibility
-  listar: () => moduleApi.list(),
-  buscarPorId: (id: string) => moduleApi.getById(id),
 };
 
 export const lessonApi = {
@@ -59,8 +59,4 @@ export const lessonApi = {
   create: (data: LicaoCreateDto) => api.post<Licao>('/licoes', data),
   update: (id: string, data: LicaoUpdateDto) => api.put<Licao>(`/licoes/${id}`, data),
   delete: (id: string) => api.delete<void>(`/licoes/${id}`),
-
-  // Aliases for backward compatibility
-  listar: (params?: { modulo_id?: string }) => lessonApi.list(params),
-  buscarPorId: (id: string) => lessonApi.getById(id),
 };

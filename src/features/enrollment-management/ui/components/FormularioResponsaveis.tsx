@@ -3,7 +3,7 @@ import { Input } from '@/shared/ui';
 import { Select } from '@/shared/ui';
 import { Card } from '@/shared/ui';
 import { Users } from 'lucide-react';
-import type { PreMatriculaFormData } from '../hooks/usePreMatricula';
+import type { PreMatriculaFormData } from '../../model/hooks/usePreMatricula';
 
 interface FormularioResponsaveisProps {
     formData: PreMatriculaFormData;
@@ -20,7 +20,7 @@ export const FormularioResponsaveis: React.FC<FormularioResponsaveisProps> = ({
 }) => {
     const parentescoOptions = [
         { value: 'pai', label: 'Pai' },
-        { value: 'mae', label: 'MÃ£e' },
+        { value: 'mae', label: 'Mãe' },
         { value: 'tutor', label: 'Tutor' },
         { value: 'outro', label: 'Outro' },
     ];
@@ -29,15 +29,15 @@ export const FormularioResponsaveis: React.FC<FormularioResponsaveisProps> = ({
         <Card>
             <div className="flex items-center space-x-2 mb-6 border-b pb-4">
                 <Users className="h-6 w-6 text-red-600" />
-                <h2 className="text-xl font-semibold text-gray-900 uppercase">Dados dos ResponsÃ¡veis</h2>
+                <h2 className="text-xl font-semibold text-gray-900 uppercase">Dados dos Responsáveis</h2>
             </div>
 
             <div className="space-y-8">
-                {/* ResponsÃ¡vel Principal */}
+                {/* Responsável Principal */}
                 <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                     <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                         <span className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center mr-2 text-sm">1</span>
-                        ResponsÃ¡vel Principal
+                        Responsável Principal
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="md:col-span-2">
@@ -90,11 +90,11 @@ export const FormularioResponsaveis: React.FC<FormularioResponsaveisProps> = ({
                     </div>
                 </div>
 
-                {/* Segundo ResponsÃ¡vel */}
+                {/* Segundo Responsável */}
                 <div className="bg-white p-6 rounded-lg border border-gray-200">
                     <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                         <span className="w-8 h-8 rounded-full bg-gray-400 text-white flex items-center justify-center mr-2 text-sm">2</span>
-                        Segundo ResponsÃ¡vel (Opcional)
+                        Segundo Responsável (Opcional)
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="md:col-span-2">
@@ -110,7 +110,7 @@ export const FormularioResponsaveis: React.FC<FormularioResponsaveisProps> = ({
                             name="tipo_parentesco_2"
                             value={formData.tipo_parentesco_2}
                             onChange={handleChange}
-                            placeholder="Ex: Pai, MÃ£e, AvÃ´"
+                            placeholder="Ex: Pai, Mãe, Avô"
                         />
                         <Input
                             label="CPF"

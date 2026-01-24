@@ -2,6 +2,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { ConfirmLink } from '@/shared/ui';
+import { useEnrollmentPeriod } from '@/entities/system';
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -15,11 +16,13 @@ const Header: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const { isEnrollmentOpen } = useEnrollmentPeriod();
+
   const navItems = [
     { path: '/', label: 'Início', needsConfirm: false },
     { path: '/sobre', label: 'Sobre o IBUC', needsConfirm: false },
     { path: '/modulos', label: 'Módulos', needsConfirm: false },
-    { path: '/pre-matricula', label: 'Pré-Matrícula', needsConfirm: false },
+    ...(isEnrollmentOpen ? [{ path: '/pre-matricula', label: 'Pré-Matrícula', needsConfirm: false }] : []),
     { path: '/login', label: 'Área do Aluno', needsConfirm: false, isSpecial: true },
     { path: '/admin', label: 'Área Administrativa', needsConfirm: false, isSpecial: true },
   ];

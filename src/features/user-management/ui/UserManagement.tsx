@@ -3,26 +3,27 @@ import {
   Plus, Search, Edit2, Trash2, Mail, Phone, User, Shield, Loader2,
   ArrowLeft, MapPin, Calendar
 } from 'lucide-react';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
+import { usePolos } from '@/entities/polo';
 import { userApi } from '@/entities/user';
 import { poloApi as PoloService } from '@/entities/polo';
-import { Button } from '@/shared/ui';
-import { Card } from '@/shared/ui';
-import { Input } from '@/shared/ui';
-import { Select } from '@/shared/ui';
-import type { AdminUser, AdminRole, AccessLevel, AdminModuleKey } from '@/types';
+import { Button, Card, Input, Select } from '@/shared/ui';
+import type { AdminUser, AdminRole, AccessLevel } from '@/types';
+
+import { UserFormModal } from './UserFormModal';
+import { getRoleLabel } from '../utils/roleLabels';
+
+const RESTRICTED_ROLES: AdminRole[] = ['professor', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo'];
 
 interface UserManagementUnifiedProps {
   showBackButton?: boolean;
 }
 
-const RESTRICTED_ROLES: AdminRole[] = ['professor', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo'];
-
 const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackButton = false }) => {
-  const { polos, currentUser, showFeedback, showConfirm } = useApp();
-  const isRestrictedUser = useMemo(() => {
-    return currentUser?.adminUser?.role ? RESTRICTED_ROLES.includes(currentUser.adminUser.role) : false;
-  }, [currentUser]);
+  const { currentUser } = useAuth();
+  const { showFeedback, showConfirm } = useUI();
+  const { polos } = usePolos();
 
   // UI States
   const [showUserForm, setShowUserForm] = useState(false);
@@ -42,6 +43,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     email?: string;
     cpf?: string;
     origem: 'geral' | 'polo';
+    cargo?: string;
   }>>([]);
   const [directoratePeopleLoading, setDirectoratePeopleLoading] = useState(false);
 
@@ -50,7 +52,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const [filterRole, setFilterRole] = useState<AdminRole | 'all'>('all');
   const [filterAccessLevel, setFilterAccessLevel] = useState<AccessLevel | 'all'>('all');
 
-  // Form State
+  // New User Template State
   const initialNewUser: Partial<AdminUser> & { password?: string } = {
     name: '',
     email: '',
@@ -60,25 +62,13 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     role: 'professor',
     accessLevel: 'polo_especifico',
     poloId: '',
-    permissions: { mode: 'full', modules: [] as AdminModuleKey[] },
     isActive: true
   };
   const [newUser, setNewUser] = useState(initialNewUser);
-  const [selectedAdminTemplateId, setSelectedAdminTemplateId] = useState<string>('');
 
-  const moduleOptions: { key: AdminModuleKey; label: string }[] = [
-    { key: 'directorate', label: 'Diretoria Geral' },
-    { key: 'polos', label: 'Gerenciar Polos' },
-    { key: 'staff', label: 'Equipe do Polo' },
-    { key: 'students', label: 'Gerenciar Alunos' },
-    { key: 'enrollments', label: 'Gerenciar Turmas' },
-    { key: 'attendance', label: 'Frequência' },
-    { key: 'dracmas', label: 'Financeiro' },
-    { key: 'reports', label: 'Relatórios' },
-    { key: 'pre-enrollments', label: 'Gerenciamento de Pré-matrículas' },
-    { key: 'settings', label: 'Parâmetros (Geral)' },
-    { key: 'manage_users', label: 'Gerenciar Usuários (Configurações)' },
-  ];
+  const resetNewUserForm = () => {
+    setNewUser(initialNewUser);
+  };
 
   // Permission Selectors
   const currentAdmin = currentUser?.adminUser;
@@ -87,7 +77,11 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const isPoloDirector = currentAdmin?.role === 'diretor_polo';
   const creatorIsPoloScoped = currentAdmin?.accessLevel === 'polo_especifico';
 
-  const isGeneralRole = (role?: AdminRole) => {
+  const isRestrictedUser = useMemo(() => {
+    return currentUser?.adminUser?.role ? RESTRICTED_ROLES.includes(currentUser.adminUser.role) : false;
+  }, [currentUser]);
+
+  const isGeneralRole = (role?: AdminRole | string) => {
     return [
       'super_admin', 'admin_geral',
       'diretor_geral', 'vice_diretor_geral',
@@ -97,7 +91,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     ].includes(role || '');
   };
 
-  const roleRequiresPolo = (role?: AdminRole) => {
+  const roleRequiresPolo = (role?: AdminRole | string) => {
     if (!role) return false;
     if (isGeneralRole(role)) return false;
     return [
@@ -109,15 +103,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     ].includes(role);
   };
 
-  const resolveAccessLevelForRole = (role?: AdminRole): AccessLevel => {
-    if (creatorIsPoloScoped) return 'polo_especifico';
-    if (!role) return 'polo_especifico';
-    if (isGeneralRole(role)) return 'geral';
-    return 'polo_especifico';
-  };
-
-  const allowedRolesForCreator = (): AdminRole[] => {
-    // Admin Geral e Super Admin podem cadastrar qualquer cargo
+  const allowedRolesForCreator = (): string[] => {
     if (isSuperAdmin) {
       return [
         'super_admin', 'admin_geral',
@@ -131,7 +117,6 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       ];
     }
 
-    // Gestão Geral pode cadastrar cargos de polo e staff
     if (isGeneralManagement) {
       return [
         'diretor_polo', 'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
@@ -141,9 +126,9 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       ];
     }
 
-    // Diretores de Polo podem cadastrar outros cargos de polo e staff
     if (isPoloDirector) {
       return [
+        'diretor_polo', // Permitir gerenciar Diretores de Polo do mesmo polo
         'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
         'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
         'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
@@ -154,7 +139,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     return [];
   };
 
-  const canConfigurePermissionsForRole = (role: AdminRole): boolean => {
+  const canConfigurePermissionsForRole = (role: string): boolean => {
     return ['secretario_polo', 'tesoureiro_polo', 'professor', 'auxiliar', 'secretario_geral', 'tesoureiro_geral'].includes(role);
   };
 
@@ -164,11 +149,11 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       const [rolesData, accessLevelsData, polosData] = await Promise.all([
         userApi.listRoles(),
         userApi.listAccessLevels(),
-        PoloService.list()
+        PoloService.list(true)
       ]);
       setRoles(rolesData);
       setAccessLevels(accessLevelsData);
-      setPolosOptions(polosData.map((p: any) => ({ id: p.id, name: p.name })));
+      setPolosOptions((polosData || []).map((p: any) => ({ id: p.id, name: p.name })));
     } catch (error) {
       console.error('Error loading options:', error);
     }
@@ -185,16 +170,12 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       }
 
       const data = await userApi.list(filters);
-
       let filtered = data;
 
-      // Se for usuário restrito, mostrar apenas ele mesmo
       if (isRestrictedUser && currentUser?.adminUser) {
         filtered = data.filter(u => u.id === currentUser.adminUser?.id);
-      } else {
-        if (filterAccessLevel !== 'all') {
-          filtered = data.filter(u => u.accessLevel === filterAccessLevel);
-        }
+      } else if (filterAccessLevel !== 'all') {
+        filtered = data.filter(u => u.accessLevel === filterAccessLevel);
       }
 
       setAdminUsers(filtered);
@@ -209,7 +190,6 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const loadDirectoratePeople = useCallback(async () => {
     try {
       setDirectoratePeopleLoading(true);
-
       const [geralResp, poloResp] = await Promise.all([
         PoloService.listDirectoryGeral(true),
         creatorIsPoloScoped && currentAdmin?.poloId
@@ -217,36 +197,36 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
           : PoloService.listDirectoryPolo(undefined, true),
       ]);
 
-      const geralList = (Array.isArray(geralResp) ? geralResp : []) as any[];
-      const poloList = (Array.isArray(poloResp) ? poloResp : []) as any[];
+      const geralList = (Array.isArray(geralResp) ? geralResp : []);
+      const poloList = (Array.isArray(poloResp) ? poloResp : []);
 
       const mapped = [
-        ...geralList.map((r) => ({
+        ...geralList.map((r: any) => ({
           key: `geral:${String(r.id)}`,
           nome_completo: String(r.nome_completo ?? ''),
-          telefone: r.telefone ? String(r.telefone) : undefined,
-          email: r.email ? String(r.email) : undefined,
-          cpf: r.cpf ? String(r.cpf) : undefined,
+          telefone: r.telefone,
+          email: r.email,
+          cpf: r.cpf,
           origem: 'geral' as const,
+          cargo: r.cargo // 'diretor_geral', etc
         })),
-        ...poloList.map((r) => ({
+        ...poloList.map((r: any) => ({
           key: `polo:${String(r.id)}`,
           nome_completo: String(r.nome_completo ?? ''),
-          telefone: r.telefone ? String(r.telefone) : undefined,
-          email: r.email ? String(r.email) : undefined,
-          cpf: r.cpf ? String(r.cpf) : undefined,
+          telefone: r.telefone,
+          email: r.email,
+          cpf: r.cpf,
           origem: 'polo' as const,
+          cargo: r.cargo // 'diretor_polo', etc
         })),
       ].filter(p => p.nome_completo);
 
-      // dedupe por email/cpf/nome
       const unique = new Map<string, typeof mapped[number]>();
       for (const p of mapped) {
         const dedupeKey = (p.email || p.cpf || p.nome_completo).toLowerCase();
         if (!unique.has(dedupeKey)) unique.set(dedupeKey, p);
       }
-
-      setDirectoratePeople(Array.from(unique.values()));
+      setDirectoratePeople(Array.from(unique.values()) as any);
     } catch (error) {
       console.error('Error loading directorate people:', error);
       setDirectoratePeople([]);
@@ -255,106 +235,58 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     }
   }, [creatorIsPoloScoped, currentAdmin?.poloId]);
 
-  const handleSelectAdminTemplate = (templateId: string) => {
-    setSelectedAdminTemplateId(templateId);
-    if (!templateId) return;
-    const found = directoratePeople.find(p => p.key === templateId);
-    if (!found) return;
-
-    setNewUser(prev => ({
-      ...prev,
-      name: found.nome_completo || prev.name,
-      email: found.email || prev.email,
-      cpf: found.cpf || prev.cpf,
-      phone: found.telefone || prev.phone,
-    }));
-  };
-
-  const resetNewUserForm = () => {
-    setSelectedAdminTemplateId('');
-    setNewUser(initialNewUser);
-  };
-
   useEffect(() => {
     loadOptions();
     loadUsers();
   }, [loadOptions, loadUsers]);
 
-  // Derived Values
-  const roleLabels = useMemo(() => {
-    const labels: Record<string, string> = {};
-    roles.forEach(r => labels[r.value] = r.label);
-    return labels;
-  }, [roles]);
-
-  const visiblePolos = useMemo(() => {
-    if (creatorIsPoloScoped && currentAdmin?.poloId) {
-      return polosOptions.filter(p => p.id === currentAdmin.poloId);
-    }
-    return polosOptions;
-  }, [creatorIsPoloScoped, currentAdmin?.poloId, polosOptions]);
-
-  // Event Handlers
-  const handleEmailBlur = async (email: string) => {
-    if (!email || !email.includes('@')) return;
-    try {
-      const existing = await userApi.getByEmail(email);
-      if (existing) {
-        setNewUser(prev => ({
-          ...prev,
-          name: existing.name,
-          cpf: existing.cpf,
-          phone: existing.phone
-        }));
-      }
-    } catch (error) {
-      // Just fail silently for lookup
-    }
-  };
-
-  const handleCreateUser = async () => {
-    if (!newUser.name || !newUser.email || (roleRequiresPolo(newUser.role as AdminRole) && !newUser.poloId)) {
-      showFeedback('warning', 'Atenção', 'Preencha os campos obrigatórios.');
-      return;
-    }
-
+  const handleCreateCallback = async (userData: Partial<AdminUser> & { password?: string }) => {
     try {
       setSaving(true);
-      await userApi.create(newUser);
+      await userApi.create(userData as any);
       showFeedback('success', 'Sucesso', 'Usuário criado com sucesso!');
       setShowUserForm(false);
-      setNewUser(initialNewUser);
+      resetNewUserForm();
       loadUsers();
     } catch (error: any) {
       showFeedback('error', 'Erro', error.message || 'Erro ao criar usuário.');
+      throw error;
     } finally {
       setSaving(false);
     }
   };
 
-  const handleUpdateUser = async () => {
+  const handleUpdateCallback = async (userData: Partial<AdminUser> & { password?: string }) => {
     if (!editingUser) return;
     try {
       setSaving(true);
-      await userApi.update(editingUser.id, editingUser);
+      const updateData = { ...userData };
+      if (!updateData.password) delete updateData.password;
+      
+      await userApi.update(editingUser.id, updateData);
       showFeedback('success', 'Sucesso', 'Usuário atualizado com sucesso!');
       setEditingUser(null);
       loadUsers();
     } catch (error: any) {
       showFeedback('error', 'Erro', error.message || 'Erro ao atualizar usuário.');
+      throw error;
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteUser = (id: string) => {
-    showConfirm('Confirmar exclusão', 'Tem certeza que deseja remover este usuário?', async () => {
-      try {
-        await userApi.delete(id);
-        showFeedback('success', 'Sucesso', 'Usuário removido com sucesso!');
-        loadUsers();
-      } catch (error: any) {
-        showFeedback('error', 'Erro', 'Não foi possível remover o usuário.');
+    showConfirm({
+      title: 'Confirmar exclusão',
+      message: 'Tem certeza que deseja remover este usuário?',
+      onConfirm: async () => {
+        try {
+          await userApi.delete(id);
+          showFeedback('success', 'Sucesso', 'Usuário removido com sucesso!');
+          loadUsers();
+        } catch (error: any) {
+          showFeedback('error', 'Erro', 'Não foi possível remover o usuário.');
+        }
       }
     });
   };
@@ -449,7 +381,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                         {user.isActive ? 'Ativo' : 'Inativo'}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-blue-600 mb-2">{roleLabels[user.role] || user.role}</p>
+                    <p className="text-sm font-medium text-blue-600 mb-2">{getRoleLabel(user.role)}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-gray-600">
                       <div className="flex items-center"><Mail className="h-3 w-3 mr-2" /> {user.email}</div>
                       <div className="flex items-center"><Phone className="h-3 w-3 mr-2" /> {user.phone}</div>
@@ -466,7 +398,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                       {user.isActive ? 'Desativar' : 'Ativar'}
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingUser(user); void loadDirectoratePeople(); }}>
                     <Edit2 className="h-4 w-4" />
                   </Button>
                   {!isRestrictedUser && (
@@ -487,177 +419,29 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
         </div>
       )}
 
-      {/* Form Modal (Simplified version of both forms) */}
-      {(showUserForm || editingUser) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              {editingUser ? 'Editar Usuário' : 'Novo Usuário Administrativo'}
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {editingUser ? (
-                <Input
-                  label="Nome Completo"
-                  value={editingUser.name}
-                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                  disabled={isRestrictedUser}
-                />
-              ) : (
-                <Select
-                  label="Nome Completo"
-                  value={selectedAdminTemplateId}
-                  onChange={(val) => handleSelectAdminTemplate(val)}
-                >
-                  <option value="">Selecione um nome (Diretoria Geral/Polo)</option>
-                  {directoratePeopleLoading && (
-                    <option value="">Carregando...</option>
-                  )}
-                  {!directoratePeopleLoading && directoratePeople
-                    .slice()
-                    .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''))
-                    .map(p => (
-                      <option key={p.key} value={p.key}>
-                        {p.nome_completo || 'Sem nome'}
-                      </option>
-                    ))}
-                </Select>
-              )}
-              <Input
-                label="Email"
-                value={editingUser?.email ?? newUser.email}
-                onBlur={(e) => !editingUser && handleEmailBlur(e.target.value)}
-                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, email: e.target.value }) : setNewUser({ ...newUser, email: e.target.value })}
-                disabled={isRestrictedUser && !!editingUser}
-              />
-              <Input
-                label="CPF"
-                value={editingUser?.cpf ?? newUser.cpf}
-                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, cpf: e.target.value }) : setNewUser({ ...newUser, cpf: e.target.value })}
-                disabled={isRestrictedUser && !!editingUser}
-              />
-              <Input
-                label="Telefone"
-                value={editingUser?.phone ?? newUser.phone}
-                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, phone: e.target.value }) : setNewUser({ ...newUser, phone: e.target.value })}
-                disabled={isRestrictedUser && !!editingUser}
-              />
-              {(isRestrictedUser || !editingUser) && (
-                <Input
-                  label={isRestrictedUser ? "Nova Senha" : "Senha (Máx 6 chars)"}
-                  type="password"
-                  maxLength={6}
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                />
-              )}
-              {isRestrictedUser ? (
-                <Input
-                  label="Função"
-                  value={roleLabels[editingUser?.role ?? newUser.role] || (editingUser?.role ?? newUser.role)}
-                  disabled={true}
-                  onChange={() => { }}
-                />
-              ) : (
-                <Select
-                  label="Função"
-                  value={editingUser?.role ?? newUser.role}
-                  onChange={(val) => {
-                    const role = val as AdminRole;
-                    if (editingUser) {
-                      setEditingUser({ ...editingUser, role });
-                    } else {
-                      setNewUser({ ...newUser, role });
-                    }
-                  }}
-                >
-                  {allowedRolesForCreator().map(role => (
-                    <option key={role} value={role}>{roleLabels[role] || role}</option>
-                  ))}
-                </Select>
-              )}
-              {roleRequiresPolo((editingUser?.role ?? newUser.role) as AdminRole) && (
-                <Select
-                  label="Polo"
-                  value={editingUser?.poloId ?? newUser.poloId}
-                  onChange={(val) => editingUser ? setEditingUser({ ...editingUser, poloId: val }) : setNewUser({ ...newUser, poloId: val })}
-                  disabled={isRestrictedUser && !!editingUser}
-                >
-                  <option value="">Selecione um polo</option>
-                  {visiblePolos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </Select>
-              )}
-            </div>
-
-            {/* Permissions Section (from Settings flow) - Hidden for restricted users editing themselves */}
-            {!isRestrictedUser && canConfigurePermissionsForRole((editingUser?.role ?? newUser.role) as AdminRole) && (
-              <div className="border-t pt-6 mb-6">
-                <h3 className="font-bold text-gray-900 mb-3">Permissões Específicas</h3>
-                <div className="flex space-x-6 mb-4">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      className="text-blue-600"
-                      checked={(editingUser?.permissions ?? newUser.permissions)?.mode === 'full'}
-                      onChange={() => {
-                        const perm = { mode: 'full' as const, modules: [] };
-                        editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
-                      }}
-                    />
-                    <span className="text-sm">Acesso Total</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      className="text-blue-600"
-                      checked={(editingUser?.permissions ?? newUser.permissions)?.mode === 'limited'}
-                      onChange={() => {
-                        const perm = { mode: 'limited' as const, modules: [] };
-                        editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
-                      }}
-                    />
-                    <span className="text-sm">Acesso Limitado</span>
-                  </label>
-                </div>
-                {(editingUser?.permissions ?? newUser.permissions)?.mode === 'limited' && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-gray-50 p-4 rounded-lg">
-                    {moduleOptions.map(mod => (
-                      <label key={mod.key} className="flex items-center space-x-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={(editingUser?.permissions ?? newUser.permissions)?.modules.includes(mod.key)}
-                          onChange={(e) => {
-                            const currentPerms = (editingUser?.permissions ?? newUser.permissions) || { mode: 'limited', modules: [] };
-                            const newModules = e.target.checked
-                              ? [...currentPerms.modules, mod.key]
-                              : currentPerms.modules.filter(m => m !== mod.key);
-                            const perm = { ...currentPerms, modules: newModules };
-                            if (editingUser) {
-                              setEditingUser({ ...editingUser, permissions: perm });
-                            } else {
-                              setNewUser({ ...newUser, permissions: perm });
-                            }
-                          }}
-                        />
-                        <span>{mod.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex space-x-4">
-              <Button className="flex-1" onClick={editingUser ? handleUpdateUser : handleCreateUser} disabled={saving}>
-                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {editingUser ? 'Salvar Alterações' : 'Criar Usuário'}
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => { setShowUserForm(false); setEditingUser(null); resetNewUserForm(); }}>
-                Cancelar
-              </Button>
-            </div>
-          </Card>
-        </div>
+      {/* Modal Unificado */}
+      {(showUserForm || !!editingUser) && (
+        <UserFormModal
+          isOpen={showUserForm || !!editingUser}
+          onClose={() => {
+            setShowUserForm(false);
+            setEditingUser(null);
+            resetNewUserForm();
+          }}
+          onSave={editingUser ? handleUpdateCallback : handleCreateCallback}
+          initialData={editingUser}
+          roles={roles}
+          polos={polosOptions}
+          directoratePeople={directoratePeople}
+          onLoadDirectoratePeople={() => void loadDirectoratePeople()}
+          directoratePeopleLoading={directoratePeopleLoading}
+          isRestrictedUser={isRestrictedUser}
+          allowedRoles={allowedRolesForCreator()}
+          roleRequiresPolo={(r) => roleRequiresPolo(r)}
+          canConfigurePermissions={(r) => canConfigurePermissionsForRole(r)}
+          isPoloAdmin={creatorIsPoloScoped}
+          currentPoloId={currentAdmin?.poloId || ''}
+        />
       )}
     </div>
   );

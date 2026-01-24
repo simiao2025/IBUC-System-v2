@@ -18,6 +18,23 @@ export class NotificacoesService {
     });
   }
 
+  async criarNotificacaoNoPainel(usuarioId: string, titulo: string, mensagem: string, tipo: string, link?: string) {
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('notificacoes')
+      .insert({
+        usuario_id: usuarioId,
+        titulo: titulo,
+        mensagem: mensagem,
+        tipo: tipo,
+        link: link,
+      });
+
+    if (error) {
+      console.error('Erro ao criar notificação no painel:', error);
+    }
+  }
+
   async enviarNotificacaoMatricula(matriculaId: string) {
     // Buscar dados da matrícula
     const { data: matricula } = await this.supabase
@@ -94,6 +111,17 @@ export class NotificacoesService {
         <p>Polo: ${matricula.polo?.nome}</p>
       `,
     });
+
+    // Notificação no painel para o aluno (se ele tiver usuario_id)
+    if (matricula.aluno.usuario_id) {
+      await this.criarNotificacaoNoPainel(
+        matricula.aluno.usuario_id,
+        'Matrícula Aprovada!',
+        `Sua matrícula no polo ${matricula.polo?.nome} foi aprovada. Bem-vindo ao IBUC!`,
+        'sistema',
+        '/app/dashboard'
+      );
+    }
   }
 
   async enviarNotificacaoRecusa(matriculaId: string, motivo: string) {
@@ -179,6 +207,69 @@ export class NotificacoesService {
         <p>Que Deus te abençoe!</p>
       `,
     });
+  }
+
+  async notificarInicioAulas(turmaId: string) {
+    const { data: turma } = await this.supabase
+      .getAdminClient()
+      .from('turmas')
+      .select(`
+        *,
+        modulo:modulos!modulo_atual_id(titulo),
+        professor:usuarios!professor_id(id, nome_completo)
+      `)
+      .eq('id', turmaId)
+      .single();
+
+    if (!turma || !turma.data_inicio) return;
+
+    const dataInicioFormatada = new Date(turma.data_inicio).toLocaleDateString('pt-BR');
+    const titulo = 'Início das Aulas! 🚀';
+    const mensagem = `As aulas da sua turma (${turma.nome}) do módulo ${turma.modulo?.titulo} começam dia ${dataInicioFormatada}.`;
+
+    // 1. Notificar Alunos
+    const { data: matriculas } = await this.supabase
+      .getAdminClient()
+      .from('matriculas')
+      .select('aluno:alunos(id, usuario_id)')
+      .eq('turma_id', turmaId)
+      .eq('status', 'ativa');
+
+    if (matriculas) {
+      for (const m of matriculas) {
+        if (m.aluno && (m.aluno as any).usuario_id) {
+          await this.criarNotificacaoNoPainel(
+            (m.aluno as any).usuario_id,
+            titulo,
+            mensagem,
+            'inicio_aulas',
+            '/app/dashboard'
+          );
+        }
+      }
+    }
+
+    // 2. Notificar Professor
+    if (turma.professor_id) {
+      await this.criarNotificacaoNoPainel(
+        turma.professor_id,
+        'Você tem uma nova turma! 👨‍🏫',
+        `Professor, as aulas da turma ${turma.nome} começam dia ${dataInicioFormatada}. Prepare seus materiais!`,
+        'inicio_aulas',
+        '/admin/dashboard'
+      );
+    }
+  }
+
+  async enviarNotificacaoCobrancaGerada(usuarioId: string, titulo: string, valorCents: number) {
+    const valorFormatado = (valorCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    await this.criarNotificacaoNoPainel(
+      usuarioId,
+      'Nova Cobrança Gerada',
+      `Uma nova cobrança "${titulo}" no valor de ${valorFormatado} foi gerada.`,
+      'cobranca',
+      '/app/financeiro'
+    );
   }
 
   async enviarNotificacaoEncerramentoModulo(poloId: string, moduloTitulo: string) {

@@ -3,15 +3,15 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';
 import { Select } from '@/shared/ui';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
 import { attendanceApi as PresencaService } from '@/entities/attendance';
 import type { Presenca } from '@/shared/model/database';
 import { turmaApi as TurmasAPI } from '@/entities/turma';
-import { AlunosAPI } from '@/features/student-management';
-import { DracmasAPI } from '@/features/finance-management';
+import { studentApi, StudentReportsAPI } from '@/entities/student';
+import { dracmasApi } from '@/entities/finance';
 
 const AppFrequencia: React.FC = () => {
-  const { currentUser } = useApp();
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   // Estados de Drácmas
   const [transacoesDracmas, setTransacoesDracmas] = useState<any[]>([]);
@@ -36,10 +36,10 @@ const AppFrequencia: React.FC = () => {
       try {
         // Carrega (1) Presenças, (2) Dados Aluno (turma atual), (3) Histórico, (4) Drácmas
         const [presencasData, alunoResp, historicoResp, dracmasResp] = await Promise.all([
-          PresencaService.porAluno(currentUser.studentId).catch(console.error),
-          AlunosAPI.buscarPorId(currentUser.studentId).catch(() => null),
-          AlunosAPI.buscarHistorico(currentUser.studentId).catch(() => []),
-          DracmasAPI.porAluno(currentUser.studentId).catch(() => ({ transacoes: [] }))
+          PresencaService.listByStudent(currentUser.studentId).catch(console.error),
+          studentApi.getById(currentUser.studentId).catch(() => null),
+          StudentReportsAPI.getHistory(currentUser.studentId).catch(() => []),
+          dracmasApi.listByStudent(currentUser.studentId).catch(() => [])
         ]);
 
         // 1. Processar Presenças
@@ -50,7 +50,7 @@ const AppFrequencia: React.FC = () => {
         setHistorico(Array.isArray(historicoResp) ? historicoResp : []);
 
         // 2. Processar Drácmas (Transações + Resgates)
-        const listaDracmas = (dracmasResp as any)?.transacoes || [];
+        const listaDracmas = dracmasResp || [];
         setTransacoesDracmas(Array.isArray(listaDracmas) ? listaDracmas : []);
 
         // 3. Identificar TODOS os IDs de turmas relevantes
@@ -80,7 +80,7 @@ const AppFrequencia: React.FC = () => {
           Array.from(relevantTurmaIds).map(async (turmaId) => {
             try {
               // Busca a turma (agora o backend traz 'modulos')
-              const t: any = await TurmasAPI.buscarPorId(turmaId);
+              const t: any = await TurmasAPI.getById(turmaId);
 
               let label = t.nome; // Fallback: Nome da Turma
 

@@ -1,13 +1,15 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useApp } from '@/app/providers/AppContext';
+import { useAuth } from '@/entities/user';
+import { useUI } from '@/shared/lib/providers/UIProvider';
 import { Input } from '@/shared/ui';
 import { Button } from '@/shared/ui';
 import { Card } from '@/shared/ui';
 import { Shield, Mail, Lock } from 'lucide-react';
 
 const AdminAccess: React.FC = () => {
-  const { login, showFeedback, currentUser } = useApp();
+  const { login, currentUser } = useAuth();
+  const { showFeedback } = useUI();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',

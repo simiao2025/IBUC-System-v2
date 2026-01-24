@@ -49,7 +49,11 @@ export const poloApi = {
   getDirectoryPoloById: (id: string) => api.get(`/diretoria/polo/${id}`),
   updateDirectoryPolo: (id: string, data: any) => api.put(`/diretoria/polo/${id}`, data),
   deactivateDirectoryPolo: (id: string) => api.put(`/diretoria/polo/${id}/desativar`),
-  
-  // Aliases for backward compatibility
-  listar: async (active?: boolean) => poloApi.list(active),
+
+  // Compatibility Aliases
+  listar: (active?: boolean) => poloApi.list(active),
+  buscarPorId: (id: string) => poloApi.getById(id),
+  criar: (data: unknown) => poloApi.create(data),
+  atualizar: (id: string, data: unknown) => poloApi.update(id, data),
+  deletar: (id: string) => poloApi.delete(id),
 };

@@ -13,7 +13,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AlunosService, CreateAlunoDto, UpdateAlunoDto } from './alunos.service';
+import { AlunosService } from './alunos.service';
+import { CreateAlunoDto, UpdateAlunoDto } from './dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
