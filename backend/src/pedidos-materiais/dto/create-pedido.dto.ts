@@ -24,6 +24,11 @@ export class CreatePedidoMaterialDto {
   @IsOptional()
   modulo_destino_id?: string;
 
+  @IsArray()
+  @IsOptional()
+  @IsUUID('all', { each: true })
+  niveis_destino_ids?: string[];
+
   @IsUUID()
   @IsNotEmpty()
   solicitante_id: string;

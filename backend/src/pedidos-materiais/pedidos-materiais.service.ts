@@ -8,7 +8,7 @@ export class PedidosMateriaisService {
   constructor(
     private supabase: SupabaseService,
     private mensalidadesService: MensalidadesService
-  ) {}
+  ) { }
 
   async listar() {
     const { data, error } = await this.supabase
@@ -57,6 +57,7 @@ export class PedidosMateriaisService {
       .insert({
         tipo_cobranca: dto.tipo_cobranca,
         modulo_destino_id: dto.modulo_destino_id || null,
+        niveis_destino_ids: dto.niveis_destino_ids || [],
         solicitante_id: dto.solicitante_id,
         total_cents: total_cents,
         status: 'rascunho',
@@ -112,30 +113,55 @@ export class PedidosMateriaisService {
 
     const client = this.supabase.getAdminClient();
 
+    // 3. Chamar MensalidadesService para gerar as cobranças
+    console.log(`[DEBUG] Gerando cobranças para pedido ${pedido.id}`);
+    console.log(`[DEBUG] Modulo Destino: ${pedido.modulo_destino_id}`);
+
     // 1. Buscar todos os alunos ativos em turmas que estão no módulo de destino
     // Nota: Pegamos turmas onde modulo_atual_id é o modulo_destino do pedido
-    const { data: turmas, error: turmasError } = await client
+    let queryTurmas = client
       .from('turmas')
-      .select('id')
+      .select('id, nome, modulo_atual_id, nivel_id')
       .eq('modulo_atual_id', pedido.modulo_destino_id);
 
-    if (turmasError) throw new BadRequestException(turmasError.message);
+    // Se o pedido tiver filtro de Níveis, aplicamos aqui
+    if (pedido.niveis_destino_ids && pedido.niveis_destino_ids.length > 0) {
+      console.log(`[DEBUG] Filtrando por níveis: ${pedido.niveis_destino_ids.join(', ')}`);
+      queryTurmas = queryTurmas.in('nivel_id', pedido.niveis_destino_ids);
+    }
+
+    const { data: turmas, error: turmasError } = await queryTurmas;
+
+    console.log(`[DEBUG] Turmas encontradas para o módulo ${pedido.modulo_destino_id}:`, turmas?.length);
+    if (turmas) {
+      turmas.forEach(t => console.log(` - Turma: ${t.id} | ${t.nome} | Mod: ${t.modulo_atual_id}`));
+    }
+
+    if (turmasError) {
+      console.error('[DEBUG] Erro ao buscar turmas:', turmasError);
+      throw new BadRequestException(turmasError.message);
+    }
 
     const turmaIds = turmas.map(t => t.id);
     if (turmaIds.length === 0) {
-      throw new BadRequestException('Nenhuma turma ativa encontrada para este módulo.');
+      console.warn('[DEBUG] Nenhuma turma encontrada com modulo_atual_id =', pedido.modulo_destino_id);
+      throw new BadRequestException('Nenhuma turma ativa encontrada para este módulo e níveis selecionados.');
     }
 
-    // 2. Buscar matrículas ativas nessas turmas
-    const { data: matriculas, error: matriculasError } = await client
-      .from('matriculas')
-      .select('aluno_id')
+    // 2. Buscar alunos ativos nessas turmas (Usando a tabela de alunos diretamente para alinhar com o front)
+    const { data: alunos, error: alunosError } = await client
+      .from('alunos')
+      .select('id, turma_id')
       .in('turma_id', turmaIds)
-      .eq('status', 'ativa');
+      .eq('status', 'ativo'); // Check status 'ativo' for student
 
-    if (matriculasError) throw new BadRequestException(matriculasError.message);
+    console.log(`[DEBUG] Alunos encontrados (tabela alunos):`, alunos?.length);
 
-    const alunoIds = [...new Set(matriculas.map(m => m.aluno_id))];
+    if (alunosError) throw new BadRequestException(alunosError.message);
+
+    const alunoIds = alunos.map(a => a.id);
+    console.log(`[DEBUG] Alunos únicos para cobrança:`, alunoIds.length);
+
     if (alunoIds.length === 0) {
       throw new BadRequestException('Nenhum aluno ativo encontrado nas turmas deste módulo.');
     }
@@ -155,5 +181,23 @@ export class PedidosMateriaisService {
       message: `${result.total_gerado} cobranças geradas com sucesso!`,
       total_gerado: result.total_gerado
     };
+  }
+
+  async deletar(id: string) {
+    const pedido = await this.buscarPorId(id);
+    if (pedido.status !== 'rascunho') {
+      throw new BadRequestException('Apenas pedidos em rascunho podem ser deletados.');
+    }
+
+    const client = this.supabase.getAdminClient();
+
+    const { error } = await client
+      .from('pedidos_materiais')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new BadRequestException(`Erro ao deletar pedido: ${error.message}`);
+    }
   }
 }

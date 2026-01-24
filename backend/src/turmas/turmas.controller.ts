@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TurmasService } from './turmas.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { Public } from '../auth/decorators/public.decorator';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
@@ -50,8 +51,16 @@ export class TurmasController {
     return this.service.deletarTurma(id);
   }
 
+  @Public()
+  @Get('niveis')
+  @ApiOperation({ summary: 'Listar níveis disponíveis (público)' })
+  async listarNiveis() {
+    return this.service.listarNiveis();
+  }
+
+  @Public()
   @Get()
-  @ApiOperation({ summary: 'Listar turmas' })
+  @ApiOperation({ summary: 'Listar turmas (público para matrícula)' })
   async listar(
     @Query('polo_id') poloId?: string,
     @Query('nivel_id') nivelId?: string,

@@ -8,31 +8,36 @@ import { useApp } from '../../context/AppContext';
 import { Plus, Trash2, ShoppingCart, Package, List } from 'lucide-react';
 import { MaterialsAPI, MaterialOrdersAPI, type Material, type MaterialOrderItem, type MaterialOrder } from './materials.service';
 import { ModulosAPI } from '../../services/modulos.service';
+import { NiveisAPI } from '../classes/services/turma.service'; // Import NiveisAPI
 import type { Modulo } from '../../types/database';
 
 const MaterialOrderManagement: React.FC = () => {
   const { showFeedback } = useApp();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [modulos, setModulos] = useState<Modulo[]>([]);
+  const [niveis, setNiveis] = useState<any[]>([]); // Levels state
   const [saving, setSaving] = useState(false);
 
   // New Order State
   const { currentUser } = useApp();
   const [tipoCobranca, setTipoCobranca] = useState('material_aluno');
   const [selectedModuloId, setSelectedModuloId] = useState('');
+  const [selectedNiveisIds, setSelectedNiveisIds] = useState<string[]>([]); // Selected Levels
   const [orderItems, setOrderItems] = useState<Partial<MaterialOrderItem>[]>([]);
   const [orders, setOrders] = useState<MaterialOrder[]>([]);
 
   const carregarDados = useCallback(async () => {
     try {
-      const [mats, mods, ords] = await Promise.all([
+      const [mats, mods, ords, levels] = await Promise.all([
         MaterialsAPI.listar(),
         ModulosAPI.listar(),
         MaterialOrdersAPI.listar(),
+        NiveisAPI.listar(),
       ]);
       setMaterials(Array.isArray(mats) ? mats : []);
       setModulos(Array.isArray(mods) ? mods : []);
       setOrders(Array.isArray(ords) ? ords : []);
+      setNiveis(Array.isArray(levels) ? levels : (levels as any).data || []);
     } catch (e) {
       console.error('Erro ao carregar dados de materiais:', e);
       showFeedback('error', 'Erro', 'Não foi possível carregar os dados.');
@@ -58,14 +63,14 @@ const MaterialOrderManagement: React.FC = () => {
   const handleItemChange = (index: number, field: keyof MaterialOrderItem, value: string | number) => {
     const newItems = [...orderItems];
     let finalValue = value;
-    
+
     if (field === 'quantidade') {
       finalValue = typeof value === 'string' ? (parseInt(value) || 0) : (value || 0);
     } else if (field === 'valor_unitario_cents') {
       // Converte de Real (input) para Centavos (estado)
       finalValue = typeof value === 'string' ? Math.round(parseFloat(value) * 100) || 0 : value;
     }
-    
+
     newItems[index] = { ...newItems[index], [field]: finalValue };
 
     // Auto-preencher valor se o material for selecionado
@@ -83,7 +88,7 @@ const MaterialOrderManagement: React.FC = () => {
       showFeedback('warning', 'Atenção', 'Selecione o módulo de destino.');
       return;
     }
-    
+
     const validItems = orderItems.filter(item => item.material_id);
     if (validItems.length === 0) {
       showFeedback('warning', 'Atenção', 'Adicione pelo menos um item com material selecionado.');
@@ -95,6 +100,7 @@ const MaterialOrderManagement: React.FC = () => {
       // 1. Criar o Pedido
       const payload = {
         modulo_destino_id: (tipoCobranca === 'material_aluno' || tipoCobranca === 'material_professor') ? selectedModuloId : null,
+        niveis_destino_ids: (tipoCobranca === 'material_aluno') ? selectedNiveisIds : [],
         tipo_cobranca: tipoCobranca,
         solicitante_id: currentUser?.id,
         itens: validItems.map(item => ({
@@ -105,24 +111,57 @@ const MaterialOrderManagement: React.FC = () => {
       };
 
       const pedido = await MaterialOrdersAPI.criar(payload);
-      
+
       // 2. Gerar Cobranças Automaticamente (se for material de aluno)
       if (tipoCobranca === 'material_aluno' && pedido.id) {
-         // Define vencimento padrão para 5 dias a partir de hoje para efeito de registro,
-         // mas o fluxo real dependerá do aceite do aluno conforme regra de negócio.
-         const vencimentoPadrao = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-         await MaterialOrdersAPI.gerarCobrancas(pedido.id, vencimentoPadrao);
+        // Define vencimento padrão para 5 dias a partir de hoje para efeito de registro,
+        // mas o fluxo real dependerá do aceite do aluno conforme regra de negócio.
+        const vencimentoPadrao = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        await MaterialOrdersAPI.gerarCobrancas(pedido.id, vencimentoPadrao);
       }
 
       showFeedback('success', 'Sucesso', 'Pedido lançado e cobranças geradas!');
-      
+
       // Resetar form
       setOrderItems([]);
       setSelectedModuloId('');
+      setSelectedNiveisIds([]);
       setTipoCobranca('material_aluno');
       carregarDados();
     } catch (e: any) {
       showFeedback('error', 'Erro', e?.message || 'Erro ao lançar pedido.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGerarCobrancas = async (orderId: string) => {
+    // Simples confirmação
+    if (!window.confirm('Deseja gerar as cobranças para este pedido agora?')) return;
+
+    setSaving(true);
+    try {
+      const vencimentoPadrao = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      await MaterialOrdersAPI.gerarCobrancas(orderId, vencimentoPadrao);
+      showFeedback('success', 'Sucesso', 'Cobranças geradas com sucesso!');
+      carregarDados();
+    } catch (e: any) {
+      showFeedback('error', 'Erro', e?.message || 'Erro ao gerar cobranças via retry.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExcluirPedido = async (orderId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este pedido (Rascunho)?')) return;
+
+    setSaving(true);
+    try {
+      await MaterialOrdersAPI.deletar(orderId);
+      showFeedback('success', 'Excluído', 'Pedido excluído com sucesso.');
+      carregarDados();
+    } catch (e: any) {
+      showFeedback('error', 'Erro', e?.message || 'Erro ao excluir pedido.');
     } finally {
       setSaving(false);
     }
@@ -160,187 +199,241 @@ const MaterialOrderManagement: React.FC = () => {
         subtitle="Selecione os itens e lance a cobrança para os alunos"
       />
 
-        <div className="space-y-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800">Definições do Pedido</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Pedido</label>
-                <Select value={tipoCobranca} onChange={setTipoCobranca}>
-                  <option value="material_aluno">Material do Aluno</option>
-                  <option value="material_professor">Material do Professor</option>
-                  <option value="despesas_formatura">Despesas com Formatura</option>
-                </Select>
-              </div>
+      <div className="space-y-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">Definições do Pedido</h3>
 
-              {(tipoCobranca === 'material_aluno' || tipoCobranca === 'material_professor') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Módulo de Destino</label>
-                  <Select value={selectedModuloId} onChange={setSelectedModuloId}>
-                    <option value="">Selecione o módulo</option>
-                    {modulos.map(m => (
-                      <option key={m.id} value={m.id}>{m.titulo}</option>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Pedido</label>
+              <Select value={tipoCobranca} onChange={setTipoCobranca}>
+                <option value="material_aluno">Material do Aluno</option>
+                <option value="material_professor">Material do Professor</option>
+                <option value="despesas_formatura">Despesas com Formatura</option>
+              </Select>
+            </div>
+
+            {(tipoCobranca === 'material_aluno' || tipoCobranca === 'material_professor') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Módulo de Destino</label>
+                <Select value={selectedModuloId} onChange={setSelectedModuloId}>
+                  <option value="">Selecione o módulo</option>
+                  {modulos.map(m => (
+                    <option key={m.id} value={m.id}>{m.titulo}</option>
+                  ))}
+                </Select>
+
+                {/* Level Selection */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Níveis de Destino</label>
+                  <div className="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    {niveis.map(nivel => (
+                      <label key={nivel.id} className="flex items-center space-x-2 cursor-pointer hover:bg-white p-1 rounded transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={selectedNiveisIds.includes(nivel.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedNiveisIds([...selectedNiveisIds, nivel.id]);
+                            } else {
+                              setSelectedNiveisIds(selectedNiveisIds.filter(id => id !== nivel.id));
+                            }
+                          }}
+                          className="rounded text-green-600 focus:ring-green-500 h-4 w-4"
+                        />
+                        <span className="text-sm text-gray-700">{nivel.nome}</span>
+                      </label>
                     ))}
-                  </Select>
+                  </div>
                   <p className="mt-1 text-xs text-gray-500">
-                    {tipoCobranca === 'material_aluno' 
-                      ? "O sistema gerará cobranças para TODOS os alunos ativos neste módulo." 
-                      : "Pedido de material para suporte aos professores deste módulo."}
+                    Selecione quais níveis devem receber este material (ex: Kits podem variar entre crianças e adolescentes).
                   </p>
                 </div>
-              )}
-            </div>
-          </Card>
 
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <ShoppingCart className="h-5 w-5 mr-2 text-red-600" />
-              Itens do Pedido
-            </h3>
-
-            <div className="space-y-4">
-              {orderItems.map((item, index) => (
-                <div key={index} className="flex flex-wrap md:flex-nowrap gap-4 items-end bg-gray-50 p-4 rounded-lg border border-gray-100">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Material</label>
-                    <div className="flex gap-2">
-                      <Select
-                        className="flex-1"
-                        value={item.material_id}
-                        onChange={(val) => handleItemChange(index, 'material_id', val)}
-                      >
-                        <option value="">Selecione um material</option>
-                        {materials.map(m => (
-                          <option key={m.id} value={m.id}>{m.nome} ({formatCurrency(m.valor_padrao_cents)})</option>
-                        ))}
-                      </Select>
-                      <Button 
-                        variant="outline" 
-                        className="px-3" 
-                        onClick={() => setShowMaterialModal(true)}
-                        title="Cadastrar novo material"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="w-24">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantidade || 1}
-                      onChange={(e) => handleItemChange(index, 'quantidade', e.target.value)}
-                    />
-                  </div>
-                  <div className="w-32">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Unitário (R$)</label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={(item.valor_unitario_cents || 0) / 100}
-                      onChange={(e) => handleItemChange(index, 'valor_unitario_cents', e.target.value)}
-                    />
-                  </div>
-                  <div className="text-right pr-4 pb-2">
-                    <span className="text-sm font-semibold text-gray-700">
-                      {formatCurrency((item.valor_unitario_cents || 0) * (item.quantidade || 0))}
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="text-red-600 hover:text-red-700 p-2 h-auto"
-                    onClick={() => handleRemoveItem(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-
-              <Button
-                variant="outline"
-                className="w-full border-dashed border-2 py-4"
-                onClick={handleAddItem}
-              >
-                <Plus className="h-4 w-4 mr-2" /> Adicionar Item
-              </Button>
-            </div>
-            
-            <div className="mt-8 pt-6 border-t border-gray-100">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-600">Subtotal Itens:</span>
-                  <span className="font-medium">{formatCurrency(totalPedido)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xl font-bold text-red-600">
-                  <span>Total Unitário:</span>
-                  <span>{formatCurrency(totalPedido)}</span>
-                </div>
-                <p className="mt-2 text-xs text-center text-gray-400">
-                  Valor que será cobrado de cada aluno.
+                <p className="mt-2 text-xs text-blue-600 font-medium bg-blue-50 p-2 rounded">
+                  {tipoCobranca === 'material_aluno'
+                    ? "O sistema gerará cobranças apenas para alunos ATIVOS neste Módulo DENTRO dos Níveis selecionados."
+                    : "Pedido de material para suporte aos professores deste módulo."}
                 </p>
+              </div>
+            )}
+          </div>
+        </Card>
 
-                <Button
-                    variant="primary"
-                    className="w-full py-4 mt-6 text-lg bg-green-600 hover:bg-green-700"
-                    loading={saving}
-                    onClick={handleLancarPedido}
-                >
-                    Lançar Pedido
-                </Button>
-            </div>
-          </Card>
-        </div>
-
-        {/* Histórico Simplificado */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <List className="h-5 w-5 mr-2 text-gray-600" />
-            Últimos Pedidos Lançados
+            <ShoppingCart className="h-5 w-5 mr-2 text-red-600" />
+            Itens do Pedido
           </h3>
-          {orders.length === 0 ? (
-            <p className="text-gray-500 text-sm">Nenhum pedido registrado.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Solicitante</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Destino</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Total/Aluno</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {orders.map(order => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.solicitante?.nome || '—'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.modulo_destino?.titulo || order.tipo_cobranca}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(order.total_cents)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full 
-                          ${order.status === 'cobrado' ? 'bg-green-100 text-green-700' : 
-                            order.status === 'rascunho' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {order.status.toUpperCase()}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+          <div className="space-y-4">
+            {orderItems.map((item, index) => (
+              <div key={index} className="flex flex-wrap md:flex-nowrap gap-4 items-end bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Material</label>
+                  <div className="flex gap-2">
+                    <Select
+                      className="flex-1"
+                      value={item.material_id}
+                      onChange={(val) => handleItemChange(index, 'material_id', val)}
+                    >
+                      <option value="">Selecione um material</option>
+                      {materials.map(m => (
+                        <option key={m.id} value={m.id}>{m.nome} ({formatCurrency(m.valor_padrao_cents)})</option>
+                      ))}
+                    </Select>
+                    <Button
+                      variant="outline"
+                      className="px-3"
+                      onClick={() => setShowMaterialModal(true)}
+                      title="Cadastrar novo material"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="w-24">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Qtd</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={item.quantidade || 1}
+                    onChange={(e) => handleItemChange(index, 'quantidade', e.target.value)}
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Unitário (R$)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={(item.valor_unitario_cents || 0) / 100}
+                    onChange={(e) => handleItemChange(index, 'valor_unitario_cents', e.target.value)}
+                  />
+                </div>
+                <div className="text-right pr-4 pb-2">
+                  <span className="text-sm font-semibold text-gray-700">
+                    {formatCurrency((item.valor_unitario_cents || 0) * (item.quantidade || 0))}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  className="text-red-600 hover:text-red-700 p-2 h-auto"
+                  onClick={() => handleRemoveItem(index)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+
+            <Button
+              variant="outline"
+              className="w-full border-dashed border-2 py-4"
+              onClick={handleAddItem}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Adicionar Item
+            </Button>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-600">Subtotal Itens:</span>
+              <span className="font-medium">{formatCurrency(totalPedido)}</span>
             </div>
-          )}
+            <div className="flex justify-between items-center text-xl font-bold text-red-600">
+              <span>Total Unitário:</span>
+              <span>{formatCurrency(totalPedido)}</span>
+            </div>
+            <p className="mt-2 text-xs text-center text-gray-400">
+              Valor que será cobrado de cada aluno.
+            </p>
+
+            <Button
+              variant="primary"
+              className="w-full py-4 mt-6 text-lg bg-green-600 hover:bg-green-700"
+              loading={saving}
+              onClick={handleLancarPedido}
+            >
+              Lançar Pedido
+            </Button>
+          </div>
         </Card>
+      </div>
+
+      {/* Histórico Simplificado */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <List className="h-5 w-5 mr-2 text-gray-600" />
+          Últimos Pedidos Lançados
+        </h3>
+        {orders.length === 0 ? (
+          <p className="text-gray-500 text-sm">Nenhum pedido registrado.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Solicitante</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Destino</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Total/Aluno</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {orders.map(order => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {order.solicitante?.nome || '—'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {order.modulo_destino?.titulo || order.tipo_cobranca}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatCurrency(order.total_cents)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full 
+                          ${order.status === 'cobrado' ? 'bg-green-100 text-green-700' :
+                          order.status === 'rascunho' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {order.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      {order.status === 'rascunho' && (
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700 border-red-200"
+                            size="sm"
+                            onClick={() => handleExcluirPedido(order.id)}
+                            title="Excluir rascunho"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          {order.tipo_cobranca === 'material_aluno' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleGerarCobrancas(order.id)}
+                              title="Tentar gerar cobranças novamente"
+                            >
+                              Gerar Cobranças
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {/* Quick Material Modal */}
       {showMaterialModal && (
@@ -366,7 +459,7 @@ const MaterialOrderManagement: React.FC = () => {
                 onChange={e => setNewMaterial({ ...newMaterial, valor_padrao_cents: Math.round(parseFloat(e.target.value) * 100) || 0 })}
               />
               <p className="text-xs text-gray-500 italic">Ex: 40,00</p>
-              
+
               <div className="flex gap-3 pt-4">
                 <Button variant="outline" className="flex-1" onClick={() => setShowMaterialModal(false)}>
                   Cancelar

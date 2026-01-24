@@ -233,6 +233,19 @@ export class TurmasService {
     }
   }
 
+  async listarNiveis() {
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('niveis')
+      .select('*')
+      .order('idade_min');
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+    return data;
+  }
+
   async listarTurmas(filtros?: {
     polo_id?: string;
     nivel_id?: string;

@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Delete,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -19,7 +20,7 @@ import { CreatePedidoMaterialDto } from './dto';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class PedidosMateriaisController {
-  constructor(private readonly service: PedidosMateriaisService) {}
+  constructor(private readonly service: PedidosMateriaisService) { }
 
   @Get()
   @ApiOperation({ summary: 'Listar todos os pedidos de materiais' })
@@ -54,5 +55,12 @@ export class PedidosMateriaisController {
     @Body('vencimento') vencimento: string
   ) {
     return this.service.gerarCobrancas(id, vencimento);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Deletar pedido (somente rascunho)' })
+  async deletar(@Param('id') id: string) {
+    return this.service.deletar(id);
   }
 }

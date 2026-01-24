@@ -69,23 +69,43 @@ const AppFinanceiro: React.FC = () => {
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0] || !selectedCobranca) return;
-    
+
     setUploading(true);
     try {
       const file = e.target.files[0];
-      // Em um cenário real, faria o upload para o Storage
-      // Aqui vamos simular o upload e chamar o serviço
-      const fakeUrl = `https://storage.ibuc.com.br/comprovantes/${Date.now()}_${file.name}`;
-      
-      await FinanceiroService.confirmarPagamento(selectedCobranca.id, fakeUrl);
-      
+
+      // 1. Upload do Arquivo para o Backend
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Usando fetch nativo ou axios para o endpoint /upload do backend
+      // Considerando que o backend roda localmente ou na mesma origem da API
+      const API_URL = 'http://localhost:3000'; // Ajustar conforme env se necessário, ou usar config
+
+      const uploadResponse = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+        // Headers são automáticos para FormData
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Falha no upload do arquivo.');
+      }
+
+      const uploadResult = await uploadResponse.json();
+      const fileUrl = `${API_URL}${uploadResult.url}`; // URL Completa para salvar no banco
+
+      // 2. Comunicar o serviço de finanças
+      await FinanceiroService.confirmarPagamento(selectedCobranca.id, fileUrl);
+
       showFeedback('success', 'Sucesso', 'Comprovante enviado com sucesso! O pagamento será validado pela diretoria.');
       setShowUploadModal(false);
       // Recarregar lista
       const data = await FinanceiroService.listarCobrancas({ aluno_id: currentUser?.studentId });
       setCobrancas(data as Mensalidade[]);
     } catch (err: unknown) {
-      showFeedback('error', 'Erro', 'Falha ao enviar comprovante.');
+      console.error(err);
+      showFeedback('error', 'Erro', 'Falha ao enviar comprovante. Verifique o tamanho do arquivo (Max 5MB).');
     } finally {
       setUploading(false);
     }
@@ -98,7 +118,7 @@ const AppFinanceiro: React.FC = () => {
           <Link to="/app/dashboard">Voltar</Link>
         </Button>
       </div>
-      
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
@@ -136,7 +156,7 @@ const AppFinanceiro: React.FC = () => {
 
       <Card className="p-0 overflow-hidden shadow-md">
         <div className="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
-            <h2 className="font-bold text-gray-700">Faturas</h2>
+          <h2 className="font-bold text-gray-700">Faturas</h2>
         </div>
         {loading ? (
           <div className="p-8 text-center">
@@ -168,7 +188,7 @@ const AppFinanceiro: React.FC = () => {
                     const venc = c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—';
                     const isVencida = c.status === 'pendente' && new Date(c.vencimento) < new Date();
                     const statusLabel = isVencida ? 'vencida' : c.status;
-                    
+
                     const badge =
                       c.status === 'pago'
                         ? 'bg-green-100 text-green-800'
@@ -192,9 +212,9 @@ const AppFinanceiro: React.FC = () => {
                           <div className="flex justify-end gap-2">
                             {c.status === 'pendente' && (
                               <>
-                                <Button 
-                                  size="sm" 
-                                  variant="primary" 
+                                <Button
+                                  size="sm"
+                                  variant="primary"
                                   className="bg-green-600 hover:bg-green-700 text-white"
                                   onClick={() => {
                                     setSelectedCobranca(c);
@@ -204,8 +224,8 @@ const AppFinanceiro: React.FC = () => {
                                   <QrCode className="h-4 w-4 md:mr-1" />
                                   <span className="hidden md:inline">Pagar PIX</span>
                                 </Button>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   onClick={() => {
                                     setSelectedCobranca(c);
@@ -218,9 +238,9 @@ const AppFinanceiro: React.FC = () => {
                               </>
                             )}
                             {c.status === 'pago' && c.comprovante_url && (
-                              <a 
-                                href={c.comprovante_url} 
-                                target="_blank" 
+                              <a
+                                href={c.comprovante_url}
+                                target="_blank"
                                 rel="noreferrer"
                                 className="text-blue-600 hover:text-blue-800 text-xs flex items-center"
                               >
@@ -251,47 +271,47 @@ const AppFinanceiro: React.FC = () => {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            
+
             <div className="text-center mb-6">
               <p className="text-sm text-gray-600 mb-1">{selectedCobranca.titulo}</p>
               <p className="text-2xl font-black text-gray-900">{formatMoney(selectedCobranca.valor_cents)}</p>
             </div>
 
             <div className="flex flex-col items-center justify-center p-4 bg-gray-50 rounded-xl mb-6 border border-dashed border-gray-300">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(config.chave_pix)}&size=200x200&bgcolor=f9fafb`}
-                  alt="QR Code PIX"
-                  className="w-48 h-48 mb-4 shadow-sm rounded-lg"
-                />
-                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Escaneie o código acima</p>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(config.chave_pix)}&size=200x200&bgcolor=f9fafb`}
+                alt="QR Code PIX"
+                className="w-48 h-48 mb-4 shadow-sm rounded-lg"
+              />
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Escaneie o código acima</p>
             </div>
 
             <div className="space-y-4">
-               <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Chave PIX ({config.tipo_chave})</label>
-                  <div className="flex gap-2">
-                    <div className="flex-1 bg-gray-100 p-3 rounded-lg text-sm font-mono truncate border border-gray-200">
-                      {config.chave_pix}
-                    </div>
-                    <Button variant="outline" onClick={() => copyToClipboard(config.chave_pix)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Chave PIX ({config.tipo_chave})</label>
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-gray-100 p-3 rounded-lg text-sm font-mono truncate border border-gray-200">
+                    {config.chave_pix}
                   </div>
-               </div>
+                  <Button variant="outline" onClick={() => copyToClipboard(config.chave_pix)}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
 
-               <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Beneficiário</label>
-                  <p className="text-sm font-semibold text-gray-700">{config.nome_beneficiario || 'Instituto Bíblico de Palmas'}</p>
-               </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Beneficiário</label>
+                <p className="text-sm font-semibold text-gray-700">{config.nome_beneficiario || 'Instituto Bíblico de Palmas'}</p>
+              </div>
             </div>
 
             <div className="mt-8">
-               <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => setShowPixModal(false)}>
-                  Entendi, já paguei!
-               </Button>
-               <p className="text-[11px] text-gray-500 text-center mt-3">
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => setShowPixModal(false)}>
+                Entendi, já paguei!
+              </Button>
+              <p className="text-[11px] text-gray-500 text-center mt-3">
                 Após o pagamento, não esqueça de anexar o comprovante na tela anterior.
-               </p>
+              </p>
             </div>
           </Card>
         </div>
@@ -312,25 +332,25 @@ const AppFinanceiro: React.FC = () => {
             </div>
 
             <p className="text-sm text-gray-600 mb-6">
-              Selecione o arquivo do comprovante para a fatura: <br/>
+              Selecione o arquivo do comprovante para a fatura: <br />
               <span className="font-bold text-gray-800">{selectedCobranca.titulo}</span>
             </p>
 
             <div className="space-y-4">
               <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-blue-400 transition-colors bg-gray-50">
-                  <input 
-                    type="file" 
-                    id="file-upload" 
-                    className="hidden" 
-                    accept="image/*,application/pdf"
-                    onChange={handleUpload}
-                    disabled={uploading}
-                  />
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm font-semibold text-gray-700">Clique para selecionar</p>
-                    <p className="text-xs text-gray-500">Imagem ou PDF até 5MB</p>
-                  </label>
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  accept="image/*,application/pdf"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-gray-700">Clique para selecionar</p>
+                  <p className="text-xs text-gray-500">Imagem ou PDF até 5MB</p>
+                </label>
               </div>
 
               {uploading && (
@@ -341,7 +361,7 @@ const AppFinanceiro: React.FC = () => {
               )}
 
               <Button variant="outline" className="w-full" onClick={() => setShowUploadModal(false)}>
-                  Cancelar
+                Cancelar
               </Button>
             </div>
           </Card>

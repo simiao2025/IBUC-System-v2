@@ -20,6 +20,7 @@ export interface MaterialOrder {
   id: string;
   tipo_cobranca: string;
   modulo_destino_id?: string;
+  niveis_destino_ids?: string[];
   solicitante_id: string;
   total_cents: number;
   status: 'rascunho' | 'cobrado' | 'cancelado';
@@ -42,4 +43,5 @@ export const MaterialOrdersAPI = {
   criar: (data: any) => api.post<MaterialOrder>('/pedidos-materiais', data),
   atualizarStatus: (id: string, status: string) => api.patch<MaterialOrder>(`/pedidos-materiais/${id}/status`, { status }),
   gerarCobrancas: (id: string, vencimento: string) => api.post(`/pedidos-materiais/${id}/gerar-cobrancas`, { vencimento }),
+  deletar: (id: string) => api.delete(`/pedidos-materiais/${id}`),
 };
