@@ -8,13 +8,17 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
+      'https://www.ibucadmprv.com.br',
+      'https://ibucadmprv.com.br',
       'http://localhost:5173',
       'http://localhost:5174',
       'http://localhost:5175',
-      'https://www.ibucadmprv.com.br',
-      'https://ibucadmprv.com.br',
     ],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Validation
