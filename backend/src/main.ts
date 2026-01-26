@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  console.log('🚀🚀🚀 NESTJS STARTING - ATTEMPTING VERSION 1.0.4-BOOST - 14:25 🚀🚀🚀');
   const app = await NestFactory.create(AppModule);
 
   // Ler ALLOWED_ORIGINS da variável de ambiente
