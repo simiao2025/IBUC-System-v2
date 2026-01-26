@@ -132,9 +132,44 @@ export class RelatoriosController {
     @Query('turma_id') turma_id?: string,
     @Query('nivel_id') nivel_id?: string,
     @Query('status') status?: string,
-    @Request() req?: any
+    @Request() req?: any,
+    @Res() res?: any
   ) {
-    return this.service.gerarListaAlunosPdf({ polo_id, turma_id, nivel_id, status }, req?.user);
+    try {
+      const result = await this.service.gerarListaAlunosPdf({ polo_id, turma_id, nivel_id, status }, req?.user);
+      
+      if (result.success && result.url) {
+        // O PDF foi gerado com sucesso, vamos baixar e enviar como stream
+        const client = this.service['supabase'].getAdminClient();
+        const storagePath = result.url.split('/documentos/').pop();
+        
+        if (storagePath) {
+          const { data, error } = await client.storage.from('documentos').download(storagePath);
+          
+          if (error || !data) {
+            return res.status(500).json({ message: 'Erro ao baixar PDF gerado', error: error?.message });
+          }
+          
+          const buffer = Buffer.from(await data.arrayBuffer());
+          res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename=lista-alunos-${Date.now()}.pdf`,
+            'Content-Length': buffer.length,
+          });
+          res.send(buffer);
+        } else {
+          res.status(500).json({ message: 'URL do PDF inválida' });
+        }
+      } else {
+        res.status(500).json({ message: 'Erro ao gerar PDF', error: result });
+      }
+    } catch (error) {
+      console.error('[RelatoriosController] Erro ao gerar lista de alunos PDF:', error);
+      res.status(500).json({
+        message: 'Erro ao gerar PDF da lista de alunos',
+        error: error.message
+      });
+    }
   }
 
   @Get('atestado-matricula')
