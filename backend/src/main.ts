@@ -13,20 +13,45 @@ async function bootstrap() {
     console.log('✅ Nest app created');
 
     const configService = app.get(ConfigService);
-    const originsConfig = configService.get<string>('ALLOWED_ORIGINS') || '*';
-    console.log('📝 ALLOWED_ORIGINS config:', originsConfig);
+    const originsConfig = configService.get<string>('ALLOWED_ORIGINS') || '';
+    console.log('📝 ALLOWED_ORIGINS from env:', originsConfig);
 
-    let origins: any = originsConfig;
-    if (origins !== '*' && typeof origins === 'string' && origins.includes(',')) {
-      origins = origins.split(',').map((s: string) => s.trim());
-    }
-    console.log('🌐 CORS origins to use:', origins);
+    const allowedOrigins = originsConfig.split(',').map(s => s.trim()).filter(Boolean);
+    
+    // Adiciona origens padrão se não estiverem presentes
+    const defaultOrigins = [
+      'https://www.ibucadmprv.com.br',
+      'https://ibucadmprv.com.br',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175'
+    ];
+    
+    const allAllowed = [...new Set([...allowedOrigins, ...defaultOrigins])];
+    console.log('🌐 Consolidated Allowed Origins:', allAllowed);
 
     const corsOptions: any = {
-      origin: origins === '*' ? true : origins,
+      origin: (origin, callback) => {
+        // Permite requisições sem origin (como ferramentas de teste ou mobile)
+        if (!origin) {
+          return callback(null, true);
+        }
+
+        const isExplicitlyAllowed = allAllowed.some(allowed => origin === allowed);
+        const isVercelPreview = origin.endsWith('.vercel.app');
+
+        if (isExplicitlyAllowed || isVercelPreview) {
+          callback(null, true);
+        } else {
+          console.warn(`🚫 CORS blocked for origin: ${origin}`);
+          callback(null, false); // Não bloqueia com erro, apenas não envia os headers
+        }
+      },
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept',
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
     };
 
     app.enableCors(corsOptions);
