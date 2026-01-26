@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHello(): { message: string; version: string } {
+  getHello(): { message: string; version: string; status: string } {
     return {
-      message: 'IBUC System API está funcionando!',
-      version: '1.0.1-v3-cors-debug',
+      message: '🚀 NESTJS API V1.0.4 IS RUNNING 🚀',
+      version: '1.0.4-BOOST-MARKER',
+      status: 'OK',
     };
   }
 }

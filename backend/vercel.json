@@ -1,16 +1,11 @@
 {
   "version": 2,
-  "builds": [
+  "framework": "nestjs",
+  "rootDirectory": "backend",
+  "rewrites": [
     {
-      "src": "src/main.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "src/main.ts",
-      "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+      "source": "/(.*)",
+      "destination": "src/main.ts"
     }
   ]
 }
