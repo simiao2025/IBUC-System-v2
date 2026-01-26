@@ -23,14 +23,13 @@ async function bootstrap() {
       },
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Requested-With, Content-Type, Accept, Authorization',
+      allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
       preflightContinue: false,
       optionsSuccessStatus: 204,
     };
 
     app.enableCors(corsOptions);
     console.log('🛡️ CORS enabled (Reflective Mode)');
-    console.log('🛡️ CORS enabled');
 
     app.useGlobalPipes(
       new ValidationPipe({
