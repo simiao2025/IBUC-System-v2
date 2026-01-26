@@ -3,32 +3,19 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
-import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  console.log('🏁 Starting bootstrap...');
+  console.log('🏁 Starting bootstrap v1.0.3...');
   try {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
     console.log('✅ Nest app created');
 
-    const configService = app.get(ConfigService);
-    console.log('🛠️ Configuring CORS (Ultimate Permissive Mode)...');
-
-    const corsOptions: any = {
-      origin: (origin: string, callback: any) => {
-        // Reflete qualquer origem de volta (Permissivo para debug)
-        console.log(`📡 Request from origin: ${origin}`);
-        callback(null, true);
-      },
+    app.enableCors({
+      origin: true,
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
-      preflightContinue: false,
-      optionsSuccessStatus: 204,
-    };
-
-    app.enableCors(corsOptions);
+    });
     console.log('🛡️ CORS enabled (Reflective Mode)');
 
     app.useGlobalPipes(
@@ -38,25 +25,21 @@ async function bootstrap() {
         transform: true,
       }),
     );
-    console.log('🧹 Validations enabled');
 
     const config = new DocumentBuilder()
       .setTitle('IBUC System API')
       .setDescription('API REST')
-      .setVersion('1.0.2-debug')
+      .setVersion('1.0.3')
       .addBearerAuth()
       .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
-    console.log('📖 Swagger configured');
 
     const port = process.env.PORT || 3000;
-    console.log(`🔌 Attempting to listen on port ${port}...`);
     await app.listen(port);
     console.log(`🚀 API ready on port ${port}`);
   } catch (error) {
     console.error('❌ FATAL ERROR during bootstrap:', error);
-    if (error.stack) console.error(error.stack);
     process.exit(1);
   }
 }
