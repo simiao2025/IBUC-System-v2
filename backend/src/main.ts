@@ -7,48 +7,58 @@ import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  try {
+    const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  const configService = app.get(ConfigService);
-  const originsConfig = configService.get<string>('ALLOWED_ORIGINS', '*');
-  const origins = originsConfig.includes(',') ? originsConfig.split(',') : originsConfig;
+    const configService = app.get(ConfigService);
+    let origins: any = configService.get<string>('ALLOWED_ORIGINS', '*');
+    
+    if (origins !== '*') {
+      origins = origins.includes(',') ? origins.split(',').map((s: string) => s.trim()) : origins;
+    }
 
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
-  });
+    // Se origins for '*', não podemos usar credentials: true
+    const corsOptions: any = {
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept',
+    };
 
-  app.enableCors({
-    origin: origins,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept',
-    credentials: true,
-  });
+    if (origins === '*') {
+      corsOptions.origin = true; // Reflete a origem da requisição, compatível com credentials
+      corsOptions.credentials = true;
+    } else {
+      corsOptions.origin = origins;
+      corsOptions.credentials = true;
+    }
 
-  // Validation
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+    app.enableCors(corsOptions);
 
-  // Swagger/OpenAPI
-  const config = new DocumentBuilder()
-    .setTitle('IBUC System API')
-    .setDescription('API REST para o Sistema de Gestão de Curso de Teologia Infanto-Juvenil')
-    .setVersion('1.0.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+    // Validation
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
 
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-  console.log(`🚀 Backend rodando em http://localhost:${port}`);
-  console.log(`🚀 Backend rodando em http://localhost:${port}`);
-  console.log(`📚 Swagger em http://localhost:${port}/api/docs`);
-  // Workers Controller Loaded
+    // Swagger/OpenAPI
+    const config = new DocumentBuilder()
+      .setTitle('IBUC System API')
+      .setDescription('API REST')
+      .setVersion('1.0.1')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+
+    const port = process.env.PORT || 3000;
+    await app.listen(port);
+    console.log(`🚀 API ready on port ${port}`);
+  } catch (error) {
+    console.error('❌ Error during bootstrap:', error);
+    process.exit(1);
+  }
 }
 
 bootstrap();
