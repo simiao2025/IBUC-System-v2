@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import * as archiver from 'archiver';
+import archiver = require('archiver');
 import * as fs from 'fs';
 import * as path from 'path';
 
