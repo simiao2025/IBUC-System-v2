@@ -1053,10 +1053,19 @@ export class PdfService {
       });
     }
 
-    // 2. Configurar PDF
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
-    const fileName = `lista-alunos-${Date.now()}.pdf`;
+    // 2. Configurar PDF com nome determinístico baseado nos filtros
+    const crypto = require('crypto');
+    const filterKey = JSON.stringify({
+      polo_id: filtros.polo_id || 'all',
+      turma_id: filtros.turma_id || 'all',
+      nivel_id: filtros.nivel_id || 'all',
+      status: filtros.status || 'all'
+    });
+    const hash = crypto.createHash('md5').update(filterKey).digest('hex');
+    const fileName = `lista-alunos-${hash.substring(0, 12)}.pdf`;
     const filePath = path.join(process.env.STORAGE_PATH || './storage', 'relatorios', fileName);
+
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
 
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
