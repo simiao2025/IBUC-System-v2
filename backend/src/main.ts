@@ -13,48 +13,23 @@ async function bootstrap() {
     console.log('✅ Nest app created');
 
     const configService = app.get(ConfigService);
-    const originsConfig = configService.get<string>('ALLOWED_ORIGINS') || '';
-    console.log('📝 ALLOWED_ORIGINS from env:', originsConfig);
-
-    const allowedOrigins = originsConfig.split(',').map(s => s.trim()).filter(Boolean);
-    
-    // Adiciona origens padrão se não estiverem presentes
-    const defaultOrigins = [
-      'https://www.ibucadmprv.com.br',
-      'https://ibucadmprv.com.br',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:5175'
-    ];
-    
-    const allAllowed = [...new Set([...allowedOrigins, ...defaultOrigins])];
-    console.log('🌐 Consolidated Allowed Origins:', allAllowed);
+    console.log('🛠️ Configuring CORS (Ultimate Permissive Mode)...');
 
     const corsOptions: any = {
-      origin: (origin, callback) => {
-        // Permite requisições sem origin (como ferramentas de teste ou mobile)
-        if (!origin) {
-          return callback(null, true);
-        }
-
-        const isExplicitlyAllowed = allAllowed.some(allowed => origin === allowed);
-        const isVercelPreview = origin.endsWith('.vercel.app');
-
-        if (isExplicitlyAllowed || isVercelPreview) {
-          callback(null, true);
-        } else {
-          console.warn(`🚫 CORS blocked for origin: ${origin}`);
-          callback(null, false); // Não bloqueia com erro, apenas não envia os headers
-        }
+      origin: (origin: string, callback: any) => {
+        // Reflete qualquer origem de volta (Permissivo para debug)
+        console.log(`📡 Request from origin: ${origin}`);
+        callback(null, true);
       },
       credentials: true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept',
+      allowedHeaders: 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Requested-With, Content-Type, Accept, Authorization',
       preflightContinue: false,
       optionsSuccessStatus: 204,
     };
 
     app.enableCors(corsOptions);
+    console.log('🛡️ CORS enabled (Reflective Mode)');
     console.log('🛡️ CORS enabled');
 
     app.useGlobalPipes(
