@@ -2,25 +2,51 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  console.log('🚀🚀🚀 NESTJS STARTING - ATTEMPTING VERSION 1.0.4-BOOST - 14:25 🚀🚀🚀');
+  console.log('🏁 INICIANDO BACKEND NESTJS - VERSÃO 1.0.5-DYNAMIC-CORS 🏁');
   const app = await NestFactory.create(AppModule);
 
-  // Ler ALLOWED_ORIGINS da variável de ambiente
-  const allowedOrigins = process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-    : ['http://localhost:5173'];
+  // Ler e Normalizar ALLOWED_ORIGINS
+  const rawOrigins = process.env.ALLOWED_ORIGINS || '';
+  const allowedOrigins = rawOrigins.split(',')
+    .map(origin => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
 
-  console.log('🔒 CORS habilitado para:', allowedOrigins);
+  if (allowedOrigins.length === 0) {
+    allowedOrigins.push('http://localhost:5173');
+  }
+
+  console.log('🔒 CORS habilitado para origens:', allowedOrigins);
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Permitir requisições sem origin (como ferramentas locais ou apps mobile)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const normalizedOrigin = origin.trim().replace(/\/$/, '');
+      const isAllowed = allowedOrigins.includes(normalizedOrigin);
+      const isVercelPreview = normalizedOrigin.endsWith('.vercel.app');
+
+      if (isAllowed || isVercelPreview) {
+        callback(null, true);
+      } else {
+        console.warn(`🚫 CORS BLOQUEADO!`);
+        console.warn(`🔹 Origem recebida: "${origin}"`);
+        console.warn(`🔹 Origem normalizada: "${normalizedOrigin}"`);
+        console.warn(`🔹 Origens permitidas: ${allowedOrigins.join(', ')}`);
+        // Não bloqueia o preflight com erro, apenas não envia os cabeçalhos
+        callback(null, false);
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
+      'Content-Type',
+      'Authorization',
       'Accept',
       'Origin',
-      'X-Requested-With'
+      'X-Requested-With',
+      'Access-Control-Allow-Origin'
     ],
     credentials: true,
     preflightContinue: false,
@@ -30,7 +56,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
   
-  console.log(`✅ Aplicação rodando em: ${await app.getUrl()}`);
+  console.log(`✅ Aplicação rodando porta: ${port}`);
 }
 
 bootstrap();
