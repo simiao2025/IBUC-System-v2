@@ -58,7 +58,7 @@ export const RelatoriosAPI = {
     Object.entries(filtros).forEach(([key, value]) => {
       if (value) params.append(key, value as string);
     });
-    return api.get(`/relatorios/lista-alunos-pdf?${params.toString()}`);
+    return api.get(`/relatorios/lista-alunos-pdf?${params.toString()}`, { responseType: 'blob' });
   },
   relatorioAtestadoMatricula: (alunoId: string) => api.get(`/relatorios/atestado-matricula?aluno_id=${alunoId}`),
   relatorioListaChamada: (turmaId: string) => api.get(`/relatorios/lista-chamada?turma_id=${turmaId}`),

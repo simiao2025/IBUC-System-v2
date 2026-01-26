@@ -4,7 +4,8 @@ import Select from '../../components/ui/Select';
 import Button from '../../components/ui/Button';
 import { RelatorioService } from '../../services/relatorio.service';
 import { TurmaService } from '../../services/turma.service';
-import { Loader2, FileText, Download, Users, Search, Phone } from 'lucide-react';
+import { PoloService } from '../../services/polo.service';
+import { Loader2, FileText, Download, Users, Search, Phone, MapPin } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const ListaAlunosView: React.FC = () => {
@@ -12,6 +13,8 @@ const ListaAlunosView: React.FC = () => {
   const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
+  const isGlobal = currentUser?.role === 'admin_geral' || currentUser?.role === 'super_admin';
+
   // Filtros
   const [filtros, setFiltros] = useState({
     turma_id: '',
@@ -24,25 +27,34 @@ const ListaAlunosView: React.FC = () => {
   const [opcoes, setOpcoes] = useState({
     turmas: [] as any[],
     niveis: [] as any[],
+    polos: [] as any[],
   });
 
   useEffect(() => {
     const loadOpcoes = async () => {
       try {
-        const [turmasRes, niveisRes] = await Promise.all([
+        const promises: Promise<any>[] = [
           TurmaService.listarTurmas(filtros.polo_id ? { polo_id: filtros.polo_id } : {}),
           TurmaService.listarNiveis(),
-        ]);
+        ];
+
+        if (isGlobal) {
+          promises.push(PoloService.listarPolos());
+        }
+
+        const [turmasRes, niveisRes, polosRes] = await Promise.all(promises);
+        
         setOpcoes({
           turmas: turmasRes as any[],
           niveis: niveisRes as any[],
+          polos: isGlobal ? (polosRes as any[]) : [],
         });
       } catch (error) {
         console.error('Erro ao carregar opções:', error);
       }
     };
     loadOpcoes();
-  }, [filtros.polo_id]);
+  }, [filtros.polo_id, isGlobal]);
 
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -62,12 +74,17 @@ const ListaAlunosView: React.FC = () => {
   const handlePdf = async () => {
     setPdfLoading(true);
     try {
-      const res = await RelatorioService.gerarListaAlunosPdf(filtros);
-      if (res.url) {
-        window.open(res.url, '_blank');
-      } else {
-        throw new Error('URL do PDF não retornada');
-      }
+      const response: any = await RelatorioService.gerarListaAlunosPdf(filtros);
+      
+      // Criar um link temporário para download do blob
+      const url = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `lista-alunos-${filtros.status || 'todos'}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       alert('Erro ao gerar PDF. Tente novamente.');
@@ -83,7 +100,22 @@ const ListaAlunosView: React.FC = () => {
           <Search className="h-4 w-4 mr-2" />
           Filtros de Listagem
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {isGlobal && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center">
+                <MapPin className="h-3 w-3 mr-1 text-blue-500" />
+                Polo
+              </label>
+              <Select 
+                value={filtros.polo_id} 
+                onChange={val => setFiltros(f => ({ ...f, polo_id: val, turma_id: '' }))}
+              >
+                <option value="">Todos os Polos</option>
+                {opcoes.polos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </Select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
             <Select 
