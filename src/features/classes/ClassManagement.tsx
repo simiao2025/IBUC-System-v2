@@ -81,8 +81,8 @@ export const ClassManagement: React.FC = () => {
   const userPoloId = currentUser?.adminUser?.poloId || '';
 
 
-  // Roles allowed to perform batch closure (Strictly Director General)
-  const canBatchClose = ['diretor_geral'].includes(currentUser?.adminUser?.role || '');
+  // Roles allowed to perform batch closure (Directors and Coordinators)
+  const canBatchClose = ['diretor_geral', 'coordenador_polo', 'super_admin'].includes(currentUser?.adminUser?.role || '');
 
   useEffect(() => {
     if (isPoloScoped && userPoloId) {
