@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useApp } from '@/context/AppContext';
+import { useApp } from '@/app/providers/AppContext';
 import { useAccessControl } from '@/features/auth/ui/AccessControl';
 import { useNavigationConfirm } from '@/hooks/useNavigationConfirm';
 import Card from '@/components/ui/Card';

@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button';
 import { RelatorioService } from '../../services/relatorio.service';
 import { AlunosAPI } from '../../features/students/aluno.service';
 import { PolosAPI } from '../../services/polo.service';
-import { Loader2, FileText, Download, FileCheck2, Search, Building2 } from 'lucide-react';
+import { Loader2, FileText, Download, FileCheck, Search, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 const AtestadoMatriculaView: React.FC = () => {
@@ -92,7 +92,7 @@ const AtestadoMatriculaView: React.FC = () => {
             </Select>
           </div>
           <Button onClick={handleGerar} disabled={!alunoId || loading}>
-            {loading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileCheck2 className="h-4 w-4 mr-2" />}
+            {loading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileCheck className="h-4 w-4 mr-2" />}
             Gerar Atestado
           </Button>
         </div>

@@ -19,7 +19,7 @@ import {
   Users, 
   Award, 
   DollarSign,
-  FileCheck2,
+  FileCheck,
   ChevronRight
 } from 'lucide-react';
 import { useAccessControl } from '@/features/auth/ui/AccessControl';
@@ -43,7 +43,7 @@ const EducationalReportManagementPage: React.FC = () => {
   const reportModules = [
     { id: 'boletim', label: 'Boletim Escolar', icon: FileText, color: 'text-blue-600' },
     { id: 'historico', label: 'Histórico Escolar', icon: GraduationCap, color: 'text-indigo-600' },
-    { id: 'atestado', label: 'Atestado de Matrícula', icon: FileCheck2, color: 'text-teal-600' },
+    { id: 'atestado', label: 'Atestado de Matrícula', icon: FileCheck, color: 'text-teal-600' },
     { id: 'chamada', label: 'Lista de Chamada', icon: ClipboardCheck, color: 'text-orange-600' },
     { id: 'lista_alunos', label: 'Lista de Alunos', icon: Users, color: 'text-green-600' },
     { id: 'frequencia_consolidada', label: 'Consolidado Frequência', icon: BarChart2, color: 'text-pink-600' },
