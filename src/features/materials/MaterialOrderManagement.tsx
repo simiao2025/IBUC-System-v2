@@ -599,6 +599,7 @@ const MaterialOrderManagement: React.FC = () => {
                 link.remove();
                 window.URL.revokeObjectURL(url);
               } catch (e) {
+                console.error('Erro ao gerar PDF:', e);
                 showFeedback('error', 'Erro', 'Erro ao gerar PDF.');
               } finally {
                 setSaving(false);

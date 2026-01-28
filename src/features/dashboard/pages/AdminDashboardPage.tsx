@@ -59,9 +59,9 @@ const AdminDashboard: React.FC = () => {
       // Secretários e Diretor Geral devem ver isso
       if (['secretario_polo', 'diretor_geral', 'super_admin'].includes(currentUser?.adminUser?.role || '')) {
          try {
-           const result = await api.get('/turmas', { params: { status: 'rascunho' }});
-           if (result.data && Array.isArray(result.data)) {
-             setPendingDraftsCount(result.data.length);
+           const result = await api.get<any[]>('/turmas?status=rascunho');
+           if (result && Array.isArray(result)) {
+             setPendingDraftsCount(result.length);
            }
          } catch (e) {
            console.error('Erro ao buscar rascunhos', e);
@@ -337,6 +337,15 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {pendingDraftsCount > 0 && (
+              <UrgentBanner
+                count={pendingDraftsCount}
+                message={`Existem ${pendingDraftsCount} turmas pendentes de ativação!`}
+                onAction={() => navigate('/admin/turmas/pendentes')}
+              />
+            )}
+
             <div className="flex items-center space-x-4">
               {currentUser?.adminUser?.role === 'secretario_polo' && (
                 <Button
