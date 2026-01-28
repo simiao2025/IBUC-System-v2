@@ -2,7 +2,7 @@ import React from 'react';
 import { Documento, TipoDocumento } from '../types/database';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Button } from './ui/Button';
+import Button from './ui/Button';
 
 const getDocumentTypeLabel = (type: TipoDocumento): string => {
   const types: Record<TipoDocumento, string> = {
