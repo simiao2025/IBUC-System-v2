@@ -33,6 +33,14 @@ export class CreatePedidoMaterialDto {
   @IsNotEmpty()
   solicitante_id: string;
 
+  @IsUUID()
+  @IsOptional()
+  aluno_id?: string;
+
+  @IsUUID()
+  @IsOptional()
+  polo_id?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateItemPedidoDto)

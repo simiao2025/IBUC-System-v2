@@ -20,6 +20,7 @@ type TurmaOption = {
   modulo_id?: string;
   modulo_titulo?: string;
   alunos_matriculados?: number;
+  professor_nome?: string;
 };
 
 type AlunoOption = {
@@ -143,12 +144,15 @@ const AdminFrequencia: React.FC = () => {
         const mappedTurmas = (Array.isArray(lista) ? lista : []).map(t => {
           // PostgREST pode retornar objeto ou array dependendo da PK/FK
           const mod = Array.isArray(t.modulos) ? t.modulos[0] : t.modulos;
+          // Extrair nome do professor se disponível
+          const professor = Array.isArray(t.usuarios) ? t.usuarios[0] : t.usuarios;
           return {
             id: String(t.id),
             nome: String(t.nome ?? t.id),
             modulo_id: t.modulo_atual_id,
             modulo_titulo: mod?.titulo || 'Módulo não definido',
-            alunos_matriculados: t.alunos_matriculados || 0
+            alunos_matriculados: t.alunos_matriculados || 0,
+            professor_nome: professor?.name || professor?.nome
           };
         });
 
@@ -597,14 +601,27 @@ const AdminFrequencia: React.FC = () => {
               ) : (
                 <div className="md:col-span-2 space-y-4">
                   {turmaId && (
-                    <div className="p-4 bg-teal-50 border border-teal-100 rounded-xl">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <GraduationCap className="text-teal-600 w-4 h-4" />
-                        <span className="text-xs font-bold text-teal-700 uppercase tracking-tight">Módulo Atual</span>
+                    <div className="p-4 bg-teal-50 border border-teal-100 rounded-xl space-y-3">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <GraduationCap className="text-teal-600 w-4 h-4" />
+                          <span className="text-xs font-bold text-teal-700 uppercase tracking-tight">Módulo Atual</span>
+                        </div>
+                        <p className="text-md font-bold text-gray-900">
+                          {turmas.find(t => t.id === turmaId)?.modulo_titulo}
+                        </p>
                       </div>
-                      <p className="text-md font-bold text-gray-900">
-                        {turmas.find(t => t.id === turmaId)?.modulo_titulo}
-                      </p>
+                      {!isProfessor && turmas.find(t => t.id === turmaId)?.professor_nome && (
+                        <div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <User className="text-purple-600 w-4 h-4" />
+                            <span className="text-xs font-bold text-purple-700 uppercase tracking-tight">Professor(a)</span>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {turmas.find(t => t.id === turmaId)?.professor_nome}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div>
@@ -612,37 +629,16 @@ const AdminFrequencia: React.FC = () => {
                     <Select value={turmaId} onChange={val => setTurmaId(val)} required className="w-full" disabled={isGlobalAdmin && !filterPoloId}>
                       <option value="">{loadingTurmas ? 'Carregando...' : isGlobalAdmin && !filterPoloId ? 'Selecione primeiro o Polo' : 'Escolha uma turma'}</option>
                       {turmas.map(t => (
-                        <option key={t.id} value={t.id}>{t.nome} ({t.modulo_titulo})</option>
+                        <option key={t.id} value={t.id}>
+                          {t.nome} ({t.modulo_titulo}){!isProfessor && t.professor_nome ? ` - Prof. ${t.professor_nome}` : ''}
+                        </option>
                       ))}
                     </Select>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Data de Referência</label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={data}
-                      onChange={e => setData(e.target.value)}
-                      required
-                      className="w-full pl-10"
-                    />
-                    <CalendarIcon className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={syncAllRows}
-                    className="mt-1 text-[10px] text-teal-600 font-bold hover:underline ml-1"
-                  >
-                    Aplicar esta data a todos os alunos
-                  </button>
-                </div>
 
-
-              </div>
             </div>
 
 

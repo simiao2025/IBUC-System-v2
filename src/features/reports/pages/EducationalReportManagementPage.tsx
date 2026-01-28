@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import PageHeader from '../../../components/ui/PageHeader';
-import Card from '../../../components/ui/Card';
-import BoletimView from '../../../components/reports/BoletimView';
-import HistoricoView from '../../../components/reports/HistoricoView';
-import EstatisticasView from '../../../components/reports/EstatisticasView';
-import DracmasReportView from '../../../components/reports/DracmasReportView';
-import ListaAlunosView from '../../../components/reports/ListaAlunosView';
-import AtestadoMatriculaView from '../../../components/reports/AtestadoMatriculaView';
-import ListaChamadaView from '../../../components/reports/ListaChamadaView';
-import ConsolidadoFrequenciaView from '../../../components/reports/ConsolidadoFrequenciaView';
-import InadimplenciaReportView from '../../../components/reports/InadimplenciaReportView';
-import CertificadoView from '../../../components/reports/CertificadoView';
+import PageHeader from '@/shared/ui/PageHeader';
+import Card from '@/shared/ui/Card';
+import BoletimView from '@/components/reports/BoletimView';
+import HistoricoView from '@/components/reports/HistoricoView';
+import EstatisticasView from '@/components/reports/EstatisticasView';
+import DracmasReportView from '@/components/reports/DracmasReportView';
+import ListaAlunosView from '@/components/reports/ListaAlunosView';
+import AtestadoMatriculaView from '@/components/reports/AtestadoMatriculaView';
+import ListaChamadaView from '@/components/reports/ListaChamadaView';
+import ConsolidadoFrequenciaView from '@/components/reports/ConsolidadoFrequenciaView';
+import InadimplenciaReportView from '@/components/reports/InadimplenciaReportView';
+import CertificadoView from '@/components/reports/CertificadoView';
 import { 
   FileText, 
   GraduationCap, 
@@ -22,7 +22,7 @@ import {
   FileCheck2,
   ChevronRight
 } from 'lucide-react';
-import { useAccessControl } from '../../../components/AccessControl';
+import { useAccessControl } from '@/features/auth/ui/AccessControl';
 
 type ReportTab = 
   | 'boletim' 

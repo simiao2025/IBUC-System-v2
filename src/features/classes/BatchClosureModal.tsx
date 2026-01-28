@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button';
 import { TurmaService, TurmaItem } from './services/turma.service';
 import { AlertTriangle, CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { api } from '@/shared/api/api';
 
 interface BatchClosureModalProps {
     turmas: TurmaItem[];
@@ -126,16 +127,14 @@ export const BatchClosureModal: React.FC<BatchClosureModalProps> = ({
         setClosing(true);
         let successCount = 0;
 
+        const turmasEncerradasIds: string[] = [];
+
         for (const turmaId of eligibleIds) {
             try {
                 // We need to fetch the approved students again or store them?
                 // To be safe and reuse logic, let's call preview again or just assume all passed since canClose is true
                 // But the service expects the list of confirmed students.
                 // Since canClose = true implies failingStudents = [], then ALL students in the class are approved.
-
-                // We need the list of student IDs to send to close-module.
-                // Let's re-fetch quickly or we should have stored it. 
-                // Optimization: Calling preview again is safer than storing overly complex state.
 
                 const data: any = await TurmaService.previewTransicao(turmaId);
                 const alunos = data.alunos || [];
@@ -144,6 +143,8 @@ export const BatchClosureModal: React.FC<BatchClosureModalProps> = ({
                 await TurmaService.encerrarModulo(turmaId, {
                     alunos_confirmados: approvedIds
                 });
+
+                turmasEncerradasIds.push(turmaId); // Add to list for draft creation
 
                 setStatuses(prev => ({
                     ...prev,
@@ -156,16 +157,31 @@ export const BatchClosureModal: React.FC<BatchClosureModalProps> = ({
             }
         }
 
+        // --- NEW: Trigger Batch Draft Creation ---
+        if (turmasEncerradasIds.length > 0) {
+            try {
+                // Chama o endpoint de criação de rascunhos em lote
+                await api.post('/turmas/batch-closure/create-drafts', {
+                    turmas_encerradas_ids: turmasEncerradasIds
+                });
+                console.log('Rascunhos criados com sucesso.');
+            } catch (draftError) {
+                console.error('Erro ao criar rascunhos automáticos:', draftError);
+                // Não falha o processo principal, mas avisa console
+            }
+        }
+        // ----------------------------------------
+
         setClosing(false);
-        showFeedback('success', 'Processamento Concluído', `${successCount} turmas foram encerradas com sucesso.`);
+        showFeedback('success', 'Ciclo Encerrado!', `${successCount} turmas foram encerradas. As novas turmas rascunho foram geradas para o próximo módulo.`);
 
         // Close modal if all active were processed, otherwise leave open to see errors
-        const remaining = Object.values(statuses).filter(s => s.canClose && !s.processed).length; // Should be 0
+        const remaining = Object.values(statuses).filter(s => s.canClose && !s.processed).length; 
         if (remaining === 0) {
             // Wait a bit so user sees the green checks
             setTimeout(() => {
                 onSuccess();
-            }, 1500);
+            }, 2500); // Mais tempo para ler a msg
         }
     };
 

@@ -7,12 +7,12 @@ import {
   Award,
   Calendar
 } from 'lucide-react';
-import { useApp } from '../../../context/AppContext';
-import { useAccessControl } from '../../../components/AccessControl';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import Input from '../../../components/ui/Input';
-import PageHeader from '../../../components/ui/PageHeader';
+import { useApp } from '@/app/providers/AppContext';
+import { useAccessControl } from '@/features/auth/ui/AccessControl';
+import Button from '@/shared/ui/Button';
+import Card from '@/shared/ui/Card';
+import Input from '@/shared/ui/Input';
+import PageHeader from '@/shared/ui/PageHeader';
 
 // New Components
 import UserManagement from '../../../features/users/UserManagement';
@@ -156,7 +156,7 @@ const SystemSettingsPage: React.FC = () => {
               {[
                 { id: 'users', label: 'Usuários', icon: Users, permission: canManageUsers() || canAccessModule('manage_users') },
                 { id: 'config', label: 'Parâmetros', icon: Settings, permission: canAccessModule('settings') },
-                { id: 'events', label: 'Eventos', icon: Calendar, permission: canAccessModule('settings') },
+                { id: 'events', label: 'Eventos', icon: Calendar, permission: canAccessModule('settings_events') },
                 { id: 'dracmas', label: 'Drácmas', icon: Award, permission: canAccessModule('dracmas_settings') },
                 { id: 'security', label: 'Segurança', icon: Shield, permission: canAccessModule('security') },
                 { id: 'backup', label: 'Backup', icon: Database, permission: canAccessModule('backup') }

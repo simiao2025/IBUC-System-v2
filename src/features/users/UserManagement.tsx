@@ -30,6 +30,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [expandedPermissionGroups, setExpandedPermissionGroups] = useState<string[]>([]);
 
   // Data States
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -68,24 +69,67 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const [selectedAdminTemplateId, setSelectedAdminTemplateId] = useState<string>('');
 
   const moduleOptions: { key: AdminModuleKey; label: string }[] = [
-    { key: 'directorate', label: 'Diretoria Geral' },
+    { key: 'lessons', label: 'Cadastro de Módulos e Lições' },
+    { key: 'directorate', label: 'Diretoria' },
     { key: 'polos', label: 'Gerenciar Polos' },
-    { key: 'staff', label: 'Equipe do Polo' },
     { key: 'students', label: 'Gerenciar Alunos' },
+    { key: 'staff', label: 'Equipes (Coordenadores/Professores)' },
     { key: 'enrollments', label: 'Gerenciar Turmas' },
-    { key: 'attendance', label: 'Frequência' },
+    { key: 'attendance', label: 'Frequência/Drácmas' }, // Note: Frequência uses 'attendance'
     { key: 'dracmas', label: 'Financeiro' },
+    { key: 'finance_control', label: 'Controle de Caixa' },
+    { key: 'finance_materials', label: 'Validação de Pagamentos' },
+    { key: 'finance_config', label: 'Parâmetros Financeiros' },
+    { key: 'materials', label: 'Gerenciar Materiais' },
+    { key: 'materials_catalog', label: 'Catálogo de Materiais' },
+    { key: 'materials_orders', label: 'Gestão de Pedidos' },
     { key: 'reports', label: 'Relatórios' },
-    { key: 'pre-enrollments', label: 'Gerenciamento de Pré-matrículas' },
-    { key: 'settings', label: 'Parâmetros (Geral)' },
-    { key: 'manage_users', label: 'Gerenciar Usuários (Configurações)' },
+    { key: 'pre-enrollments', label: 'Gerenciar Pré-matrículas' },
+    { key: 'settings', label: 'Configurações' },
+    { key: 'manage_users', label: 'Usuários' },
+    { key: 'settings_events', label: 'Eventos' },
+    { key: 'dracmas_settings', label: 'Ajustes de Drácmas' }, 
+    { key: 'security', label: 'Segurança' },
+    { key: 'backup', label: 'Backup' },
+  ];
+
+  const groupedModules = [
+    { label: 'Módulos', main: 'lessons' as AdminModuleKey, sub: [] },
+    { label: 'Diretoria', main: 'directorate' as AdminModuleKey, sub: [] },
+    { label: 'Gerenciar Polos', main: 'polos' as AdminModuleKey, sub: [] },
+    { label: 'Gerenciar Alunos', main: 'students' as AdminModuleKey, sub: [] },
+    { label: 'Equipes', main: 'staff' as AdminModuleKey, sub: [] },
+    { label: 'Gerenciar Turmas', main: 'enrollments' as AdminModuleKey, sub: [] },
+    { label: 'Frequência/Drácmas', main: 'attendance' as AdminModuleKey, sub: [] },
+    { 
+      label: 'Financeiro', 
+      main: 'dracmas' as AdminModuleKey, 
+      sub: ['finance_control', 'finance_materials', 'finance_config'] as AdminModuleKey[]
+    },
+    { 
+      label: 'Gerenciar Materiais', 
+      main: 'materials' as AdminModuleKey, 
+      sub: ['materials_catalog', 'materials_orders'] as AdminModuleKey[]
+    },
+    { label: 'Relatórios', main: 'reports' as AdminModuleKey, sub: [] },
+    { label: 'Gerenciar Pré-matrículas', main: 'pre-enrollments' as AdminModuleKey, sub: [] },
+    { 
+      label: 'Configurações', 
+      main: 'settings' as AdminModuleKey, 
+      sub: ['manage_users', 'settings_events', 'dracmas_settings', 'security', 'backup'] as AdminModuleKey[]
+    }
   ];
 
   // Permission Selectors
   const currentAdmin = currentUser?.adminUser;
   const isSuperAdmin = currentAdmin?.role === 'super_admin' || currentAdmin?.role === 'admin_geral';
-  const isGeneralManagement = currentAdmin?.role === 'diretor_geral' || currentAdmin?.role === 'coordenador_geral';
-  const isPoloDirector = currentAdmin?.role === 'diretor_polo';
+  const isGeneralManagement = [
+    'diretor_geral', 'vice_diretor_geral', 
+    'coordenador_geral', 'vice_coordenador_geral',
+    'primeiro_secretario_geral', 'segundo_secretario_geral',
+    'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral'
+  ].includes(currentAdmin?.role || '');
+  const isPoloDirector = currentAdmin?.role === 'diretor_polo' || currentAdmin?.role === 'vice_diretor_polo';
   const creatorIsPoloScoped = currentAdmin?.accessLevel === 'polo_especifico';
 
   const isGeneralRole = (role?: AdminRole) => {
@@ -93,8 +137,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       'super_admin', 'admin_geral',
       'diretor_geral', 'vice_diretor_geral',
       'coordenador_geral', 'vice_coordenador_geral',
-      'secretario_geral', 'primeiro_secretario_geral', 'segundo_secretario_geral',
-      'tesoureiro_geral', 'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral'
+      'primeiro_secretario_geral', 'segundo_secretario_geral',
+      'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral'
     ].includes(role || '');
   };
 
@@ -104,8 +148,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     return [
       'diretor_polo', 'vice_diretor_polo',
       'coordenador_polo', 'vice_coordenador_polo',
-      'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
-      'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+      'primeiro_secretario_polo', 'segundo_secretario_polo',
+      'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
       'professor', 'auxiliar'
     ].includes(role);
   };
@@ -123,11 +167,11 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       return [
         'super_admin', 'admin_geral',
         'diretor_geral', 'vice_diretor_geral', 'coordenador_geral', 'vice_coordenador_geral',
-        'secretario_geral', 'primeiro_secretario_geral', 'segundo_secretario_geral',
-        'tesoureiro_geral', 'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral',
+        'primeiro_secretario_geral', 'segundo_secretario_geral',
+        'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral',
         'diretor_polo', 'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
-        'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
-        'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+        'primeiro_secretario_polo', 'segundo_secretario_polo',
+        'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
         'professor', 'auxiliar'
       ];
     }
@@ -136,8 +180,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     if (isGeneralManagement) {
       return [
         'diretor_polo', 'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
-        'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
-        'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+        'primeiro_secretario_polo', 'segundo_secretario_polo',
+        'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
         'professor', 'auxiliar'
       ];
     }
@@ -145,9 +189,9 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     // Diretores de Polo podem cadastrar outros cargos de polo e staff
     if (isPoloDirector) {
       return [
-        'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
-        'secretario_polo', 'primeiro_secretario_polo', 'segundo_secretario_polo',
-        'tesoureiro_polo', 'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
+        'diretor_polo', 'vice_diretor_polo', 'coordenador_polo', 'vice_coordenador_polo',
+        'primeiro_secretario_polo', 'segundo_secretario_polo',
+        'primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo',
         'professor', 'auxiliar'
       ];
     }
@@ -155,9 +199,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     return [];
   };
 
-  const canConfigurePermissionsForRole = (role: AdminRole): boolean => {
-    return ['secretario_polo', 'tesoureiro_polo', 'professor', 'auxiliar', 'secretario_geral', 'tesoureiro_geral'].includes(role);
-  };
+
 
   // Data Loading
   const loadOptions = useCallback(async () => {
@@ -497,33 +539,12 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {editingUser ? (
-                <Input
-                  label="Nome Completo"
-                  value={editingUser.name}
-                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                  disabled={isRestrictedUser}
-                />
-              ) : (
-                <Select
-                  label="Nome Completo"
-                  value={selectedAdminTemplateId}
-                  onChange={(val) => handleSelectAdminTemplate(val)}
-                >
-                  <option value="">Selecione um nome (Diretoria Geral/Polo)</option>
-                  {directoratePeopleLoading && (
-                    <option value="">Carregando...</option>
-                  )}
-                  {!directoratePeopleLoading && directoratePeople
-                    .slice()
-                    .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''))
-                    .map(p => (
-                      <option key={p.key} value={p.key}>
-                        {p.nome_completo || 'Sem nome'}
-                      </option>
-                    ))}
-                </Select>
-              )}
+              <Input
+                label="Nome Completo"
+                value={editingUser?.name ?? newUser.name}
+                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, name: e.target.value }) : setNewUser({ ...newUser, name: e.target.value })}
+                disabled={isRestrictedUser}
+              />
               <Input
                 label="Email"
                 value={editingUser?.email ?? newUser.email}
@@ -543,15 +564,14 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                 onChange={(e) => editingUser ? setEditingUser({ ...editingUser, phone: e.target.value }) : setNewUser({ ...newUser, phone: e.target.value })}
                 disabled={isRestrictedUser && !!editingUser}
               />
-              {(isRestrictedUser || !editingUser) && (
-                <Input
-                  label={isRestrictedUser ? "Nova Senha" : "Senha (Máx 6 chars)"}
-                  type="password"
-                  maxLength={6}
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                />
-              )}
+              <Input
+                label={editingUser ? "Nova Senha (Opcional)" : "Senha (Máx 6 chars)"}
+                type="password"
+                placeholder={editingUser ? "Deixe em branco para manter" : ""}
+                maxLength={6}
+                value={editingUser ? (editingUser as any).password || '' : newUser.password}
+                onChange={(e) => editingUser ? setEditingUser({ ...editingUser, password: e.target.value } as any) : setNewUser({ ...newUser, password: e.target.value })}
+              />
               {isRestrictedUser ? (
                 <Input
                   label="Função"
@@ -572,9 +592,17 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                     }
                   }}
                 >
-                  {allowedRolesForCreator().map(role => (
-                    <option key={role} value={role}>{roleLabels[role] || role}</option>
-                  ))}
+                  {(() => {
+                    const allowed = allowedRolesForCreator();
+                    // Garantir que o cargo atual apareça mesmo que o criador não possa "criar" novos desse cargo
+                    const currentRole = editingUser?.role ?? newUser.role;
+                    if (currentRole && !allowed.includes(currentRole as AdminRole)) {
+                      allowed.unshift(currentRole as AdminRole);
+                    }
+                    return allowed.map(role => (
+                      <option key={role} value={role}>{roleLabels[role] || role}</option>
+                    ));
+                  })()}
                 </Select>
               )}
               {roleRequiresPolo((editingUser?.role ?? newUser.role) as AdminRole) && (
@@ -591,7 +619,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
             </div>
 
             {/* Permissions Section (from Settings flow) - Hidden for restricted users editing themselves */}
-            {!isRestrictedUser && canConfigurePermissionsForRole((editingUser?.role ?? newUser.role) as AdminRole) && (
+            {!isRestrictedUser && (
               <div className="border-t pt-6 mb-6">
                 <h3 className="font-bold text-gray-900 mb-3">Permissões Específicas</h3>
                 <div className="flex space-x-6 mb-4">
@@ -621,28 +649,74 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                   </label>
                 </div>
                 {(editingUser?.permissions ?? newUser.permissions)?.mode === 'limited' && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-gray-50 p-4 rounded-lg">
-                    {moduleOptions.map(mod => (
-                      <label key={mod.key} className="flex items-center space-x-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={(editingUser?.permissions ?? newUser.permissions)?.modules.includes(mod.key)}
-                          onChange={(e) => {
-                            const currentPerms = (editingUser?.permissions ?? newUser.permissions) || { mode: 'limited', modules: [] };
-                            const newModules = e.target.checked
-                              ? [...currentPerms.modules, mod.key]
-                              : currentPerms.modules.filter(m => m !== mod.key);
-                            const perm = { ...currentPerms, modules: newModules };
-                            if (editingUser) {
-                              setEditingUser({ ...editingUser, permissions: perm });
-                            } else {
-                              setNewUser({ ...newUser, permissions: perm });
-                            }
-                          }}
-                        />
-                        <span>{mod.label}</span>
-                      </label>
-                    ))}
+                  <div className="space-y-4 mt-6">
+                    <h4 className="text-lg font-extrabold text-gray-900 mb-6 px-1">Módulos do Sistema</h4>
+                    
+                    <div className="grid grid-cols-1 gap-5 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar pb-4">
+                      {groupedModules.map(group => {
+                        const mainMod = moduleOptions.find(m => m.key === group.main);
+                        if (!mainMod) return null;
+                        
+                        const currentPerms = (editingUser?.permissions ?? newUser.permissions) || { mode: 'limited', modules: [] };
+                        const isMainChecked = currentPerms.modules.includes(mainMod.key);
+
+                        const toggleModule = (key: AdminModuleKey, checked: boolean) => {
+                          let newModules = checked
+                            ? [...currentPerms.modules, key]
+                            : currentPerms.modules.filter(m => m !== key);
+                          
+                          if (!checked && group.sub.length > 0) {
+                            newModules = newModules.filter(m => !group.sub.includes(m as AdminModuleKey));
+                          }
+                          if (checked && group.sub.includes(key) && !currentPerms.modules.includes(group.main)) {
+                             newModules = [...newModules, group.main];
+                          }
+
+                          const perm = { ...currentPerms, modules: Array.from(new Set(newModules)) };
+                          editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
+                        };
+
+                        return (
+                          <div key={group.label} className="bg-white border border-gray-200/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+                            <label className="flex items-center space-x-4 cursor-pointer group mb-4">
+                              <input
+                                type="checkbox"
+                                className="rounded-md border-gray-300 text-blue-600 focus:ring-blue-500 w-6 h-6 transition-all shadow-sm"
+                                checked={isMainChecked}
+                                onChange={(e) => toggleModule(mainMod.key, e.target.checked)}
+                              />
+                              <span className={`text-lg font-bold transition-colors ${isMainChecked ? 'text-gray-900' : 'text-gray-400'}`}>
+                                {group.label}
+                              </span>
+                            </label>
+
+                            {isMainChecked && group.sub.length > 0 && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-4 pl-10 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                {group.sub.map(subKey => {
+                                  const subMod = moduleOptions.find(m => m.key === subKey);
+                                  if (!subMod) return null;
+                                  const isSubChecked = currentPerms.modules.includes(subMod.key);
+                                  
+                                  return (
+                                    <label key={subMod.key} className="flex items-center space-x-3 cursor-pointer group">
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300 text-blue-500 focus:ring-blue-400 w-5 h-5 transition-all"
+                                        checked={isSubChecked}
+                                        onChange={(e) => toggleModule(subMod.key, e.target.checked)}
+                                      />
+                                      <span className={`text-[15px] font-semibold transition-colors ${isSubChecked ? 'text-gray-800' : 'text-gray-400'}`}>
+                                        {subMod.label}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

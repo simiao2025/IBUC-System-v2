@@ -10,6 +10,7 @@ import {
   Put,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -111,6 +112,24 @@ export class TurmasController {
   @ApiOperation({ summary: 'Obter ocupação atual da turma' })
   async getOccupancy(@Param('id') id: string) {
     return this.service.getOccupancy(id);
+  }
+
+  @Post('batch-closure/create-drafts')
+  @Roles('coordinator_polo', 'diretor_geral', 'super_admin')
+  @ApiOperation({ summary: 'Criar turmas rascunho após encerramento em lote (por polo)' })
+  async criarRascunhosAposEncerramento(
+    @Body('turmas_encerradas_ids') turmasEncerrdasIds: string[],
+    @Request() req: any
+  ) {
+    const userId = req.user.id;
+    return this.service.criarRascunhosEmLote(turmasEncerrdasIds, userId);
+  }
+
+  @Post(':id/activate-draft')
+  @Roles('secretary_polo', 'diretor_geral', 'super_admin')
+  @ApiOperation({ summary: 'Ativar turma rascunho e migrar alunos' })
+  async ativarTurmaRascunho(@Param('id') id: string) {
+    return this.service.ativarRascunho(id);
   }
 
 

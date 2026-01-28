@@ -100,7 +100,7 @@ export class UsuariosService {
   async criarUsuario(dto: CreateUsuarioDto) {
     const rawPassword = (dto as any)?.password;
     if (typeof rawPassword === 'string') {
-      if (rawPassword.length < 10) throw new BadRequestException('Senha deve ter no mínimo 10 caracteres');
+      if (rawPassword.length < 6) throw new BadRequestException('Senha deve ter no mínimo 6 caracteres');
       dto.password_hash = await bcrypt.hash(rawPassword, 10);
     }
     return this.managementService.criarUsuario(dto);
@@ -130,7 +130,7 @@ export class UsuariosService {
     const updateData: any = { updated_at: new Date().toISOString() };
     const rawPassword = (dto as any)?.password;
     if (typeof rawPassword === 'string') {
-      if (rawPassword.length < 10) throw new BadRequestException('Senha deve ter no mínimo 10 caracteres');
+      if (rawPassword.length < 6) throw new BadRequestException('Senha deve ter no mínimo 6 caracteres');
       updateData.password_hash = await bcrypt.hash(rawPassword, 10);
     }
 
@@ -159,7 +159,7 @@ export class UsuariosService {
   }
 
   async alterarSenha(email: string, senhaAtual: string, senhaNova: string) {
-    if (senhaNova.length < 10) throw new BadRequestException('Senha deve ter no mínimo 10 caracteres');
+    if (senhaNova.length < 6) throw new BadRequestException('Senha deve ter no mínimo 6 caracteres');
     return this.passwordService.alterarSenha(email, senhaAtual, senhaNova);
   }
 

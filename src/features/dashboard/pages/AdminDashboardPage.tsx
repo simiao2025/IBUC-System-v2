@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { useAccessControl } from '@/components/AccessControl';
+import { useAccessControl } from '@/features/auth/ui/AccessControl';
 import { useNavigationConfirm } from '@/hooks/useNavigationConfirm';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -23,6 +23,10 @@ import {
   Clock,
   ShoppingCart
 } from 'lucide-react';
+import { UserService } from '@/services/userService';
+import { api } from '@/shared/api/api';
+import { UrgentBanner } from '@/components/notifications/UrgentBanner';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard: React.FC = () => {
   const { students, enrollments, polos, logout, currentUser, preMatriculas } = useApp();
@@ -45,6 +49,47 @@ const AdminDashboard: React.FC = () => {
   const [certCount, setCertCount] = React.useState<number>(0);
   const [upcomingEvents, setUpcomingEvents] = React.useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = React.useState(true);
+
+  const [hasStaff, setHasStaff] = React.useState(true); // Oculto por padrão até validar
+  const [pendingDraftsCount, setPendingDraftsCount] = React.useState(0);
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const checkDrafts = async () => {
+      // Secretários e Diretor Geral devem ver isso
+      if (['secretario_polo', 'diretor_geral', 'super_admin'].includes(currentUser?.adminUser?.role || '')) {
+         try {
+           const result = await api.get('/turmas', { params: { status: 'rascunho' }});
+           if (result.data && Array.isArray(result.data)) {
+             setPendingDraftsCount(result.data.length);
+           }
+         } catch (e) {
+           console.error('Erro ao buscar rascunhos', e);
+         }
+      }
+    };
+    checkDrafts();
+  }, [currentUser]);
+
+  React.useEffect(() => {
+    const checkStaff = async () => {
+      if (currentUser?.adminUser?.role === 'diretor_polo' && currentUser?.adminUser?.poloId) {
+        try {
+          const staff = await UserService.listUsers({ 
+            polo_id: currentUser.adminUser.poloId,
+            ativo: true 
+          });
+          // Verifica se existe alguém além do próprio diretor que seja professor ou auxiliar
+          const team = staff.filter(u => u.role === 'professor' || u.role === 'auxiliar');
+          setHasStaff(team.length > 0);
+        } catch (e) {
+          console.error('Erro ao validar equipe do polo', e);
+          setHasStaff(true);
+        }
+      }
+    };
+    checkStaff();
+  }, [currentUser?.adminUser?.id, currentUser?.adminUser?.poloId, currentUser?.adminUser?.role]);
 
   React.useEffect(() => {
     const loadCertCount = async () => {
@@ -131,7 +176,7 @@ const AdminDashboard: React.FC = () => {
       iconName: 'turmas',
       fallbackIcon: BookOpen,
       color: 'bg-purple-600 hover:bg-purple-700',
-      permission: ['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral', 'secretario_geral'].includes(currentUser?.adminUser?.role || '')
+      permission: canAccessModule('settings') || canAccessModule('enrollments') // Módulos geralmente segue configurações ou turmas
     },
     {
       title: isPoloScoped ? 'Diretoria do Polo' : 'Diretoria Geral',
@@ -197,13 +242,13 @@ const AdminDashboard: React.FC = () => {
       permission: canAccessModule('dracmas')
     },
     {
-      title: 'Pedidos de Materiais',
-      description: 'Gestão de material didático e cobranças unificadas',
-      href: '/admin/financeiro/pedidos-materiais',
+      title: 'Gerenciar Materiais',
+      description: 'Cadastro de materiais e gestão de pedidos',
+      href: '/admin/materiais',
       iconName: 'pre_matricula',
       fallbackIcon: ShoppingCart,
       color: 'bg-red-600 hover:bg-red-700',
-      permission: ['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral'].includes(currentUser?.adminUser?.role || '')
+      permission: canAccessModule('materials')
     },
     {
       title: 'Relatórios',
@@ -274,12 +319,16 @@ const AdminDashboard: React.FC = () => {
                         {currentUser.adminUser.role === 'admin_geral' && 'Admin Geral'}
                         {currentUser.adminUser.role === 'coordenador_geral' && 'Coordenador Geral'}
                         {currentUser.adminUser.role === 'diretor_geral' && 'Diretor Geral'}
-                        {currentUser.adminUser.role === 'secretario_geral' && 'Secretário(a) Geral'}
-                        {currentUser.adminUser.role === 'tesoureiro_geral' && 'Tesoureiro(a) Geral'}
+                        {currentUser.adminUser.role === 'primeiro_secretario_geral' && '1º Secretário Geral'}
+                        {currentUser.adminUser.role === 'segundo_secretario_geral' && '2º Secretário Geral'}
+                        {currentUser.adminUser.role === 'primeiro_tesoureiro_geral' && '1º Tesoureiro Geral'}
+                        {currentUser.adminUser.role === 'segundo_tesoureiro_geral' && '2º Tesoureiro Geral'}
                         {currentUser.adminUser.role === 'coordenador_polo' && 'Coordenador do Polo'}
                         {currentUser.adminUser.role === 'diretor_polo' && 'Diretor do Polo'}
-                        {currentUser.adminUser.role === 'secretario_polo' && 'Secretário(a) do Polo'}
-                        {currentUser.adminUser.role === 'tesoureiro_polo' && 'Tesoureiro(a) do Polo'}
+                        {currentUser.adminUser.role === 'primeiro_secretario_polo' && '1º Secretário do Polo'}
+                        {currentUser.adminUser.role === 'segundo_secretario_polo' && '2º Secretário do Polo'}
+                        {currentUser.adminUser.role === 'primeiro_tesoureiro_polo' && '1º Tesoureiro do Polo'}
+                        {currentUser.adminUser.role === 'segundo_tesoureiro_polo' && '2º Tesoureiro do Polo'}
                         {currentUser.adminUser.role === 'professor' && 'Professor'}
                         {currentUser.adminUser.role === 'auxiliar' && 'Auxiliar'}
                       </span>
@@ -316,8 +365,17 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Urgent Banner for Drafts */}
+        <UrgentBanner 
+          count={pendingDraftsCount}
+          message={`Existem ${pendingDraftsCount} turmas pendentes de ativação!`}
+          actionLabel="Revisar Turmas Agora"
+          onAction={() => navigate('/admin/turmas/pendentes')}
+        />
+
         {/* Orientation for Polo Director */}
-        {currentUser?.adminUser?.role === 'diretor_polo' && (
+        {currentUser?.adminUser?.role === 'diretor_polo' && !hasStaff && (
           <Card className="mb-8 border-l-4 border-l-purple-600 bg-purple-50">
             <div className="flex items-start">
               <div className="p-2 bg-purple-100 rounded-lg mr-4 underline-offset-4">

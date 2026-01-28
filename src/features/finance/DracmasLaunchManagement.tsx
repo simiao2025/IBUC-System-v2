@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
+import Card from '@/shared/ui/Card';
+import Button from '@/shared/ui/Button';
+import Input from '@/shared/ui/Input';
+import Select from '@/shared/ui/Select';
 import { DracmasAPI } from './dracmas.service';
-import { TurmasAPI } from '../../services/turma.service';
-import { AlunosAPI } from '../students/aluno.service';
-import { useApp } from '../../context/AppContext';
-import AccessControl from '../../components/AccessControl';
+import { TurmasAPI } from '@/services/turma.service';
+import { AlunosAPI } from '@/features/students/aluno.service';
+import { useApp } from '@/app/providers/AppContext';
+import AccessControl from '@/features/auth/ui/AccessControl';
 
 interface AlunoDracma {
   aluno_id: string;

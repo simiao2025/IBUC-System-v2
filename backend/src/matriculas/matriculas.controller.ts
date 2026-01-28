@@ -28,8 +28,8 @@ export class MatriculasController {
 
   @Get()
   @ApiOperation({ summary: 'Listar matrículas' })
-  async listar(@Query('polo_id') poloId?: string, @Query('status') status?: string) {
-    return this.service.listarMatriculas(poloId, status);
+  async listar(@Query('polo_id') poloId?: string, @Query('status') status?: string, @Query('aluno_id') alunoId?: string) {
+    return this.service.listarMatriculas(poloId, status, alunoId);
   }
 
   @Get('protocolo/:protocolo')

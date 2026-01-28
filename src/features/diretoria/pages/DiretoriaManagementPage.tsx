@@ -37,16 +37,16 @@ interface DirectoratePosition {
 const cargoOptions = [
   { value: 'diretor_geral', label: 'Diretor Geral' },
   { value: 'vice_diretor_geral', label: 'Vice-Diretor Geral' },
-  { value: 'coordenador_geral', label: 'Coordenador Geral' },
-  { value: 'vice_coordenador_geral', label: 'Vice-Coordenador Geral' },
+  { value: 'coordenador_geral', label: '1º Coordenador Geral' },
+  { value: 'vice_coordenador_geral', label: '2º Coordenador Geral' },
   { value: 'primeiro_secretario_geral', label: '1º Secretário Geral' },
   { value: 'segundo_secretario_geral', label: '2º Secretário Geral' },
   { value: 'primeiro_tesoureiro_geral', label: '1º Tesoureiro Geral' },
   { value: 'segundo_tesoureiro_geral', label: '2º Tesoureiro Geral' },
   { value: 'diretor_polo', label: 'Diretor do Polo' },
   { value: 'vice_diretor_polo', label: 'Vice-Diretor do Polo' },
-  { value: 'coordenador_polo', label: 'Coordenador do Polo' },
-  { value: 'vice_coordenador_polo', label: 'Vice-Coordenador do Polo' },
+  { value: 'coordenador_polo', label: '1º Coordenador do Polo' },
+  { value: 'vice_coordenador_polo', label: '2º Coordenador do Polo' },
   { value: 'primeiro_secretario_polo', label: '1º Secretário do Polo' },
   { value: 'segundo_secretario_polo', label: '2º Secretário do Polo' },
   { value: 'primeiro_tesoureiro_polo', label: '1º Tesoureiro do Polo' },
@@ -110,7 +110,7 @@ const DiretoriaManagementPage: React.FC = () => {
     cpf: '',
     cargo: 'secretario_geral' as string,
     data_inicio: new Date().toISOString().split('T')[0],
-    usuario_id: '', // Será preenchido ao buscar/criar usuário
+    usuario_id: '',
   });
 
   // Carregar diretorias ao montar o componente
@@ -221,16 +221,16 @@ const DiretoriaManagementPage: React.FC = () => {
   const positionLabels: Record<string, string> = {
     diretor_geral: 'Diretor Geral',
     vice_diretor_geral: 'Vice-Diretor Geral',
-    coordenador_geral: 'Coordenador Geral',
-    vice_coordenador_geral: 'Vice-Coordenador Geral',
+    coordenador_geral: '1º Coordenador Geral',
+    vice_coordenador_geral: '2º Coordenador Geral',
     primeiro_secretario_geral: '1º Secretário Geral',
     segundo_secretario_geral: '2º Secretário Geral',
     primeiro_tesoureiro_geral: '1º Tesoureiro Geral',
     segundo_tesoureiro_geral: '2º Tesoureiro Geral',
     diretor_polo: 'Diretor do Polo',
     vice_diretor_polo: 'Vice-Diretor do Polo',
-    coordenador_polo: 'Coordenador do Polo',
-    vice_coordenador_polo: 'Vice-Coordenador do Polo',
+    coordenador_polo: '1º Coordenador do Polo',
+    vice_coordenador_polo: '2º Coordenador do Polo',
     primeiro_secretario_polo: '1º Secretário do Polo',
     segundo_secretario_polo: '2º Secretário do Polo',
     primeiro_tesoureiro_polo: '1º Tesoureiro do Polo',
@@ -337,8 +337,8 @@ const DiretoriaManagementPage: React.FC = () => {
 
         const targetRole = roleMapping[formData.cargo] || 'auxiliar' as AdminRole;
 
-        // Senha inicial: 6 primeiros dígitos do CPF
-        const password = formData.cpf.replace(/\D/g, '').substring(0, 6);
+        // Senha inicial: 'senha123'
+        const password = 'senha123';
 
         try {
           const userRes = await UserServiceV2.createUser({
@@ -451,9 +451,10 @@ const DiretoriaManagementPage: React.FC = () => {
       cargo: cargoFrontend,
       data_inicio: position.data_inicio,
       usuario_id: position.usuario_id || '',
-      cpf: '', // CPF can be fetched from DB if needed, but for now we keep it empty on edit
+      cpf: '', 
     });
-    setIsNewUser(!position.usuario_id);
+    // Always treat as "new user" regarding form fields (show all inputs)
+    setIsNewUser(true); 
     setShowForm(true);
   };
 
@@ -564,8 +565,8 @@ const DiretoriaManagementPage: React.FC = () => {
     ? [
       { value: 'diretor_polo', label: 'Diretor do Polo' },
       { value: 'vice_diretor_polo', label: 'Vice-Diretor do Polo' },
-      { value: 'coordenador_polo', label: 'Coordenador do Polo' },
-      { value: 'vice_coordenador_polo', label: 'Vice-Coordenador do Polo' },
+      { value: 'coordenador_polo', label: '1º Coordenador do Polo' },
+      { value: 'vice_coordenador_polo', label: '2º Coordenador do Polo' },
       { value: 'primeiro_secretario_polo', label: '1º Secretário do Polo' },
       { value: 'segundo_secretario_polo', label: '2º Secretário do Polo' },
       { value: 'primeiro_tesoureiro_polo', label: '1º Tesoureiro do Polo' },
@@ -574,8 +575,8 @@ const DiretoriaManagementPage: React.FC = () => {
     : [
       { value: 'diretor_geral', label: 'Diretor Geral' },
       { value: 'vice_diretor_geral', label: 'Vice-Diretor Geral' },
-      { value: 'coordenador_geral', label: 'Coordenador Geral' },
-      { value: 'vice_coordenador_geral', label: 'Vice-Coordenador Geral' },
+      { value: 'coordenador_geral', label: '1º Coordenador Geral' },
+      { value: 'vice_coordenador_geral', label: '2º Coordenador Geral' },
       { value: 'primeiro_secretario_geral', label: '1º Secretário Geral' },
       { value: 'segundo_secretario_geral', label: '2º Secretário Geral' },
       { value: 'primeiro_tesoureiro_geral', label: '1º Tesoureiro Geral' },
@@ -596,7 +597,8 @@ const DiretoriaManagementPage: React.FC = () => {
             alert('Apenas Diretor Geral / Admin Geral pode adicionar cargos na diretoria do polo.');
             return;
           }
-          setIsNewUser(directorateMode === 'geral');
+          // Always force IS NEW USER logic to show inputs
+          setIsNewUser(true);
           setShowForm(true);
         }}
       />
@@ -807,78 +809,23 @@ const DiretoriaManagementPage: React.FC = () => {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {directorateMode === 'polo' && !editingPosition && (
-                <div className="flex items-center space-x-2 mb-4 p-3 bg-blue-50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    id="isNewUser"
-                    checked={isNewUser}
-                    onChange={(e) => {
-                      setIsNewUser(e.target.checked);
-                      if (e.target.checked) setFormData(p => ({ ...p, usuario_id: '' }));
-                    }}
-                    className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isNewUser" className="text-sm font-medium text-blue-800">
-                    Criar novo usuário automaticamente
-                  </label>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 gap-4">
-                {directorateMode === 'polo' && !isNewUser ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Selecionar Usuário Existente
-                    </label>
-                    <select
-                      name="usuario_id"
-                      value={formData.usuario_id || ''}
-                      onChange={(e) => {
-                        const userId = e.target.value;
-                        const selected = availableUsers.find(u => u.id === userId);
-                        setFormData(prev => ({
-                          ...prev,
-                          usuario_id: userId,
-                          nome_completo: selected?.name || '',
-                          telefone: selected?.phone || '',
-                          email: selected?.email || '',
-                        }));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                      required
-                      disabled={usersLoading}
-                    >
-                      <option value="">
-                        {usersLoading ? 'Carregando usuários...' : 'Selecione um usuário'}
-                      </option>
-                      {availableUsers.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name} ({u.role})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <Input
-                    label="Nome Completo"
-                    name="nome_completo"
-                    value={formData.nome_completo || ''}
-                    onChange={handleInputChange}
-                    required
-                  />
-                )}
+                <Input
+                  label="Nome Completo"
+                  name="nome_completo"
+                  value={formData.nome_completo || ''}
+                  onChange={handleInputChange}
+                  required
+                />
 
-                {(isNewUser || directorateMode === 'geral') && (
-                  <Input
-                    label="CPF (Usado para senha inicial: 6 primeiros dígitos)"
-                    name="cpf"
-                    placeholder="000.000.000-00"
-                    value={formData.cpf || ''}
-                    onChange={handleInputChange}
-                    required={isNewUser}
-                  />
-                )}
+                <Input
+                  label="CPF"
+                  name="cpf"
+                  placeholder="000.000.000-00"
+                  value={formData.cpf || ''}
+                  onChange={handleInputChange}
+                  required={!editingPosition} // Required for new users
+                />
 
                 <Input
                   label="Telefone"
@@ -898,7 +845,7 @@ const DiretoriaManagementPage: React.FC = () => {
                   onChange={handleInputChange}
                   required
                 />
-
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cargo
@@ -952,7 +899,7 @@ const DiretoriaManagementPage: React.FC = () => {
                       telefone: '',
                       email: '',
                       cpf: '',
-                      cargo: directorateMode === 'polo' ? 'diretor' : 'secretario_geral',
+                      cargo: directorateMode === 'polo' ? 'diretor_polo' : 'secretario_geral',
                       data_inicio: new Date().toISOString().split('T')[0],
                       usuario_id: '',
                     });

@@ -13,6 +13,22 @@ export class CreateMaterialDto {
   @IsNotEmpty()
   @Min(0)
   valor_padrao_cents: number;
+
+  @IsString()
+  @IsOptional()
+  modulo_id?: string;
+
+  @IsString()
+  @IsOptional()
+  nivel_id?: string;
+
+  @IsString()
+  @IsOptional()
+  unidade?: string;
+
+  @IsString()
+  @IsOptional()
+  url_imagem?: string;
 }
 
 export class UpdateMaterialDto {
@@ -28,4 +44,20 @@ export class UpdateMaterialDto {
   @IsOptional()
   @Min(0)
   valor_padrao_cents?: number;
+
+  @IsString()
+  @IsOptional()
+  modulo_id?: string;
+
+  @IsString()
+  @IsOptional()
+  nivel_id?: string;
+
+  @IsString()
+  @IsOptional()
+  unidade?: string;
+
+  @IsString()
+  @IsOptional()
+  url_imagem?: string;
 }

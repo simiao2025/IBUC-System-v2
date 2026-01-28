@@ -5,6 +5,25 @@ import { PresencasService } from '../presencas/presencas.service';
 import { MensalidadesService } from '../mensalidades/mensalidades.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
 
+export interface TurmaItem {
+  id: string;
+  nome: string;
+  polo_id: string;
+  nivel_id: string;
+  professor_id?: string | null;
+  capacidade: number;
+  ano_letivo: number;
+  turno: 'manha' | 'tarde' | 'noite';
+  status: 'ativa' | 'inativa' | 'concluida' | 'rascunho';
+  modulo_atual_id?: string | null;
+  dias_semana?: number[] | null;
+  horario_inicio?: string | null;
+  data_inicio?: string | null;
+  data_previsao_termino?: string | null;
+  data_conclusao?: string | null;
+  migracao_concluida?: boolean;
+}
+
 @Injectable()
 export class TurmasService {
   constructor(
@@ -91,8 +110,12 @@ export class TurmasService {
     turno: 'manha' | 'tarde' | 'noite';
     dias_semana?: number[];
     horario_inicio?: string;
-    status?: 'ativa' | 'inativa' | 'concluida';
-    modulo_atual_id?: string;
+    status: 'ativa' | 'inativa' | 'concluida' | 'rascunho';
+    modulo_atual_id?: string | null;
+    data_inicio?: string;
+    data_previsao_termino?: string;
+    data_conclusao?: string;
+    migracao_concluida?: boolean;
   }) {
     if (!dto.nome || dto.nome.trim().length === 0) {
       throw new BadRequestException('Nome é obrigatório');
@@ -144,6 +167,10 @@ export class TurmasService {
         horario_inicio: dto.horario_inicio || null,
         status: dto.status || 'ativa',
         modulo_atual_id: moduloId || null,
+        data_inicio: dto.data_inicio || null,
+        data_previsao_termino: dto.data_previsao_termino || null,
+        data_conclusao: dto.data_conclusao || null,
+        migracao_concluida: dto.migracao_concluida || false,
       })
       .select()
       .single();
@@ -167,8 +194,14 @@ export class TurmasService {
       turno?: 'manha' | 'tarde' | 'noite';
       dias_semana?: number[];
       horario_inicio?: string | null;
-      status?: 'ativa' | 'inativa' | 'concluida';
+      status?: 'ativa' | 'inativa' | 'concluida' | 'rascunho';
       modulo_atual_id?: string | null;
+      data_inicio?: string | null;
+      data_previsao_termino?: string | null;
+      data_conclusao?: string | null;
+
+      migracao_concluida?: boolean;
+      aguardando_ativacao?: boolean;
     },
   ) {
     await this.buscarTurmaPorId(id);
@@ -201,8 +234,18 @@ export class TurmasService {
     if (dto.turno !== undefined) updateData.turno = dto.turno;
     if (dto.dias_semana !== undefined) updateData.dias_semana = dto.dias_semana;
     if (dto.horario_inicio !== undefined) updateData.horario_inicio = dto.horario_inicio;
-    if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.status !== undefined) {
+      updateData.status = dto.status;
+      if (dto.status === 'concluida' && !dto.data_conclusao) {
+        updateData.data_conclusao = new Date().toISOString().split('T')[0];
+      }
+    }
     if (dto.modulo_atual_id !== undefined) updateData.modulo_atual_id = dto.modulo_atual_id;
+    if (dto.data_inicio !== undefined) updateData.data_inicio = dto.data_inicio;
+    if (dto.data_previsao_termino !== undefined) updateData.data_previsao_termino = dto.data_previsao_termino;
+    if (dto.data_conclusao !== undefined) updateData.data_conclusao = dto.data_conclusao;
+    if (dto.migracao_concluida !== undefined) updateData.migracao_concluida = dto.migracao_concluida;
+    if (dto.aguardando_ativacao !== undefined) updateData.aguardando_ativacao = dto.aguardando_ativacao;
 
     const { data, error } = await this.supabase
       .getAdminClient()
@@ -390,6 +433,14 @@ export class TurmasService {
   }
 
   async encerrarModulo(turmaId: string, alunosConfirmados: string[], valorCents: number = 5000) {
+    // Validar se 100% das aulas foram ministradas
+    const preview = await this.previewTransicao(turmaId);
+    if (!preview.total_licoes || preview.aulas_dadas < preview.total_licoes) {
+      // Permitir encerramento forçado apenas para Super Admin? 
+      // Por enquanto, bloqueio total conforme regra de negócio.
+      throw new BadRequestException(`Não é possível encerrar o módulo: Apenas ${preview.aulas_dadas} de ${preview.total_licoes} aulas foram ministradas.`);
+    }
+
     const turma = await this.buscarTurmaPorId(turmaId);
 
     // Busca o número do módulo atual para o título do histórico e cobrança
@@ -509,5 +560,255 @@ export class TurmasService {
       total_migrado: alunoIds.length,
       alunos: alunoIds
     };
+  }
+
+  async criarRascunhosEmLote(turmasEncerrdasIds: string[], userId: string) {
+    const rascunhosCriados = [];
+
+    // Validar se o usuário tem permissão para essas turmas (Opcional por enquanto, confiando no controller/autonomia)
+    // TODO: Implementar verificação de vínculo Polo-Coordenador se necessário
+
+    for (const turmaId of turmasEncerrdasIds) {
+      const turmaAntiga = await this.buscarTurmaPorId(turmaId);
+
+      // Buscar módulo atual
+      const { data: moduloAtual } = await this.supabase
+        .getAdminClient()
+        .from('modulos')
+        .select('numero, titulo')
+        .eq('id', turmaAntiga.modulo_atual_id)
+        .single();
+
+      let proximoNumero = (moduloAtual?.numero || 0) + 1;
+      let criarRascunho = true;
+      let alunosParaMigrar: string[] = [];
+
+      // Lógica Curso Cíclico (M10 -> M1 ou Formado)
+      if (proximoNumero > 10) {
+        // Busca todos alunos da turma encerrada
+        const { data: alunosTurma } = await this.supabase
+          .getAdminClient()
+          .from('alunos')
+          .select('id')
+          .eq('turma_id', turmaId);
+
+        const idsAlunos = alunosTurma?.map(a => a.id) || [];
+        
+        for (const alunoId of idsAlunos) {
+          // Verifica quantos módulos aprovados o aluno tem
+          // Precisamos contar módulos distintos
+          const { data: historico } = await this.supabase
+            .getAdminClient()
+            .from('aluno_historico_modulos')
+            .select('modulo_numero')
+            .eq('aluno_id', alunoId)
+            .eq('situacao', 'aprovado');
+          
+          // Conta módulos únicos
+          const modulosUnique = new Set(historico?.map(h => h.modulo_numero) || []);
+          
+          // Se já tem 10 módulos, formou!
+          // NOTA: Assumindo que o encerramento atual JÁ gravou o histórico do M10.
+          // O processo de encerramento (encerrarModulo) grava histórico antes deste passo.
+          
+          if (modulosUnique.size >= 10) {
+             // Marca como formado
+             await this.supabase
+               .getAdminClient()
+               .from('alunos')
+               .update({ status: 'formado' }) // Requer migration 'formado'
+               .eq('id', alunoId);
+          } else {
+             // Não completou o ciclo, volta para M1
+             alunosParaMigrar.push(alunoId);
+          }
+        }
+
+        if (alunosParaMigrar.length === 0) {
+          criarRascunho = false; // Ninguém para migrar para M1
+        } else {
+          proximoNumero = 1; // Reinicia ciclo
+        }
+
+      } else {
+        // Fluxo Normal (M1->M2, etc)
+        // Busca alunos aprovados no módulo ATUAL (que acabou de encerrar)
+        // O encerramento já deve ter gerado o histórico 'aprovado' para o moduloAtual.numero
+        const { data: aprovados } = await this.supabase
+          .getAdminClient()
+          .from('aluno_historico_modulos')
+          .select('aluno_id')
+          .eq('modulo_numero', moduloAtual.numero)
+          .eq('situacao', 'aprovado')
+          .in('aluno_id', 
+             (await this.supabase.getAdminClient()
+              .from('alunos')
+              .select('id')
+              .eq('turma_id', turmaId)).data?.map(a => a.id) || []
+          );
+        
+        alunosParaMigrar = aprovados?.map(a => a.aluno_id) || [];
+      }
+
+      if (!criarRascunho) continue;
+
+      // Buscar Próximo Módulo
+      const { data: proximoModulo } = await this.supabase
+        .getAdminClient()
+        .from('modulos')
+        .select('id, titulo')
+        .eq('numero', proximoNumero)
+        .single();
+      
+      if (!proximoModulo) {
+         // Fallback ou erro, se não achar módulo 1 ou N+1
+         continue; 
+      }
+
+      // Preparar Nome da Nova Turma
+      const nivel = await this.buscarNivelPorId(turmaAntiga.nivel_id); // Helper needed
+      const numeroTurma = this.extrairNumeroTurma(turmaAntiga.nome);
+      const nivelRomano = this.converterNivelParaRomano(nivel?.nome || '');
+      const novoNome = `M${proximoNumero}.${numeroTurma} ${nivelRomano} ${turmaAntiga.ano_letivo}`;
+
+      // Criar Turma Rascunho
+        // Note: 'status', 'turma_origem_id', 'aguardando_ativacao' precisam existir no banco
+      const { data: novaTurma, error: createError } = await this.supabase
+        .getAdminClient()
+        .from('turmas')
+        .insert({
+          nome: novoNome,
+          polo_id: turmaAntiga.polo_id,
+          nivel_id: turmaAntiga.nivel_id,
+          professor_id: turmaAntiga.professor_id, // Copia professor
+          capacidade: turmaAntiga.capacidade,
+          ano_letivo: turmaAntiga.ano_letivo,
+          turno: turmaAntiga.turno,
+          dias_semana: turmaAntiga.dias_semana,
+          horario_inicio: turmaAntiga.horario_inicio,
+          modulo_atual_id: proximoModulo.id,
+          status: 'rascunho',
+          turma_origem_id: turmaId,
+          aguardando_ativacao: true,
+          data_inicio: null
+        })
+        .select()
+        .single();
+      
+      if (createError) throw new BadRequestException(`Erro criar rascunho: ${createError.message}`);
+
+      // Pré-vincular alunos
+      if (alunosParaMigrar.length > 0) {
+        await this.preVincularAlunos(novaTurma.id, alunosParaMigrar);
+      }
+
+      rascunhosCriados.push({
+        ...novaTurma,
+        total_alunos_migracao: alunosParaMigrar.length
+      });
+    }
+    
+    // Notificar Secretários (Simulação por enquanto)
+    // await this.notificacoesService.notificarSecretarios(...)
+
+    return {
+      message: `${rascunhosCriados.length} turmas rascunho criadas.`,
+      turmas: rascunhosCriados
+    };
+  }
+
+  async ativarRascunho(turmaId: string) {
+    const turma = await this.buscarTurmaPorId(turmaId);
+    
+    if (turma.status !== 'rascunho') {
+      throw new BadRequestException('Apenas turmas rascunho podem ser ativadas');
+    }
+    
+    // Buscar alunos pré-vinculados
+    const { data: preVinculos } = await this.supabase
+      .getAdminClient()
+      .from('turmas_rascunho_alunos')
+      .select('aluno_id')
+      .eq('turma_rascunho_id', turmaId);
+    
+    const alunoIds = preVinculos?.map(pv => pv.aluno_id) || [];
+    
+    // Migrar alunos definitivamente (Update turma_id)
+    if (alunoIds.length > 0) {
+      const { error: moveError } = await this.supabase
+        .getAdminClient()
+        .from('alunos')
+        .update({ turma_id: turmaId })
+        .in('id', alunoIds);
+      
+      if (moveError) throw new BadRequestException(`Erro migrar alunos: ${moveError.message}`);
+    }
+    
+    // Ativar turma
+    // Define data_inicio como hoje se não tiver
+    await this.atualizarTurma(turmaId, {
+      status: 'ativa',
+      aguardando_ativacao: false as any, // Cast if type definition in updateTurma doesn't support yet, strict check
+      data_inicio: new Date().toISOString().split('T')[0]
+    });
+    
+    // Limpar pré-vínculos
+    await this.supabase
+      .getAdminClient()
+      .from('turmas_rascunho_alunos')
+      .delete()
+      .eq('turma_rascunho_id', turmaId);
+    
+    return {
+      message: `Turma ativada com sucesso com ${alunoIds.length} alunos.`
+    };
+  }
+
+  // --- HELPERS ---
+
+  private async buscarNivelPorId(id: string) {
+    const { data } = await this.supabase
+       .getAdminClient()
+       .from('niveis')
+       .select('*')
+       .eq('id', id)
+       .single();
+    return data;
+  }
+
+  private async preVincularAlunos(turmaRascunhoId: string, alunoIds: string[]) {
+    if (alunoIds.length === 0) return;
+    
+    const records = alunoIds.map(aid => ({
+      turma_rascunho_id: turmaRascunhoId,
+      aluno_id: aid,
+      confirmado: true 
+    }));
+
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('turmas_rascunho_alunos')
+      .insert(records);
+      
+    if (error) console.error('Erro ao pré-vincular:', error);
+  }
+
+  private extrairNumeroTurma(nome: string): string {
+    // Tenta achar T1, T2...
+    // Ex: "M1.T2 Nível I" -> T2
+    const match = nome.match(/T(\d+)/);
+    if (match) return `T${match[1]}`;
+    return 'T1'; // Default
+  }
+
+  private converterNivelParaRomano(nomeNivel: string): string {
+    // Se o nome já vier "Nível I", extrai "I"
+    // Ou mapeia se vier "Infantil"
+    if (nomeNivel.includes('Nível')) {
+       return nomeNivel; // Retorna "Nível I" completo como pedido no formato
+    }
+    // Fallback map
+    const map: any = { 'Infantil': 'Nível I', 'Primários': 'Nível II', 'Juvenis': 'Nível III', 'Intermediários': 'Nível IV' };
+    return map[nomeNivel] || 'Nível I';
   }
 }

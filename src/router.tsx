@@ -31,7 +31,9 @@ const DracmasByClassManagement = lazy(() => import('./features/finance/DracmasBy
 const DracmasByStudentManagement = lazy(() => import('./features/students/DracmasByStudentManagement'));
 const MatriculaDocumentManagement = lazy(() => import('./features/enrollments/MatriculaDocumentManagement'));
 const EventManagement = lazy(() => import('./features/events/EventManagement'));
-const MaterialOrderManagement = lazy(() => import('./features/materials/MaterialOrderManagement'));
+const MaterialsManagement = lazy(() => import('./features/materials/MaterialsManagement'));
+const TreasurerPaymentValidation = lazy(() => import('./features/materials/TreasurerPaymentValidation'));
+const DraftClassesReview = lazy(() => import('./features/classes/DraftClassesReview').then(module => ({ default: module.DraftClassesReview })));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -148,6 +150,10 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute requireAdmin>{withSuspense(<TurmaManagement />)}</ProtectedRoute>
   },
   {
+    path: '/admin/turmas/pendentes',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<DraftClassesReview />)}</ProtectedRoute>
+  },
+  {
     path: '/admin/modulos',
     element: <ProtectedRoute requireAdmin>{withSuspense(<ModulosManagement />)}</ProtectedRoute>
   },
@@ -160,8 +166,12 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute requireAdmin>{withSuspense(<FinanceiroManagement />)}</ProtectedRoute>
   },
   {
-    path: '/admin/financeiro/pedidos-materiais',
-    element: <ProtectedRoute requireAdmin>{withSuspense(<MaterialOrderManagement />)}</ProtectedRoute>
+    path: '/admin/materiais',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<MaterialsManagement />)}</ProtectedRoute>
+  },
+  {
+    path: '/admin/financeiro/validacao-pagamentos',
+    element: <ProtectedRoute requireAdmin>{withSuspense(<TreasurerPaymentValidation />)}</ProtectedRoute>
   },
   {
     path: '/admin/polos',

@@ -15,7 +15,7 @@ vi.mock('@/context/AppContext', () => ({
   })
 }));
 
-vi.mock('@/components/AccessControl', () => ({
+vi.mock('@/features/auth/ui/AccessControl', () => ({
   useAccessControl: () => ({
     canManageStaff: () => true,
     canManagePolos: () => true,

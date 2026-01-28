@@ -155,33 +155,17 @@ const StudentAccess: React.FC = () => {
               Entrar
             </Button>
 
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-2">
-                Primeira vez aqui?
-              </p>
-              <div className="space-y-2">
-                <p className="text-xs text-gray-500">
-                  Use o CPF cadastrado e a senha padrão: <strong>senha123</strong>
-                </p>
-                <Link
-                  to="/cadastro-aluno"
-                  className="text-sm text-red-600 hover:text-red-700 hover:underline"
-                >
-                  Ainda não tem cadastro? Cadastre-se aqui
-                </Link>
-              </div>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => confirmNavigation(() => navigate('/'))}
+              className="w-full"
+              size="lg"
+            >
+              Voltar
+            </Button>
           </form>
         </Card>
-
-        <div className="text-center">
-          <button
-            onClick={() => confirmNavigation(() => navigate('/'))}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Voltar ao início
-          </button>
-        </div>
 
         <ConfirmDialog
           isOpen={isDialogOpen}

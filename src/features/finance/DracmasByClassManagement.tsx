@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import PageHeader from '../../components/ui/PageHeader';
+import { useApp } from '@/app/providers/AppContext';
+import Card from '@/shared/ui/Card';
+import Button from '@/shared/ui/Button';
+import Input from '@/shared/ui/Input';
+import PageHeader from '@/shared/ui/PageHeader';
 import { DracmasAPI } from './dracmas.service';
-import AccessControl from '../../components/AccessControl';
+import AccessControl from '@/features/auth/ui/AccessControl';
 
 type DracmaTransacao = {
   id: string;

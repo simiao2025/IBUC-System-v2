@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Card from '../../../components/ui/Card';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
-import PageHeader from '../../../components/ui/PageHeader';
-import AccessControl from '../../../components/AccessControl';
-import { useApp } from '../../../context/AppContext';
+import Card from '@/shared/ui/Card';
+import Button from '@/shared/ui/Button';
+import Input from '@/shared/ui/Input';
+import PageHeader from '@/shared/ui/PageHeader';
+import AccessControl from '@/features/auth/ui/AccessControl';
+import { useApp } from '@/app/providers/AppContext';
 import {
   LicoesAPI,
   ModulosAPI,
@@ -12,8 +12,8 @@ import {
   type LicaoUpdateDto,
   type ModuloCreateDto,
   type ModuloUpdateDto,
-} from '../../../services/modulos.service';
-import type { Licao, Modulo } from '../../../types/database';
+} from '@/services/modulos.service';
+import type { Licao, Modulo } from '@/types/database';
 
 const textareaClassName =
   'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors';

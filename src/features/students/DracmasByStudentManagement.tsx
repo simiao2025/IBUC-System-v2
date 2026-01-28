@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import Card from '../../components/ui/Card';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
-import { DracmasAPI } from '../../features/finance/dracmas.service';
-import { AlunoService } from '../students/aluno.service';
-import AccessControl from '../../components/AccessControl';
+import Card from '@/shared/ui/Card';
+import Input from '@/shared/ui/Input';
+import Button from '@/shared/ui/Button';
+import { DracmasAPI } from '@/features/finance/dracmas.service';
+import { AlunoService } from '@/entities/aluno/api/aluno.service';
+import AccessControl from '@/features/auth/ui/AccessControl';
 
 type DracmaTransacao = {
   id: string;

@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { QrCode, Upload, Check, Copy, ExternalLink, X, AlertCircle } from 'lucide-react';
+import { QrCode, Upload, Check, Copy, ExternalLink, X, AlertCircle, ShoppingCart } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { useApp } from '../../context/AppContext';
 import { FinanceiroService } from '../../features/finance/financeiro.service';
 import type { Mensalidade } from '../../types/database';
+import StudentMaterialOrder from '../../features/materials/StudentMaterialOrder';
 
 const AppFinanceiro: React.FC = () => {
   const { currentUser, showFeedback } = useApp();
@@ -18,11 +19,13 @@ const AppFinanceiro: React.FC = () => {
   const [selectedCobranca, setSelectedCobranca] = useState<Mensalidade | null>(null);
   const [showPixModal, setShowPixModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
-      if (!currentUser || currentUser.role !== 'student' || !currentUser.studentId) {
+      // Allow any role to see, but functionality limited to studentId
+      if (!currentUser) {
         setLoading(false);
         return;
       }
@@ -124,6 +127,15 @@ const AppFinanceiro: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
           <p className="text-sm text-gray-600">Acompanhe suas mensalidades e materiais didáticos.</p>
         </div>
+        <Button 
+          variant="primary" 
+          size="sm" 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => setShowOrderModal(true)}
+        >
+          <ShoppingCart className="h-4 w-4 mr-2" />
+          Solicitar Material
+        </Button>
       </div>
 
       {error && (
@@ -364,6 +376,28 @@ const AppFinanceiro: React.FC = () => {
                 Cancelar
               </Button>
             </div>
+          </Card>
+        </div>
+      )}
+      {/* Material Order Modal */}
+      {showOrderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-4xl p-4 sm:p-6 bg-white overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4 sm:mb-6 border-b pb-4">
+              <h3 className="text-lg sm:text-xl font-bold flex items-center text-gray-800">
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-600" />
+                Solicitação de Material Didático
+              </h3>
+              <button onClick={() => setShowOrderModal(false)} className="text-gray-400 hover:text-gray-600 p-2">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <StudentMaterialOrder 
+              onClose={() => setShowOrderModal(false)} 
+              onSuccess={() => {
+                // Refresh list if needed (though it will be pending approval)
+              }}
+            />
           </Card>
         </div>
       )}

@@ -1,5 +1,5 @@
-import { api } from '../lib/api';
-import type { Modulo, Licao } from '../types/database';
+import { api } from '@/shared/api/api';
+import type { Modulo, Licao } from '@/types/database';
 
 export type ModuloCreateDto = {
   numero: number;

@@ -1,19 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Settings, Package } from 'lucide-react';
-import PageHeader from '../../components/ui/PageHeader';
-import Button from '../../components/ui/Button';
-import Select from '../../components/ui/Select';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileText, Settings, CheckCircle } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
+import Button from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 import { FinanceiroService } from './financeiro.service';
-import { TurmasAPI } from '../../services/turma.service';
-import { useApp } from '../../context/AppContext';
-import AccessControl from '../../components/AccessControl';
-import MaterialOrderManagement from '../materials/MaterialOrderManagement'; // Importação do componente
+import { TurmasAPI } from '@/services/turma.service';
+import { useApp } from '@/app/providers/AppContext';
+import AccessControl, { useAccessControl } from '@/features/auth/ui/AccessControl';
+import TreasurerPaymentValidation from '@/features/materials/TreasurerPaymentValidation';
 
-type ActiveTab = 'controle' | 'materiais' | 'config';
+type ActiveTab = 'controle' | 'validacao' | 'config';
 
 const AdminFinanceiro: React.FC = () => {
   const { currentUser } = useApp();
-  const [activeTab, setActiveTab] = useState<ActiveTab>('controle');
+  const { canAccessModule } = useAccessControl();
+  
+  const hasControlAccess = canAccessModule('finance_control');
+  const hasValidationAccess = canAccessModule('finance_validation');
+  const hasConfigAccess = canAccessModule('finance_config');
+
+  // Determine initial tab
+  const getInitialTab = (): ActiveTab => {
+    if (hasControlAccess) return 'controle';
+    if (hasValidationAccess) return 'validacao';
+    if (hasConfigAccess) return 'config';
+    return 'controle'; // Fallback
+  };
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab());
+
+  // Update active tab if permissions change or on mount if fallback was wrong
+  useEffect(() => {
+    if (activeTab === 'controle' && !hasControlAccess) {
+      if (hasValidationAccess) setActiveTab('validacao');
+      else if (hasConfigAccess) setActiveTab('config');
+    }
+  }, [hasControlAccess, hasValidationAccess, hasConfigAccess, activeTab]);
+
+  const isRestrictedTreasurer = useMemo(() => {
+    const role = currentUser?.adminUser?.role;
+    return role ? ['primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo', 'tesoureiro_polo'].includes(role) : false;
+  }, [currentUser]);
+
   const [cobrancas, setCobrancas] = useState<any[]>([]);
   const [turmas, setTurmas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,7 +121,6 @@ const AdminFinanceiro: React.FC = () => {
   };
 
   return (
-    <AccessControl allowedRoles={['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral', 'secretario_geral', 'tesoureiro_geral']}>
       <div className="min-h-screen bg-gray-50">
         <PageHeader
         title={isPoloScoped ? 'Financeiro do Polo' : 'Financeiro'}
@@ -105,45 +132,51 @@ const AdminFinanceiro: React.FC = () => {
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
-              <button
-                onClick={() => setActiveTab('controle')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 ${
-                  activeTab === 'controle'
-                    ? 'border-red-500 text-red-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <FileText className="inline w-4 h-4 mr-2" />
-                Controle de Caixa
-              </button>
-              <button
-                onClick={() => setActiveTab('materiais')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 ${
-                  activeTab === 'materiais'
-                    ? 'border-red-500 text-red-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Package className="inline w-4 h-4 mr-2" />
-                Pedido de Material
-              </button>
-              <button
-                onClick={() => setActiveTab('config')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 ${
-                  activeTab === 'config'
-                    ? 'border-red-500 text-red-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Settings className="inline w-4 h-4 mr-2" />
-                Configuração
-              </button>
+              {hasControlAccess && (
+                <button
+                  onClick={() => setActiveTab('controle')}
+                  className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                    activeTab === 'controle'
+                      ? 'border-red-500 text-red-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <FileText className="inline w-4 h-4 mr-2" />
+                  Controle de Caixa
+                </button>
+              )}
+              {hasValidationAccess && (
+                <button
+                  onClick={() => setActiveTab('validacao')}
+                  className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                    activeTab === 'validacao'
+                      ? 'border-red-500 text-red-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <CheckCircle className="inline w-4 h-4 mr-2" />
+                  Validação de Pagamento
+                </button>
+              )}
+              {hasConfigAccess && (
+                <button
+                  onClick={() => setActiveTab('config')}
+                  className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                    activeTab === 'config'
+                      ? 'border-red-500 text-red-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Settings className="inline w-4 h-4 mr-2" />
+                  Configuração
+                </button>
+              )}
             </nav>
           </div>
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'controle' && (
+        {activeTab === 'controle' && hasControlAccess && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Controle de Caixa</h2>
             
@@ -250,13 +283,13 @@ const AdminFinanceiro: React.FC = () => {
         )}
 
 
-        {activeTab === 'materiais' && (
+        {activeTab === 'validacao' && hasValidationAccess && (
           <div className="bg-white rounded-lg shadow p-6">
-            <MaterialOrderManagement />
+            <TreasurerPaymentValidation />
           </div>
         )}
 
-        {activeTab === 'config' && (
+        {activeTab === 'config' && hasConfigAccess && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Configuração Financeira</h2>
             <p className="text-sm text-gray-600 mb-4">
@@ -269,7 +302,6 @@ const AdminFinanceiro: React.FC = () => {
         )}
       </div>
       </div>
-    </AccessControl>
   );
 };
 

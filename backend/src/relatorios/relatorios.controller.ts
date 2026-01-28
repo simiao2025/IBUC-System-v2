@@ -3,13 +3,17 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RelatoriosService } from './relatorios.service';
 import { PoloScopeGuard } from '../auth/guards/polo-scope.guard';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @UseGuards(JwtAuthGuard, PoloScopeGuard)
 @ApiBearerAuth()
 @ApiTags('Relatórios')
 @Controller('relatorios')
 export class RelatoriosController {
-  constructor(private readonly service: RelatoriosService) { }
+  constructor(
+    private readonly service: RelatoriosService,
+    private readonly supabase: SupabaseService
+  ) { }
 
   @Get('boletim')
   async gerarBoletim(
@@ -140,7 +144,7 @@ export class RelatoriosController {
       
       if (result.success && result.url) {
         // O PDF foi gerado com sucesso, vamos baixar e enviar como stream
-        const client = this.service['supabase'].getAdminClient();
+        const client = this.supabase.getAdminClient();
         const storagePath = result.url.split('/documentos/').pop();
         
         if (storagePath) {

@@ -37,6 +37,10 @@ export class MateriaisService {
         nome: dto.nome,
         descricao: dto.descricao,
         valor_padrao_cents: dto.valor_padrao_cents,
+        modulo_id: dto.modulo_id,
+        nivel_id: dto.nivel_id,
+        unidade: dto.unidade,
+        url_imagem: dto.url_imagem,
       })
       .select()
       .single();
@@ -51,7 +55,16 @@ export class MateriaisService {
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('materiais')
-      .update(dto)
+      .update({
+        nome: dto.nome,
+        descricao: dto.descricao,
+        valor_padrao_cents: dto.valor_padrao_cents,
+        modulo_id: dto.modulo_id,
+        nivel_id: dto.nivel_id,
+        unidade: dto.unidade,
+        url_imagem: dto.url_imagem,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id)
       .select()
       .single();

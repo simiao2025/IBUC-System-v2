@@ -129,7 +129,7 @@ export class MatriculasService {
     return data;
   }
 
-  async listarMatriculas(poloId?: string, status?: string) {
+  async listarMatriculas(poloId?: string, status?: string, alunoId?: string) {
     let query = this.supabase
       .getAdminClient()
       .from('matriculas')
@@ -137,12 +137,13 @@ export class MatriculasService {
         *,
         aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
         polo:polos!fk_polo(id, nome, codigo),
-        turma:turmas!fk_turma(id, nome)
+        turma:turmas!fk_turma(id, nome, nivel_id, modulo_id:modulo_atual_id)
       `)
       .order('created_at', { ascending: false });
 
     if (poloId) query = query.eq('polo_id', poloId);
     if (status) query = query.eq('status', status);
+    if (alunoId) query = query.eq('aluno_id', alunoId);
 
     const { data, error } = await query;
 

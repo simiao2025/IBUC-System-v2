@@ -32,6 +32,10 @@ type TurmaFormState = {
   modulo_atual_id: string;
   dias_semana: number[];
   horario_inicio: string;
+  data_inicio: string;
+  data_previsao_termino: string;
+  data_conclusao: string;
+  migracao_concluida: boolean;
 };
 
 const DEFAULT_FORM: TurmaFormState = {
@@ -46,6 +50,10 @@ const DEFAULT_FORM: TurmaFormState = {
   modulo_atual_id: '',
   dias_semana: [],
   horario_inicio: '',
+  data_inicio: '',
+  data_previsao_termino: '',
+  data_conclusao: '',
+  migracao_concluida: false,
 };
 
 export const ClassManagement: React.FC = () => {
@@ -181,6 +189,7 @@ export const ClassManagement: React.FC = () => {
       ...DEFAULT_FORM,
       dias_semana: globalConfigs.dias_semana || [],
       horario_inicio: globalConfigs.horario_aulas || '',
+      data_inicio: new Date().toISOString().split('T')[0],
     });
   };
 
@@ -198,6 +207,10 @@ export const ClassManagement: React.FC = () => {
       modulo_atual_id: t.modulo_atual_id || '',
       dias_semana: (t as any).dias_semana || [],
       horario_inicio: (t as any).horario_inicio || '',
+      data_inicio: t.data_inicio || '',
+      data_previsao_termino: t.data_previsao_termino || '',
+      data_conclusao: t.data_conclusao || '',
+      migracao_concluida: !!t.migracao_concluida,
     });
   };
 
@@ -243,6 +256,10 @@ export const ClassManagement: React.FC = () => {
         modulo_atual_id: form.modulo_atual_id || undefined,
         dias_semana: form.dias_semana,
         horario_inicio: form.horario_inicio || undefined,
+        data_inicio: form.data_inicio || undefined,
+        data_previsao_termino: form.data_previsao_termino || undefined,
+        data_conclusao: form.data_conclusao || undefined,
+        migracao_concluida: form.migracao_concluida,
       };
 
       if (editingId) {
@@ -468,6 +485,32 @@ export const ClassManagement: React.FC = () => {
               onChange={e => setForm(prev => ({ ...prev, horario_inicio: e.target.value }))}
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+            <Input
+              type="date"
+              value={form.data_inicio}
+              onChange={e => setForm(prev => ({ ...prev, data_inicio: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Previsão de Término</label>
+            <Input
+              type="date"
+              value={form.data_previsao_termino}
+              onChange={e => setForm(prev => ({ ...prev, data_previsao_termino: e.target.value }))}
+            />
+          </div>
+          {editingId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data de Conclusão</label>
+              <Input
+                type="date"
+                value={form.data_conclusao}
+                onChange={e => setForm(prev => ({ ...prev, data_conclusao: e.target.value }))}
+              />
+            </div>
+          )}
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-gray-700 mb-2">Dias da Semana</label>
             <div className="flex flex-wrap gap-4">
