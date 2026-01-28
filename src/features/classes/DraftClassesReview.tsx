@@ -140,4 +140,4 @@ export const DraftClassesReview: React.FC = () => {
     </div>
   );
 };
-
+export default DraftClassesReview;

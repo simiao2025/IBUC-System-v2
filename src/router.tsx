@@ -33,7 +33,7 @@ const MatriculaDocumentManagement = lazy(() => import('./features/enrollments/Ma
 const EventManagement = lazy(() => import('./features/events/EventManagement'));
 const MaterialsManagement = lazy(() => import('./features/materials/MaterialsManagement'));
 const TreasurerPaymentValidation = lazy(() => import('./features/materials/TreasurerPaymentValidation'));
-const DraftClassesReview = lazy(() => import('./features/classes/DraftClassesReview').then(module => ({ default: module.DraftClassesReview })));
+const DraftClassesReview = lazy(() => import('./features/classes/DraftClassesReview'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
