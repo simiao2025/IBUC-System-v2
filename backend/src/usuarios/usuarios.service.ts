@@ -13,6 +13,7 @@ export interface CreateUsuarioDto {
   telefone?: string;
   role: string;
   polo_id?: string;
+  regionalPoloIds?: string[];
   password?: string;
   password_hash?: string;
   ativo?: boolean;
@@ -26,6 +27,7 @@ export interface UpdateUsuarioDto {
   telefone?: string;
   role?: string;
   polo_id?: string;
+  regionalPoloIds?: string[];
   ativo?: boolean;
   metadata?: any;
   password?: string;
@@ -140,6 +142,7 @@ export class UsuariosService {
     if (dto.telefone !== undefined) updateData.telefone = dto.telefone;
     if (dto.role !== undefined) updateData.role = dto.role;
     if (dto.polo_id !== undefined) updateData.polo_id = dto.polo_id || null;
+    if (dto.regionalPoloIds !== undefined) updateData.regionalPoloIds = dto.regionalPoloIds;
     if (dto.ativo !== undefined) updateData.ativo = dto.ativo;
     if (dto.metadata !== undefined) updateData.metadata = dto.metadata;
 

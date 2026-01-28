@@ -31,22 +31,22 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   return (
     <div className="bg-white border-b border-gray-200 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           {/* Left: Back Button and Title */}
           <div className="flex items-center space-x-4 flex-1">
             {showBackButton && (
               <button
                 onClick={handleBack}
-                className="flex items-center space-x-2 px-4 py-2 border border-red-600 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 border border-red-600 rounded-lg text-red-600 hover:bg-red-50 transition-colors shrink-0"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span className="font-medium">Voltar</span>
               </button>
             )}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">{title}</h1>
               {subtitle && (
-                <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{subtitle}</p>
               )}
             </div>
           </div>
@@ -55,7 +55,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           {actionLabel && onAction && (
             <Button
               onClick={onAction}
-              className="bg-red-600 hover:bg-red-700 text-white flex items-center"
+              className="bg-red-600 hover:bg-red-700 text-white flex items-center justify-center w-full sm:w-auto"
             >
               {actionIcon}
               {actionLabel}

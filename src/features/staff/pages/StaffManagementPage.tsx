@@ -26,7 +26,7 @@ import type { AdminUser, AdminRole } from '../../../types';
 
 // Roles que são considerados "staff" (equipe)
 // Apenas valores válidos para o enum role_usuario no banco de dados
-const STAFF_ROLES: AdminRole[] = ['professor', 'auxiliar'];
+const STAFF_ROLES: AdminRole[] = ['professor', 'auxiliar', 'coordenador_regional'];
 
 const StaffManagementPage: React.FC = () => {
   const { polos, currentUser, showFeedback, showConfirm } = useApp();
@@ -111,7 +111,8 @@ const StaffManagementPage: React.FC = () => {
     primeiro_tesoureiro_polo: '1º Tesoureiro do Polo',
     segundo_tesoureiro_polo: '2º Tesoureiro do Polo',
     professor: 'Professor',
-    auxiliar: 'Auxiliar'
+    auxiliar: 'Auxiliar',
+    coordenador_regional: 'Coordenador Regional'
   };
 
   // Carregar staff ao montar
@@ -477,6 +478,36 @@ const StaffManagementPage: React.FC = () => {
                 </select>
               </div>
 
+              {newStaff.role === 'coordenador_regional' && (
+                <div className="border rounded-lg p-3 bg-gray-50">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Polos da Região (Selecione um ou mais)
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                    {polos.map(polo => (
+                      <label key={polo.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={newStaff.regionalPoloIds?.includes(polo.id) || false}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            const currentIds = newStaff.regionalPoloIds || [];
+                            setNewStaff(prev => ({
+                              ...prev,
+                              regionalPoloIds: checked 
+                                ? [...currentIds, polo.id]
+                                : currentIds.filter(id => id !== polo.id)
+                            }));
+                          }}
+                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                        />
+                        <span>{polo.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <Input
                 label="Nome Completo"
                 placeholder="Digite o nome completo"
@@ -563,7 +594,10 @@ const StaffManagementPage: React.FC = () => {
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
                   value={(isPoloScoped ? userPoloId : editingStaff.poloId)}
-                  onChange={(e) => setEditingStaff({ ...editingStaff, poloId: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditingStaff(prev => prev ? ({ ...prev, poloId: value }) : null);
+                  }}
                   disabled={isPoloScoped}
                 >
                   {(isPoloScoped ? visiblePolos : polos).map((polo) => (
@@ -572,29 +606,71 @@ const StaffManagementPage: React.FC = () => {
                 </select>
               </div>
 
+              {editingStaff.role === 'coordenador_regional' && (
+                <div className="border rounded-lg p-3 bg-gray-50">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                     Polos da Região (Selecione um ou mais)
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                    {polos.map(polo => (
+                      <label key={polo.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={editingStaff.regionalPoloIds?.includes(polo.id) || false}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            const currentIds = editingStaff.regionalPoloIds || [];
+                            setEditingStaff(prev => prev ? ({
+                              ...prev,
+                              regionalPoloIds: checked 
+                                ? [...currentIds, polo.id]
+                                : currentIds.filter(id => id !== polo.id)
+                            }) : null);
+                          }}
+                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                        />
+                        <span>{polo.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <Input
                 label="Nome Completo"
                 value={editingStaff.name}
-                onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditingStaff(prev => prev ? ({ ...prev, name: value }) : null);
+                }}
               />
 
               <Input
                 label="Email"
                 type="email"
                 value={editingStaff.email}
-                onChange={(e) => setEditingStaff({ ...editingStaff, email: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditingStaff(prev => prev ? ({ ...prev, email: value }) : null);
+                }}
               />
 
               <Input
                 label="CPF"
                 value={editingStaff.cpf}
-                onChange={(e) => setEditingStaff({ ...editingStaff, cpf: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditingStaff(prev => prev ? ({ ...prev, cpf: value }) : null);
+                }}
               />
 
               <Input
                 label="Telefone"
                 value={editingStaff.phone}
-                onChange={(e) => setEditingStaff({ ...editingStaff, phone: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditingStaff(prev => prev ? ({ ...prev, phone: value }) : null);
+                }}
               />
 
               <div className="flex flex-col space-y-1">
@@ -602,7 +678,10 @@ const StaffManagementPage: React.FC = () => {
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
                   value={editingStaff.role}
-                  onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value as AdminRole })}
+                  onChange={(e) => {
+                    const value = e.target.value as AdminRole;
+                    setEditingStaff(prev => prev ? ({ ...prev, role: value }) : null);
+                  }}
                 >
                   {STAFF_ROLES.map((role) => (
                     <option key={role} value={role}>{fullRoles[role]}</option>
@@ -614,13 +693,19 @@ const StaffManagementPage: React.FC = () => {
                 label="Data de Contratação"
                 type="date"
                 value={editingStaff.hireDate}
-                onChange={(e) => setEditingStaff({ ...editingStaff, hireDate: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditingStaff(prev => prev ? ({ ...prev, hireDate: value }) : null);
+                }}
               />
 
               <Input
                 label="Qualificações (separadas por vírgula)"
                 value={editingStaff.qualifications?.join(', ') || ''}
-                onChange={(e) => setEditingStaff({ ...editingStaff, qualifications: e.target.value.split(',').map(q => q.trim()).filter(q => q) })}
+                onChange={(e) => {
+                  const value = e.target.value.split(',').map(q => q.trim()).filter(q => q);
+                  setEditingStaff(prev => prev ? ({ ...prev, qualifications: value }) : null);
+                }}
               />
             </div>
 

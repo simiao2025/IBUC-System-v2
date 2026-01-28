@@ -53,7 +53,7 @@ const EducationalReportManagementPage: React.FC = () => {
       label: 'Relatório Financeiro', 
       icon: DollarSign, 
       color: 'text-red-600',
-      permission: canAccessModule('dracmas')
+      permission: canAccessModule('financeiro')
     },
     { id: 'estatisticas', label: 'Estatísticas Gerais', icon: BarChart2, color: 'text-purple-600' },
     { id: 'certificado', label: 'Certificado do Aluno', icon: Award, color: 'text-red-600' },

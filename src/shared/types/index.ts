@@ -117,6 +117,7 @@ export type AdminRole =
   | 'segundo_secretario_geral'
   | 'primeiro_tesoureiro_geral'
   | 'segundo_tesoureiro_geral'
+  | 'coordenador_regional'
   | 'diretor_polo'
   | 'vice_diretor_polo'
   | 'coordenador_polo'
@@ -171,6 +172,7 @@ export interface AdminUser {
   role: AdminRole;
   accessLevel: AccessLevel;
   poloId?: string; // Para usuários com acesso específico a um polo
+  regionalPoloIds?: string[];
   permissions?: AdminPermissions; // Preferencialmente persistido em usuarios.metadata.permissions
   isActive: boolean;
   qualifications?: string[];

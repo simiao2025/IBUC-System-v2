@@ -43,6 +43,7 @@ export const UserService = {
       role: u.role,
       accessLevel: u.polo_id ? 'polo_especifico' : 'geral',
       poloId: u.polo_id || '',
+      regionalPoloIds: (u as any).regionalPoloIds || [],
       permissions: u.metadata?.permissions || { mode: 'full', modules: [] },
       qualifications: u.metadata?.qualifications || [],
       hireDate: u.metadata?.hireDate || u.created_at || new Date().toISOString(),
@@ -107,6 +108,7 @@ export const UserService = {
       password: userData.password,
       role: userData.role,
       polo_id: userData.accessLevel === 'polo_especifico' ? userData.poloId : undefined,
+      regionalPoloIds: userData.role === 'coordenador_regional' ? userData.regionalPoloIds : undefined,
       ativo: userData.isActive !== false,
       metadata: {
         permissions: userData.permissions || { mode: 'full', modules: [] },
@@ -129,6 +131,7 @@ export const UserService = {
     if (userData.cpf !== undefined) payload.cpf = userData.cpf;
     if (userData.phone !== undefined) payload.phone = userData.phone;
     if (userData.role !== undefined) payload.role = userData.role;
+    if (userData.regionalPoloIds !== undefined) payload.regionalPoloIds = userData.regionalPoloIds;
     if (userData.isActive !== undefined) payload.ativo = userData.isActive;
     
     // Update metadata while preserving existing if possible (though here we send full replacement for simplicity or partial logic)

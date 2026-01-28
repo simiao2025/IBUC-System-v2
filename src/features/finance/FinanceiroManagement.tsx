@@ -16,7 +16,7 @@ const AdminFinanceiro: React.FC = () => {
   const { canAccessModule } = useAccessControl();
   
   const hasControlAccess = canAccessModule('finance_control');
-  const hasValidationAccess = canAccessModule('finance_validation');
+  const hasValidationAccess = canAccessModule('finance_materials');
   const hasConfigAccess = canAccessModule('finance_config');
 
   // Determine initial tab
@@ -155,7 +155,7 @@ const AdminFinanceiro: React.FC = () => {
                   }`}
                 >
                   <CheckCircle className="inline w-4 h-4 mr-2" />
-                  Validação de Pagamento
+                  Validação de Pagamentos
                 </button>
               )}
               {hasConfigAccess && (

@@ -66,6 +66,25 @@ export class UserManagementService {
             throw new BadRequestException(`Erro ao criar usuário: ${error.message}`);
         }
 
+        // --- Adicionar Vínculos Regionais ---
+        if (dto.role === 'coordenador_regional' && dto.regionalPoloIds && dto.regionalPoloIds.length > 0) {
+            const inserts = dto.regionalPoloIds.map(poloId => ({
+                usuario_id: data.id,
+                polo_id: poloId
+            }));
+
+            const { error: regionalError } = await this.supabase
+                .getAdminClient()
+                .from('coordenadores_regionais_polos')
+                .insert(inserts);
+
+            if (regionalError) {
+                console.error('Erro ao vincular polos regionais:', regionalError);
+                // Não lançamos erro aqui para não invalidar a criação do usuário, 
+                // mas idealmente deveria ter uma transação (Supabase RPC seria melhor)
+            }
+        }
+
         return data;
     }
 
@@ -109,9 +128,27 @@ export class UserManagementService {
             }
 
             const polosMap = new Map(polos.map(polo => [polo.id, polo]));
+
+            // --- Carregar Vínculos Regionais ---
+            const userIds = usuarios.map(u => u.id);
+            const { data: regionalLinks } = await this.supabase
+                .getAdminClient()
+                .from('coordenadores_regionais_polos')
+                .select('usuario_id, polo_id')
+                .in('usuario_id', userIds);
+
+            const regionalLinksMap = new Map<string, string[]>();
+            if (regionalLinks) {
+                regionalLinks.forEach(link => {
+                    const existing = regionalLinksMap.get(link.usuario_id) || [];
+                    regionalLinksMap.set(link.usuario_id, [...existing, link.polo_id]);
+                });
+            }
+
             return usuarios.map(usuario => ({
                 ...usuario,
-                polos: usuario.polo_id ? polosMap.get(usuario.polo_id) || null : null
+                polos: usuario.polo_id ? polosMap.get(usuario.polo_id) || null : null,
+                regionalPoloIds: regionalLinksMap.get(usuario.id) || []
             }));
         } catch (error) {
             throw new BadRequestException(error.message || 'Erro ao listar usuários.');
@@ -142,11 +179,22 @@ export class UserManagementService {
                     .single();
 
                 if (!poloError && polo) {
-                    return { ...usuario, polos: polo };
+                    usuario.polos = polo;
                 }
+            } else {
+                usuario.polos = null;
             }
 
-            return { ...usuario, polos: null };
+            // --- Carregar Vínculos Regionais ---
+            const { data: regionalLinks } = await this.supabase
+                .getAdminClient()
+                .from('coordenadores_regionais_polos')
+                .select('polo_id')
+                .eq('usuario_id', id);
+            
+            usuario.regionalPoloIds = regionalLinks ? regionalLinks.map(l => l.polo_id) : [];
+
+            return usuario;
         } catch (error) {
             throw new NotFoundException(error.message || 'Usuário não encontrado');
         }
@@ -193,16 +241,30 @@ export class UserManagementService {
         return usuario;
     }
 
-    async atualizarUsuario(id: string, updateData: any) {
-        const { data, error } = await this.supabase
-            .getAdminClient()
-            .from('usuarios')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
-
         if (error) throw new BadRequestException(`Erro ao atualizar usuário: ${error.message}`);
+
+        // --- Sincronizar Vínculos Regionais ---
+        if (updateData.regionalPoloIds !== undefined) {
+             // 1. Remover antigos
+             await this.supabase
+                .getAdminClient()
+                .from('coordenadores_regionais_polos')
+                .delete()
+                .eq('usuario_id', id);
+
+             // 2. Inserir novos se houver
+             if (Array.isArray(updateData.regionalPoloIds) && updateData.regionalPoloIds.length > 0) {
+                 const inserts = updateData.regionalPoloIds.map(poloId => ({
+                     usuario_id: id,
+                     polo_id: poloId
+                 }));
+                 await this.supabase
+                    .getAdminClient()
+                    .from('coordenadores_regionais_polos')
+                    .insert(inserts);
+             }
+        }
+
         return data;
     }
 

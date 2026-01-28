@@ -111,19 +111,24 @@ export const useAccessControl = () => {
     // Check granular permissions
     const isExplicitlyAllowed = Array.isArray(permissions.modules) && permissions.modules.includes(moduleKey);
     
-    // Fallback logic for dependent permissions
-    if (!isExplicitlyAllowed) {
-       // Pre-enrollments access implies enrollments access logic? 
-       // No, original was: if pre-enrollments req, allow if enrollments present.
-       if (moduleKey === 'pre-enrollments') {
-         return Array.isArray(permissions.modules) && permissions.modules.includes('enrollments');
-       }
-       // Events/Security/Backup/Dracmas defaults to 'settings' if specific key missing?
-       // This helps transitions if we want to be nice, but strict is better for "Block everything".
-       // User said "liberar ou bloquear". Strict is safer.
-    }
+    if (isExplicitlyAllowed) return true;
 
-    return isExplicitlyAllowed;
+    // Hierarchy logic: if requesting a parent module, permit if any child is allowed
+    const hierarchy: Record<string, AdminModuleKey[]> = {
+      financeiro: ['finance_control', 'finance_materials', 'finance_config'],
+      dracmas: [], // Dracmas is independent
+      materials: ['materials_catalog', 'materials_orders'],
+      settings: ['manage_users', 'settings_events', 'dracmas_settings', 'security', 'backup'],
+      enrollments: ['pre-enrollments']
+    };
+
+    if (hierarchy[moduleKey]) {
+      return hierarchy[moduleKey].some(subKey => 
+        Array.isArray(permissions.modules) && permissions.modules.includes(subKey)
+      );
+    }
+    
+    return false;
   };
 
   const canManageUsers = () => canAccessModule('manage_users');

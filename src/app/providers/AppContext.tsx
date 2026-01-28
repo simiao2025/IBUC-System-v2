@@ -236,8 +236,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               role: user.role,
               accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral',
               poloId: user.polo_id || undefined,
+              regionalPoloIds: user.regionalPoloIds || [],
               permissions: user.metadata?.permissions,
-            } as any as AdminUser,
+            } as AdminUser,
           });
           setAuthLoading(false);
           return;
@@ -310,6 +311,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             role: user.role,
             accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral',
             poloId: user.polo_id || undefined,
+            regionalPoloIds: user.regionalPoloIds || [],
             permissions: user.metadata?.permissions,
           } as AdminUser,
         });
@@ -355,6 +357,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return currentUser.adminUser.poloId === poloId;
     }
 
+    // Se é coordenador regional, pode acessar polos de sua região
+    if (currentUser.adminUser?.role === 'coordenador_regional') {
+      return currentUser.adminUser.regionalPoloIds?.includes(poloId) || false;
+    }
+
     return false;
   };
 
@@ -372,6 +379,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     if (currentUser.adminUser?.accessLevel === 'polo_especifico' && currentUser.adminUser.poloId) {
       return [currentUser.adminUser.poloId];
+    }
+
+    if (currentUser.adminUser?.role === 'coordenador_regional') {
+      return currentUser.adminUser.regionalPoloIds || [];
     }
 
     return [];

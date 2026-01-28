@@ -138,7 +138,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
       'diretor_geral', 'vice_diretor_geral',
       'coordenador_geral', 'vice_coordenador_geral',
       'primeiro_secretario_geral', 'segundo_secretario_geral',
-      'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral'
+      'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral',
+      'coordenador_regional'
     ].includes(role || '');
   };
 

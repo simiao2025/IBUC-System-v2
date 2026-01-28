@@ -152,7 +152,7 @@ const SystemSettingsPage: React.FC = () => {
         {/* Tabs Navigation */}
         <Card className="mb-8">
           <div className="border-b border-gray-200">
-            <nav className="flex -mb-px space-x-8">
+            <nav className="flex -mb-px space-x-8 overflow-x-auto scrollbar-hide">
               {[
                 { id: 'users', label: 'Usuários', icon: Users, permission: canManageUsers() || canAccessModule('manage_users') },
                 { id: 'config', label: 'Parâmetros', icon: Settings, permission: canAccessModule('settings') },
@@ -166,12 +166,12 @@ const SystemSettingsPage: React.FC = () => {
                   <button
                     key={id}
                     onClick={() => setActiveTab(id as any)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === id
+                    className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center whitespace-nowrap ${activeTab === id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                   >
-                    <Icon className="h-4 w-4 mr-2" />
+                    <Icon className="h-4 w-4 mr-2 shrink-0" />
                     {label}
                   </button>
                 ))}

@@ -239,7 +239,7 @@ const AdminDashboard: React.FC = () => {
       iconName: 'financeiro',
       fallbackIcon: DollarSign,
       color: 'bg-yellow-600 hover:bg-yellow-700',
-      permission: canAccessModule('dracmas')
+      permission: canAccessModule('financeiro') || canAccessModule('finance_control') || canAccessModule('finance_materials') || canAccessModule('finance_config')
     },
     {
       title: 'Gerenciar Materiais',
@@ -248,7 +248,7 @@ const AdminDashboard: React.FC = () => {
       iconName: 'pre_matricula',
       fallbackIcon: ShoppingCart,
       color: 'bg-red-600 hover:bg-red-700',
-      permission: canAccessModule('materials')
+      permission: canAccessModule('materials') || canAccessModule('materials_catalog') || canAccessModule('materials_orders')
     },
     {
       title: 'Relatórios',
@@ -275,7 +275,7 @@ const AdminDashboard: React.FC = () => {
       iconName: 'configuracoes',
       fallbackIcon: Settings,
       color: 'bg-indigo-600 hover:bg-indigo-700',
-      permission: canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('security') || canAccessModule('backup')
+      permission: canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('settings_events') || canAccessModule('dracmas_settings') || canAccessModule('security') ||  canAccessModule('backup')
     }
   ];
 
@@ -287,34 +287,34 @@ const AdminDashboard: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center py-4 md:py-6 gap-4">
+            <div className="flex items-center space-x-3 w-full md:w-auto">
               <img
                 src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
                 alt="IBUC Logo"
-                className="h-10 w-auto"
+                className="h-8 sm:h-10 w-auto shrink-0"
               />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                   Painel Administrativo
                   {currentUser?.adminUser?.poloId && (
-                    <span className="text-blue-600 ml-2">
-                      - <strong>{polos.find(p => p.id === currentUser.adminUser?.poloId)?.name || 'Polo não encontrado'}</strong>
+                    <span className="text-blue-600 ml-2 block sm:inline">
+                      - <strong className="truncate">{polos.find(p => p.id === currentUser.adminUser?.poloId)?.name || 'Polo não encontrado'}</strong>
                     </span>
                   )}
                 </h1>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs sm:text-sm text-gray-600">
                     IBUC - Palmas, TO
                   </p>
                   {currentUser?.adminUser && (
-                    <div className="flex items-center space-x-2 mt-1 sm:mt-0">
-                      <span className="text-sm font-medium text-gray-700">
+                    <div className="flex flex-wrap items-center gap-2 mt-1 sm:mt-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-700">
                         Olá, <span className="font-bold">
                           {currentUser.adminUser.name || currentUser.adminUser.email || currentUser.email || 'Usuário'}
                         </span>
                       </span>
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] sm:text-xs font-semibold whitespace-nowrap">
                         {currentUser.adminUser.role === 'super_admin' && 'Super Admin'}
                         {currentUser.adminUser.role === 'admin_geral' && 'Admin Geral'}
                         {currentUser.adminUser.role === 'coordenador_geral' && 'Coordenador Geral'}
@@ -346,16 +346,16 @@ const AdminDashboard: React.FC = () => {
               />
             )}
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
               {currentUser?.adminUser?.role === 'secretario_polo' && (
                 <Button
                   asChild
                   size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white border-none"
+                  className="bg-green-600 hover:bg-green-700 text-white border-none shrink-0"
                 >
                   <Link to="/admin/alunos/novo" state={{ from: '/admin/dashboard' }}>
-                    <span className="flex items-center">
-                      <UserCheck className="mr-2 h-4 w-4" />
+                    <span className="flex items-center text-xs sm:text-sm">
+                      <UserCheck className="mr-1 sm:mr-2 h-4 w-4" />
                       Fazer Matrícula
                     </span>
                   </Link>
@@ -364,6 +364,7 @@ const AdminDashboard: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
+                className="shrink-0"
                 onClick={() => confirmNavigation(logout)}
               >
                 Sair

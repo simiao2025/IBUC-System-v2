@@ -43,6 +43,7 @@ const cargoOptions = [
   { value: 'segundo_secretario_geral', label: '2º Secretário Geral' },
   { value: 'primeiro_tesoureiro_geral', label: '1º Tesoureiro Geral' },
   { value: 'segundo_tesoureiro_geral', label: '2º Tesoureiro Geral' },
+  { value: 'coordenador_regional', label: 'Coordenador Regional' },
   { value: 'diretor_polo', label: 'Diretor do Polo' },
   { value: 'vice_diretor_polo', label: 'Vice-Diretor do Polo' },
   { value: 'coordenador_polo', label: '1º Coordenador do Polo' },
@@ -63,6 +64,7 @@ const cargoMapping: Record<string, 'diretor' | 'vice_diretor' | 'coordenador' | 
   segundo_secretario_geral: 'segundo_secretario',
   primeiro_tesoureiro_geral: 'primeiro_tesoureiro',
   segundo_tesoureiro_geral: 'segundo_tesoureiro',
+  coordenador_regional: 'coordenador',
   diretor_polo: 'diretor',
   vice_diretor_polo: 'vice_diretor',
   coordenador_polo: 'coordenador',
@@ -111,6 +113,7 @@ const DiretoriaManagementPage: React.FC = () => {
     cargo: 'secretario_geral' as string,
     data_inicio: new Date().toISOString().split('T')[0],
     usuario_id: '',
+    regionalPoloIds: [] as string[],
   });
 
   // Carregar diretorias ao montar o componente
@@ -325,6 +328,7 @@ const DiretoriaManagementPage: React.FC = () => {
           segundo_secretario_polo: 'segundo_secretario_polo',
           primeiro_tesoureiro_polo: 'primeiro_tesoureiro_polo',
           segundo_tesoureiro_polo: 'segundo_tesoureiro_polo',
+          coordenador_regional: 'coordenador_regional',
 
           // Compatibilidade
           diretor: 'diretor_polo',
@@ -348,6 +352,7 @@ const DiretoriaManagementPage: React.FC = () => {
             phone: formData.telefone,
             role: targetRole,
             poloId: selectedPoloId || undefined,
+            regionalPoloIds: formData.cargo === 'coordenador_regional' ? formData.regionalPoloIds : undefined,
             password: password,
             accessLevel: directorateMode === 'polo' ? 'polo_especifico' : 'geral'
           });
@@ -423,6 +428,7 @@ const DiretoriaManagementPage: React.FC = () => {
         cargo: directorateMode === 'polo' ? 'diretor_polo' : 'diretor_geral',
         data_inicio: new Date().toISOString().split('T')[0],
         usuario_id: '',
+        regionalPoloIds: [],
       });
       setShowForm(false);
       setIsNewUser(false);
@@ -581,6 +587,7 @@ const DiretoriaManagementPage: React.FC = () => {
       { value: 'segundo_secretario_geral', label: '2º Secretário Geral' },
       { value: 'primeiro_tesoureiro_geral', label: '1º Tesoureiro Geral' },
       { value: 'segundo_tesoureiro_geral', label: '2º Tesoureiro Geral' },
+      { value: 'coordenador_regional', label: 'Coordenador Regional' },
     ];
 
   return (
@@ -862,6 +869,40 @@ const DiretoriaManagementPage: React.FC = () => {
                     ))}
                   </select>
                 </div>
+
+                {formData.cargo === 'coordenador_regional' && (
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Polos da Região (Selecione um ou mais)
+                    </label>
+                    <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                      {polos.map(polo => (
+                        <label key={polo.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={formData.regionalPoloIds.includes(polo.id)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setFormData(prev => ({
+                                ...prev,
+                                regionalPoloIds: checked 
+                                  ? [...prev.regionalPoloIds, polo.id]
+                                  : prev.regionalPoloIds.filter(id => id !== polo.id)
+                              }));
+                            }}
+                            className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                          />
+                          <span>{polo.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {formData.regionalPoloIds.length === 0 && (
+                      <p className="text-xs text-red-500 mt-1 italic">
+                        * Selecione pelo menos um polo para o coordenador regional.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <Input
                   label="Data de Início"
