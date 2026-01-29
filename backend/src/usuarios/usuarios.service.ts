@@ -32,6 +32,7 @@ export interface UpdateUsuarioDto {
   metadata?: any;
   password?: string;
   password_hash?: string;
+  updated_at?: string;
 }
 
 export interface LoginDto {

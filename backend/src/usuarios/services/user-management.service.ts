@@ -240,6 +240,25 @@ export class UserManagementService {
 
         return usuario;
     }
+    async atualizarUsuario(id: string, updateData: UpdateUsuarioDto) {
+        const { data, error } = await this.supabase
+            .getAdminClient()
+            .from('usuarios')
+            .update({
+                nome_completo: updateData.nome_completo,
+                email: updateData.email,
+                cpf: updateData.cpf,
+                telefone: updateData.telefone,
+                role: updateData.role,
+                polo_id: updateData.polo_id,
+                ativo: updateData.ativo,
+                metadata: updateData.metadata,
+                password_hash: updateData.password_hash,
+                updated_at: updateData.updated_at,
+            })
+            .eq('id', id)
+            .select()
+            .single();
 
         if (error) throw new BadRequestException(`Erro ao atualizar usuário: ${error.message}`);
 
