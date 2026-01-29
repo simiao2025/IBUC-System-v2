@@ -13,13 +13,14 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #ffffff;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         z-index: 99999;
         transition: opacity 0.5s ease-out;
+        overflow: hidden;
       }
 
       #app-loading.fade-out {
@@ -27,48 +28,124 @@
         pointer-events: none;
       }
 
+      .loading-container {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Animated Logo with 3D Effect */
       .loading-logo {
-        width: 200px;
+        width: 220px;
         height: auto;
-        animation: pulse 2s ease-in-out infinite;
-        filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+        position: relative;
+        animation: float 3s ease-in-out infinite;
+        filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.15));
+        transform-style: preserve-3d;
       }
 
-      .loading-spinner {
-        margin-top: 40px;
-        width: 50px;
-        height: 50px;
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-top-color: #fff;
+      /* Orange Circle Rotation */
+      .loading-logo::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 280px;
+        height: 280px;
+        border: 3px solid transparent;
+        border-top-color: #FF8C42;
+        border-right-color: #FF8C42;
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        transform: translate(-50%, -50%);
+        animation: rotateCircle 2s linear infinite;
+        opacity: 0.7;
       }
 
+      /* Secondary rotating circle for depth */
+      .loading-logo::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 260px;
+        height: 260px;
+        border: 2px dashed rgba(255, 140, 66, 0.4);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        animation: rotateCircle 3s linear infinite reverse;
+      }
+
+      /* Letter bounce animation effect */
+      @keyframes letterBounce {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        25% { transform: translateY(-8px) rotate(-2deg); }
+        50% { transform: translateY(0) rotate(2deg); }
+        75% { transform: translateY(-4px) rotate(-1deg); }
+      }
+
+      /* 3D Float effect */
+      @keyframes float {
+        0%, 100% { 
+          transform: translateY(0) rotateX(0deg) rotateY(0deg);
+        }
+        33% { 
+          transform: translateY(-10px) rotateX(5deg) rotateY(-5deg);
+        }
+        66% { 
+          transform: translateY(-5px) rotateX(-3deg) rotateY(5deg);
+        }
+      }
+
+      /* Circle rotation */
+      @keyframes rotateCircle {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+      }
+
+      /* Loading text with gradient */
       .loading-text {
-        margin-top: 24px;
-        color: white;
+        margin-top: 50px;
+        background: linear-gradient(135deg, #FF8C42 0%, #FF6B35 50%, #FF8C42 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 18px;
-        font-weight: 500;
-        letter-spacing: 0.5px;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        animation: shimmer 2s linear infinite;
+        position: relative;
+        z-index: 10;
       }
 
-      @keyframes pulse {
-        0%,
-        100% {
-          transform: scale(1);
-          opacity: 1;
-        }
-        50% {
-          transform: scale(1.05);
-          opacity: 0.9;
-        }
+      @keyframes shimmer {
+        to { background-position: 200% center; }
       }
 
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
+      /* Decorative dots */
+      .loading-dots {
+        display: flex;
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        background: linear-gradient(135deg, #FF8C42, #FF6B35);
+        border-radius: 50%;
+        animation: dotPulse 1.4s ease-in-out infinite;
+      }
+
+      .dot:nth-child(2) { animation-delay: 0.2s; }
+      .dot:nth-child(3) { animation-delay: 0.4s; }
+
+      @keyframes dotPulse {
+        0%, 100% { transform: scale(0.8); opacity: 0.5; }
+        50% { transform: scale(1.2); opacity: 1; }
       }
 
       /* Hide root until loading completes */
@@ -87,9 +164,15 @@
 
     <!-- Loading Screen -->
     <div id="app-loading">
-      <img src="/icons/3d/logo-IBUC.png" alt="IBUC Logo" class="loading-logo" />
-      <div class="loading-spinner"></div>
-      <p class="loading-text">Carregando sistema...</p>
+      <div class="loading-container">
+        <img src="/icons/3d/logo-IBUC.png" alt="IBUC Logo" class="loading-logo" />
+        <p class="loading-text">Carregando sistema...</p>
+        <div class="loading-dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="/src/main.tsx"></script>
