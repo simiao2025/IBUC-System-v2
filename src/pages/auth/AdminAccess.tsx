@@ -112,6 +112,7 @@ const AdminAccess: React.FC = () => {
                   error={errors.email}
                   placeholder="Digite seu e-mail"
                   required
+                  autoComplete="email"
                   className="flex-1"
                 />
               </div>
@@ -127,6 +128,7 @@ const AdminAccess: React.FC = () => {
                   error={errors.password}
                   placeholder="Digite sua senha"
                   required
+                  autoComplete="current-password"
                   className="flex-1"
                 />
               </div>

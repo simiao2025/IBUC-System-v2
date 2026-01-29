@@ -89,7 +89,7 @@ export class TurmasService {
     const { data, error } = await this.supabase
       .getAdminClient()
       .from('turmas')
-      .select('*, modulos!modulo_atual_id(titulo)')
+      .select('*, modulos:modulo_atual_id(titulo)')
       .eq('id', id)
       .single();
 
@@ -300,7 +300,7 @@ export class TurmasService {
     let query = this.supabase
       .getAdminClient()
       .from('turmas')
-      .select('*, modulos!modulo_atual_id(titulo)')
+      .select('*, modulos:modulo_atual_id(titulo)')
       .order('nome');
 
     if (filtros?.polo_id) {
@@ -327,10 +327,13 @@ export class TurmasService {
       query = query.eq('ano_letivo', filtros.ano_letivo);
     }
 
-    const { data, error } = await query;
+    const { data: rawData, error } = await query;
     if (error) {
-      throw new Error(error.message);
+      console.error('Erro na query de listarTurmas:', error);
+      throw new BadRequestException(`Erro ao buscar turmas no banco: ${error.message}`);
     }
+
+    const data = rawData || [];
 
     // Para cada turma, adiciona informações de ocupação
     const turmasComOcupacao = await Promise.all(
@@ -341,6 +344,8 @@ export class TurmasService {
 
         return {
           ...turma,
+          // Normaliza o objeto modulo se vier como 'modulos' (alias) 
+          modulos: turma.modulos || null,
           alunos_matriculados: alunosMatriculados,
           vagas_disponiveis: vagasDisponiveis,
         };
