@@ -3,10 +3,10 @@
 
 DO $$
 BEGIN
-    -- 1. If it's an ENUM type named 'aluno_status'
-    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'aluno_status') THEN
+    -- 1. If it's an ENUM type named 'status_aluno'
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_aluno') THEN
         BEGIN
-            ALTER TYPE aluno_status ADD VALUE 'formado';
+            ALTER TYPE status_aluno ADD VALUE 'formado';
         EXCEPTION
             WHEN duplicate_object THEN
                 NULL;

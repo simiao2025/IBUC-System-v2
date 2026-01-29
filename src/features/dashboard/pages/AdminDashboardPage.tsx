@@ -245,7 +245,7 @@ const AdminDashboard: React.FC = () => {
       title: 'Gerenciar Materiais',
       description: 'Cadastro de materiais e gestão de pedidos',
       href: '/admin/materiais',
-      iconName: 'pre_matricula',
+      iconName: 'materiais',
       fallbackIcon: ShoppingCart,
       color: 'bg-red-600 hover:bg-red-700',
       permission: canAccessModule('materials') || canAccessModule('materials_catalog') || canAccessModule('materials_orders')

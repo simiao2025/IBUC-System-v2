@@ -7,9 +7,9 @@ DECLARE
     constraint_name_var text;
 BEGIN
     -- 1. Try to add to ENUM if it exists
-    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'turma_status') THEN
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_turma') THEN
         BEGIN
-            ALTER TYPE turma_status ADD VALUE 'rascunho';
+            ALTER TYPE status_turma ADD VALUE 'rascunho';
         EXCEPTION
             WHEN duplicate_object THEN
                 NULL; -- Value already exists
