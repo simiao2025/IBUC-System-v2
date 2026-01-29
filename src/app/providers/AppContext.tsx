@@ -298,6 +298,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const user = extractUserPayload(rawPayload);
       sessionStorage.setItem('auth_user', JSON.stringify(user));
 
+      // Add delay to show loading animation
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       const isAdmin = isAdminRoleValue(user?.role);
       if (isAdmin) {
         setCurrentUser({

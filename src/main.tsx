@@ -31,5 +31,5 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>
 );
 
-// Hide loading after React mounts
-setTimeout(hideLoadingScreen, 300);
+// Hide loading after React mounts (increased delay to show animation)
+setTimeout(hideLoadingScreen, 2000);
