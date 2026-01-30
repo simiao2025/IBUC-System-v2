@@ -66,7 +66,7 @@ const AdminFinanceiro: React.FC = () => {
   const carregarTurmas = async () => {
     try {
       const data = await TurmasAPI.listar(isPoloScoped && userPoloId ? { polo_id: userPoloId } : undefined);
-      setTurmas(data);
+      setTurmas(data as any[]);
     } catch (error) {
       console.error('Erro ao carregar turmas:', error);
     }
@@ -88,7 +88,7 @@ const AdminFinanceiro: React.FC = () => {
         polo_id: isPoloScoped && userPoloId ? userPoloId : undefined,
         status: filtroStatus || undefined,
       });
-      setCobrancas(data);
+      setCobrancas(data as any[]);
     } catch (error) {
       console.error('Erro ao carregar cobranças:', error);
     } finally {
@@ -131,7 +131,7 @@ const AdminFinanceiro: React.FC = () => {
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
+            <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
               {hasControlAccess && (
                 <button
                   onClick={() => setActiveTab('controle')}

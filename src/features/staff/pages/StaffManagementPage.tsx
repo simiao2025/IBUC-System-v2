@@ -277,30 +277,40 @@ const StaffManagementPage: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button asChild variant="outline" size="sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <Button asChild variant="outline" size="sm" className="hidden sm:flex">
                 <Link to="/admin/dashboard">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Voltar
                 </Link>
               </Button>
-              <div className="h-20 w-20 flex items-center justify-center bg-white rounded-xl shadow-sm p-1 mr-4">
-                <img
-                  src="/icons/3d/equipes_polos.png"
-                  alt="Equipes de Polos"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{isPoloScoped ? 'Gerenciamento da Equipe do Polo' : 'Gerenciamento de Equipes de Polos'}</h1>
-                <p className="text-sm text-gray-600">Gestão exclusiva de Professores e Auxiliares</p>
+              <div className="flex items-center space-x-4">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 flex items-center justify-center bg-white rounded-xl shadow-sm p-1">
+                  <img
+                    src="/icons/3d/equipes_polos.png"
+                    alt="Equipes de Polos"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">{isPoloScoped ? 'Gerenciamento da Equipe do Polo' : 'Gerenciamento de Equipes de Polos'}</h1>
+                  <p className="text-xs sm:text-sm text-gray-600">Gestão exclusiva de Professores e Auxiliares</p>
+                </div>
               </div>
             </div>
-            <Button onClick={() => setShowCreateForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Membro
-            </Button>
+            <div className="flex items-center space-x-3 w-full md:w-auto">
+              <Button asChild variant="outline" size="sm" className="flex-1 sm:hidden">
+                <Link to="/admin/dashboard">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Link>
+              </Button>
+              <Button onClick={() => setShowCreateForm(true)} className="flex-[2] md:flex-none">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Membro
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -381,24 +391,24 @@ const StaffManagementPage: React.FC = () => {
 
                     <div className="grid gap-4">
                       {staff.map((member) => (
-                        <div key={member.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex-shrink-0">
+                        <div key={member.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg gap-4">
+                          <div className="flex items-start sm:items-center space-x-4">
+                            <div className="flex-shrink-0 mt-1 sm:mt-0">
                               {getRoleIcon(member.role)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-2">
-                                <h3 className="text-lg font-medium text-gray-900">{member.name}</h3>
-                                <span className={`px-2 py-1 text-xs rounded-full ${member.isActive
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base sm:text-lg font-medium text-gray-900">{member.name}</h3>
+                                <span className={`px-2 py-0.5 text-[10px] sm:text-xs rounded-full whitespace-nowrap ${member.isActive
                                   ? 'bg-green-100 text-green-800'
                                   : 'bg-red-100 text-red-800'
                                   }`}>
                                   {member.isActive ? 'Ativo' : 'Inativo'}
                                 </span>
                               </div>
-                              <p className="text-sm font-medium text-blue-600 mb-1">{fullRoles[member.role]}</p>
-                              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                                <span>{member.email}</span>
+                              <p className="text-xs sm:text-sm font-medium text-blue-600 mb-1">{fullRoles[member.role]}</p>
+                              <div className="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:flex-wrap sm:gap-x-4 text-xs sm:text-sm text-gray-600">
+                                <span className="break-all">{member.email}</span>
                                 <span>{member.phone}</span>
                                 {member.qualifications && member.qualifications.length > 0 && (
                                   <span className="flex items-center">
@@ -407,17 +417,18 @@ const StaffManagementPage: React.FC = () => {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center text-xs text-gray-500 mt-1">
+                              <div className="flex items-center text-[10px] sm:text-xs text-gray-500 mt-1">
                                 <Calendar className="h-3 w-3 mr-1" />
                                 Contratado em {member.hireDate ? new Date(member.hireDate).toLocaleDateString('pt-BR') : 'N/A'}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center justify-end sm:justify-end space-x-2 w-full sm:w-auto mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => toggleStaffStatus(member.id)}
+                              className="flex-1 sm:flex-none"
                             >
                               {member.isActive ? 'Desativar' : 'Ativar'}
                             </Button>
@@ -425,6 +436,7 @@ const StaffManagementPage: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => setEditingStaff(member)}
+                              className="flex-none"
                             >
                               <Edit2 className="h-4 w-4" />
                             </Button>
@@ -432,7 +444,7 @@ const StaffManagementPage: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeleteStaff(member.id)}
-                              className="text-red-600 border-red-200 hover:bg-red-50"
+                              className="text-red-600 border-red-200 hover:bg-red-50 flex-none"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

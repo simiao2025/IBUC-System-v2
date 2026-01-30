@@ -198,9 +198,9 @@ const DracmasLaunchManagement: React.FC = () => {
                 <p className="text-sm text-gray-600">Nenhum aluno encontrado para a turma selecionada.</p>
               )}
               {alunos.map(aluno => (
-                <div key={aluno.aluno_id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                <div key={aluno.aluno_id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg hover:bg-gray-50 gap-3">
                   <span className="font-medium text-gray-900">{aluno.nome}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <span className="text-sm text-gray-600">Drácmas</span>
                     <Input
                       type="number"

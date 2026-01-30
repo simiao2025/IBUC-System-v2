@@ -166,6 +166,7 @@ const StudentManagement: React.FC = () => {
               <tr>
                 <th className="px-6 py-3">Aluno</th>
                 <th className="px-6 py-3">CPF</th>
+                <th className="px-6 py-3">Turma</th>
                 {!isPoloScoped && <th className="px-6 py-3">Polo</th>}
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3">Data Cadastro</th>
@@ -198,6 +199,9 @@ const StudentManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">{aluno.cpf}</td>
+                    <td className="px-6 py-4">
+                      {aluno.turma?.nome || aluno.turma_nome || (aluno as any).turma_id ? 'Carregando...' : '—'}
+                    </td>
                     {!isPoloScoped && <td className="px-6 py-4">{getPoloLabel(aluno)}</td>}
                     <td className="px-6 py-4">
                       {getStatusBadge(aluno.status || 'ativo')}

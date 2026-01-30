@@ -220,7 +220,7 @@ export const BatchClosureModal: React.FC<BatchClosureModalProps> = ({
                                 const poloNome = polos.find(p => p.id === turma.polo_id)?.nome || 'Polo Desconhecido';
 
                                 return (
-                                    <div key={turma.id} className={`flex items-center justify-between p-4 rounded-lg border ${status.processed
+                                    <div key={turma.id} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-4 ${status.processed
                                         ? 'bg-green-50 border-green-200'
                                         : status.canClose
                                             ? 'bg-white border-gray-200'

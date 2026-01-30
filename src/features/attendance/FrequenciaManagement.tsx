@@ -658,7 +658,7 @@ const AdminFrequencia: React.FC = () => {
                 </div>
               )}
 
-              {!loadingAlunos && turmaId && turmas.find(t => t.id === turmaId)?.alunos_matriculados! > 0 && alunos.length === 0 && (
+              {!loadingAlunos && turmaId && (turmas.find(t => t.id === turmaId)?.alunos_matriculados ?? 0) > 0 && alunos.length === 0 && (
                 <p className="text-sm text-gray-600">Nenhum aluno encontrado para a turma selecionada.</p>
               )}
 
@@ -669,33 +669,35 @@ const AdminFrequencia: React.FC = () => {
                     className="p-4 border rounded-xl bg-white shadow-sm hover:border-teal-200 transition-colors"
                   >
                     <div className="flex flex-col space-y-4">
-                      <div className="flex items-center justify-between border-b pb-2">
-                        <div className="font-bold text-gray-900 text-lg flex items-center">
-                          <span className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-3 text-sm text-gray-500">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-2">
+                        <div className="font-bold text-gray-900 text-base sm:text-lg flex items-center">
+                          <span className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-3 text-sm text-gray-500 flex-shrink-0">
                             {aluno.nome.charAt(0)}
                           </span>
-                          {aluno.nome}
+                          <span className="truncate">{aluno.nome}</span>
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="text-gray-400 hover:text-red-600 px-2 py-1"
-                          onClick={() => setAlunos(prev => prev.map(a => (a.aluno_id === aluno.aluno_id ? { ...a, status: null, observacao: undefined, dracmas: {}, licao_id: '' } : a)))}
-                        >
-                          Limpar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-amber-600 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 ml-2 border border-amber-200"
-                          onClick={() => handleOpenResgate(aluno.aluno_id)}
-                          title="Resgatar Drácmas (saque)"
-                        >
-                          <Banknote className="w-4 h-4 mr-1" />
-                          Resgatar Drácmas
-                        </Button>
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-gray-400 hover:text-red-600 px-2 py-1 flex-1 sm:flex-none"
+                            onClick={() => setAlunos(prev => prev.map(a => (a.aluno_id === aluno.aluno_id ? { ...a, status: null, observacao: undefined, dracmas: {}, licao_id: '' } : a)))}
+                          >
+                            Limpar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-amber-600 hover:text-amber-800 hover:bg-amber-50 px-2 py-1 border border-amber-200 flex-[2] sm:flex-none"
+                            onClick={() => handleOpenResgate(aluno.aluno_id)}
+                            title="Resgatar Drácmas (saque)"
+                          >
+                            <Banknote className="w-4 h-4 mr-1" />
+                            Resgatar
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
@@ -784,8 +786,8 @@ const AdminFrequencia: React.FC = () => {
                             Histórico Recente {loadingHistory && <span className="ml-2 text-teal-600 animate-pulse">(Carregando...)</span>}
                           </span>
                         </div>
-                        <div className="max-h-40 overflow-y-auto rounded-lg border bg-gray-50">
-                          <table className="min-w-full divide-y divide-gray-200">
+                        <div className="max-h-40 overflow-auto rounded-lg border bg-gray-50">
+                          <table className="min-w-full divide-y divide-gray-200 text-xs">
                             <thead className="bg-gray-100 sticky top-0">
                               <tr>
                                 <th className="px-3 py-1.5 text-left text-[9px] font-bold text-gray-500 uppercase">Data</th>

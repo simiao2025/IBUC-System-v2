@@ -631,7 +631,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                       checked={(editingUser?.permissions ?? newUser.permissions)?.mode === 'full'}
                       onChange={() => {
                         const perm = { mode: 'full' as const, modules: [] };
-                        editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
+                        if (editingUser) setEditingUser({ ...editingUser, permissions: perm });
+                        else setNewUser({ ...newUser, permissions: perm });
                       }}
                     />
                     <span className="text-sm">Acesso Total</span>
@@ -643,7 +644,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                       checked={(editingUser?.permissions ?? newUser.permissions)?.mode === 'limited'}
                       onChange={() => {
                         const perm = { mode: 'limited' as const, modules: [] };
-                        editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
+                        if (editingUser) setEditingUser({ ...editingUser, permissions: perm });
+                        else setNewUser({ ...newUser, permissions: perm });
                       }}
                     />
                     <span className="text-sm">Acesso Limitado</span>
@@ -674,7 +676,8 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                           }
 
                           const perm = { ...currentPerms, modules: Array.from(new Set(newModules)) };
-                          editingUser ? setEditingUser({ ...editingUser, permissions: perm }) : setNewUser({ ...newUser, permissions: perm });
+                          if (editingUser) setEditingUser({ ...editingUser, permissions: perm });
+                          else setNewUser({ ...newUser, permissions: perm });
                         };
 
                         return (

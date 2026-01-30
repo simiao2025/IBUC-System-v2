@@ -423,12 +423,13 @@ const PoloManagementPage: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between py-6 gap-4">
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
                 size="sm"
                 asChild
+                className="hidden sm:flex"
               >
                 <Link to="/admin/dashboard">
                   <ArrowLeft className="h-4 w-4 mr-2" />
@@ -436,14 +437,27 @@ const PoloManagementPage: React.FC = () => {
                 </Link>
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Polos</h1>
-                <p className="text-sm text-gray-600">Cadastre e gerencie polos/congregações</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Gerenciamento de Polos</h1>
+                <p className="text-xs sm:text-sm text-gray-600">Cadastre e gerencie polos/congregações</p>
               </div>
             </div>
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Polo
-            </Button>
+            <div className="flex items-center space-x-2 w-full md:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="flex-1 sm:hidden"
+              >
+                <Link to="/admin/dashboard">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Link>
+              </Button>
+              <Button onClick={() => setShowForm(true)} className="flex-[2] md:flex-none">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Polo
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -463,14 +477,14 @@ const PoloManagementPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {polos.map((polo) => (
               <Card key={polo.id} className="hover:shadow-lg transition-shadow">
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-4">
                   <div className="flex items-start space-x-3">
-                    <MapPin className="h-6 w-6 text-red-600 mt-1" />
+                    <MapPin className="h-6 w-6 text-red-600 mt-1 flex-shrink-0" />
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-lg font-semibold text-gray-900">{polo.name}</h3>
                         <span
-                          className={`px-2 py-1 text-xs rounded-full ${
+                          className={`px-2 py-0.5 text-[10px] sm:text-xs rounded-full whitespace-nowrap ${
                             polo.isActive
                               ? 'bg-green-100 text-green-800'
                               : 'bg-gray-200 text-gray-700'
@@ -479,26 +493,27 @@ const PoloManagementPage: React.FC = () => {
                           {polo.isActive ? 'Ativo' : 'Inativo'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs sm:text-sm text-gray-600">
                         {polo.address.street}, {polo.address.number} - {polo.address.neighborhood}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs sm:text-sm text-gray-600">
                         {polo.address.city} - {polo.address.state}
                       </p>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex items-center space-x-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleToggleStatus(polo)}
                       disabled={saving}
                       title={polo.isActive ? 'Desativar polo' : 'Ativar polo'}
+                      className="flex-1 sm:flex-none"
                     >
                       {polo.isActive ? (
-                        <XCircle className="h-4 w-4" />
+                        <span className="flex items-center"><XCircle className="h-4 w-4 sm:mr-0" /><span className="sm:hidden ml-2">Desativar</span></span>
                       ) : (
-                        <CheckCircle className="h-4 w-4" />
+                        <span className="flex items-center"><CheckCircle className="h-4 w-4 sm:mr-0" /><span className="sm:hidden ml-2">Ativar</span></span>
                       )}
                     </Button>
                     <Button

@@ -13,7 +13,6 @@ import {
   Camera,
   MapPin,
   Phone,
-  Calendar,
   FileText,
   Save,
   X,
@@ -121,14 +120,14 @@ const StudentForm: React.FC<StudentFormProps> = ({
     email_responsavel_2: safeString((student as any)?.email_responsavel_2),
     tipo_parentesco_2: safeString((student as any)?.tipo_parentesco_2),
 
-    // Endereço
-    cep: safeString(student?.endereco?.cep),
-    rua: safeString(student?.endereco?.rua),
-    numero: safeString(student?.endereco?.numero),
-    complemento: safeString(student?.endereco?.complemento),
-    bairro: safeString(student?.endereco?.bairro),
-    cidade: safeString(student?.endereco?.cidade),
-    estado: safeString(student?.endereco?.estado) || 'TO',
+    // Endereço (Try both nested and flat as backend varies)
+    cep: safeString(student?.endereco?.cep || (student as any)?.cep),
+    rua: safeString(student?.endereco?.rua || (student as any)?.rua || (student as any)?.endereco_rua),
+    numero: safeString(student?.endereco?.numero || (student as any)?.numero || (student as any)?.endereco_numero),
+    complemento: safeString(student?.endereco?.complemento || (student as any)?.complemento),
+    bairro: safeString(student?.endereco?.bairro || (student as any)?.bairro || (student as any)?.endereco_bairro),
+    cidade: safeString(student?.endereco?.cidade || (student as any)?.cidade || (student as any)?.endereco_cidade),
+    estado: safeString(student?.endereco?.estado || (student as any)?.estado || (student as any)?.endereco_estado) || 'TO',
 
     // Contato
     telefone: safeString((student as any)?.telefone_responsavel),
@@ -196,27 +195,36 @@ const StudentForm: React.FC<StudentFormProps> = ({
           return normalize(resp);
         };
 
-        const attempts: any[] = formData.nivel_id
-          ? [
-            { polo_id: formData.polo_id, nivel_id: formData.nivel_id, status: 'ativa' },
-            { polo_id: formData.polo_id, nivel_id: formData.nivel_id },
-            { polo_id: formData.polo_id, status: 'ativa' },
-            { polo_id: formData.polo_id },
-          ]
-          : [
-            { polo_id: formData.polo_id, status: 'ativa' },
-            { polo_id: formData.polo_id },
-          ];
+        // Aggressive attempts to find turmas
+        const attempts: any[] = [
+          { polo_id: formData.polo_id, nivel_id: formData.nivel_id, status: 'ativa' },
+          { polo_id: formData.polo_id, nivel_id: formData.nivel_id },
+          { polo_id: formData.polo_id, status: 'ativa' },
+          { polo_id: formData.polo_id },
+        ].filter(a => !formData.nivel_id || a.nivel_id === formData.nivel_id || !a.nivel_id);
 
+        let allFound: Turma[] = [];
         for (const params of attempts) {
           const list = await tryFetch(params);
           if (list.length > 0) {
-            setTurmas(list);
-            return;
+            allFound = list;
+            break;
           }
         }
 
-        setTurmas([]);
+        // Se estivermos editando e o aluno tem uma turma que não veio na busca (ex: inativa), buscar essa turma especificamente
+        if (student?.turma_id && !allFound.some(t => t.id === student.turma_id)) {
+          try {
+            const currentTurma = await TurmaService.buscarTurmaPorId(student.turma_id);
+            if (currentTurma) {
+              allFound.push(currentTurma as any);
+            }
+          } catch (e) {
+            console.warn('Não foi possível carregar a turma atual do aluno diretamente:', e);
+          }
+        }
+
+        setTurmas(allFound);
       } catch (error) {
         console.error('Erro ao carregar turmas:', error);
         setTurmas([]);
@@ -224,7 +232,7 @@ const StudentForm: React.FC<StudentFormProps> = ({
     };
 
     carregarTurmas();
-  }, [formData.polo_id, formData.nivel_id]);
+  }, [formData.polo_id, formData.nivel_id, student?.turma_id]);
 
   // Inicializar foto do aluno a partir do campo foto_url do student
   useEffect(() => {

@@ -86,10 +86,21 @@ const cargoMapping: Record<string, 'diretor' | 'vice_diretor' | 'coordenador' | 
 };
 
 const reverseCargoMapping: Record<string, string> = {
+  // Diretoria Geral - Backend to Frontend mapping
   diretor: 'diretor_geral',
+  vice_diretor: 'vice_diretor_geral',
   coordenador: 'coordenador_geral',
-  secretario: 'secretario_geral',
-  tesoureiro: 'tesoureiro_geral',
+  vice_coordenador: 'vice_coordenador_geral',
+  primeiro_secretario: 'primeiro_secretario_geral',
+  segundo_secretario: 'segundo_secretario_geral',
+  primeiro_tesoureiro: 'primeiro_tesoureiro_geral',
+  segundo_tesoureiro: 'segundo_tesoureiro_geral',
+  
+  // Backward compatibility
+  secretario: 'primeiro_secretario_geral',
+  tesoureiro: 'primeiro_tesoureiro_geral',
+  secretario_geral: 'primeiro_secretario_geral',
+  tesoureiro_geral: 'primeiro_tesoureiro_geral',
 };
 
 const DiretoriaManagementPage: React.FC = () => {
@@ -448,8 +459,20 @@ const DiretoriaManagementPage: React.FC = () => {
       return;
     }
     setEditingPosition(position);
-    // Mapear cargo do backend para o frontend
-    const cargoFrontend = (reverseCargoMapping[position.cargo] || position.cargo) as string;
+    
+    // Mapear cargo do backend para o frontend com base no contexto (Geral vs Polo)
+    let cargoFrontend = (reverseCargoMapping[position.cargo] || position.cargo) as string;
+    
+    // Se estivermos no modo polo, e o cargo mapeado for do tipo 'geral', trocar o sufixo
+    if (directorateMode === 'polo' && cargoFrontend.endsWith('_geral')) {
+      const baseCargo = cargoFrontend.replace('_geral', '');
+      const poloVersion = `${baseCargo}_polo`;
+      // Verificar se essa versão existe nas opções (cargoOptions values)
+      if (cargoOptions.some(opt => opt.value === poloVersion)) {
+        cargoFrontend = poloVersion;
+      }
+    }
+    
     setFormData({
       nome_completo: position.nome_completo,
       telefone: position.telefone || '',
