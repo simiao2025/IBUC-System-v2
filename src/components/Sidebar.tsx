@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { ADMIN_NAV_ITEMS } from '@/shared/config/navigation';
 import { useAccessControl } from '@/features/auth/ui/AccessControl';
 import { LayoutDashboard } from 'lucide-react';
@@ -7,7 +7,6 @@ import { Icon3D } from './ui/Icon3D';
 
 const Sidebar: React.FC = () => {
   const { canAccessModule, canManagePolos, canManageStaff, canViewReports } = useAccessControl();
-  const location = useLocation();
 
   const filteredItems = ADMIN_NAV_ITEMS.filter(item => {
     switch (item.module) {
@@ -42,7 +41,7 @@ const Sidebar: React.FC = () => {
   });
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full sticky top-0 overflow-y-auto hidden lg:flex">
+    <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full sticky top-0 overflow-y-auto">
       <div className="p-4 border-b border-gray-100 bg-gray-50/50">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
           Módulos do Sistema
@@ -102,4 +101,3 @@ const Sidebar: React.FC = () => {
 };
 
 export default Sidebar;
-迫于
