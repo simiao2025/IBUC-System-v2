@@ -30,6 +30,7 @@ import { ListaEsperaModule } from './lista-espera/lista-espera.module';
 import { MateriaisModule } from './materiais/materiais.module';
 import { PedidosMateriaisModule } from './pedidos-materiais/pedidos-materiais.module';
 import { UploadModule } from './upload/upload.module';
+import { CalendarioModule } from './calendario/calendario.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { UploadModule } from './upload/upload.module';
     MateriaisModule,
     PedidosMateriaisModule,
     UploadModule,
+    CalendarioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

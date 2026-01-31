@@ -11,10 +11,11 @@ import { UserService } from '../../services/userService';
 import { ConfiguracoesService } from '../../services/configuracoes.service';
 import { useApp } from '../../context/AppContext';
 import PageHeader from '../../components/ui/PageHeader';
-import { Lock, Users, UserPlus, Eye } from 'lucide-react';
+import { Lock, Users, UserPlus, Eye, Calendar } from 'lucide-react';
 
 import { ModuleTransitionWizard } from './ModuleTransitionWizard';
 import { BatchClosureModal } from './BatchClosureModal';
+import { ClassCalendarModal } from '../calendar/ui/ClassCalendarModal';
 
 type PoloOption = { id: string; nome: string };
 type NivelOption = { id: string; nome: string; ordem?: number };
@@ -73,6 +74,7 @@ export const ClassManagement: React.FC = () => {
   const [form, setForm] = useState<TurmaFormState>(DEFAULT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [transitionTurma, setTransitionTurma] = useState<{ id: string; nome: string } | null>(null);
+  const [calendarTurma, setCalendarTurma] = useState<{ id: string; nome: string } | null>(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [viewingTurma, setViewingTurma] = useState<TurmaItem | null>(null);
   const [globalConfigs, setGlobalConfigs] = useState<any>({});
@@ -632,8 +634,15 @@ export const ClassManagement: React.FC = () => {
                           </Button>
                         ) : (
                           <>
-                            <Button type="button" variant="outline" onClick={() => startEdit(t)} title="Editar Turma">
-                              Editar
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              onClick={() => setCalendarTurma({ id: t.id, nome: t.nome })} 
+                              title="Calendário de Aulas"
+                              className="text-red-600 border-red-100 hover:bg-red-50"
+                            >
+                              <Calendar className="h-4 w-4 mr-1" />
+                              Calendário
                             </Button>
 
                             {t.status === 'ativa' && (
@@ -663,6 +672,13 @@ export const ClassManagement: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {calendarTurma && (
+        <ClassCalendarModal 
+          turma={calendarTurma} 
+          onClose={() => setCalendarTurma(null)} 
+        />
+      )}
 
       {
         transitionTurma && (
