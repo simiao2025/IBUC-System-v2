@@ -73,7 +73,7 @@ export const Icon3D: React.FC<Icon3DProps> = ({
     <img
       src={src}
       alt={alt || `${name} icon`}
-      className={`object-contain ${sizeClass} ${className} transition-transform hover:scale-105 duration-200`}
+      className={`object-contain ${sizeClass} ${className} transition-transform hover:scale-105 duration-200 mix-blend-multiply`}
       onError={() => setError(true)}
       loading="lazy"
     />

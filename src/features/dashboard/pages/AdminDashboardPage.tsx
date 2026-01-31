@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Icon3D } from '@/components/ui/Icon3D';
+import { ADMIN_NAV_ITEMS } from '@/shared/config/navigation';
 import {
   Users,
   MapPin,
@@ -168,119 +169,37 @@ const AdminDashboard: React.FC = () => {
     }
   ];
 
-  const allQuickActions = [
-    {
-      title: 'Módulos',
-      description: 'Cadastro e edição de módulos e lições',
-      href: '/admin/modulos',
-      iconName: 'turmas',
-      fallbackIcon: BookOpen,
-      color: 'bg-purple-600 hover:bg-purple-700',
-      permission: canAccessModule('settings') || canAccessModule('enrollments') // Módulos geralmente segue configurações ou turmas
-    },
-    {
-      title: isPoloScoped ? 'Diretoria do Polo' : 'Diretoria Geral',
-      description: isPoloScoped ? 'Cadastro e gestão da liderança do polo' : 'Cadastro da diretoria executiva do IBUC',
-      href: '/admin/diretoria',
-      iconName: 'diretoria',
-      fallbackIcon: Building2,
-      color: 'bg-red-600 hover:bg-red-700',
-      permission: canAccessModule('directorate')
-    },
-    {
-      title: 'Gerenciar Polos',
-      description: 'Cadastro completo de polos e congregações',
-      href: '/admin/polos',
-      iconName: 'polos',
-      fallbackIcon: MapPin,
-      color: 'bg-blue-600 hover:bg-blue-700',
-      permission: canManagePolos()
-    },
-    {
-      title: 'Gerenciar Alunos',
-      description: 'Matrículas, editar e gerenciar dados dos alunos',
-      href: '/admin/alunos',
-      iconName: 'student',
-      fallbackIcon: Users,
-      color: 'bg-green-600 hover:bg-green-700',
-      permission: canAccessModule('students')
-    },
-    {
-      title: 'Equipes',
-      description: isPoloScoped ? 'Coordenadores, professores e auxiliares do polo' : 'Coordenadores, professores e auxiliares',
-      href: '/admin/equipe',
-      iconName: 'equipes_polos', // Using existing asset
-      fallbackIcon: UserCheck,
-      color: 'bg-teal-600 hover:bg-teal-700',
-      permission: canManageStaff()
-    },
-    {
-      title: 'Gerenciar Turmas',
-      description: 'Cadastro e gestão de turmas e níveis',
-      href: '/admin/turmas',
-      iconName: 'turmas',
-      fallbackIcon: BookOpen,
-      color: 'bg-purple-600 hover:bg-purple-700',
-      permission: canAccessModule('enrollments')
-    },
-    {
-      title: 'Frequência/Drácmas',
-      description: 'Controle de presença e Drácmas',
-      href: '/admin/frequencia',
-      iconName: 'frequencia',
-      fallbackIcon: ClipboardList,
-      color: 'bg-orange-600 hover:bg-orange-700',
-      permission: canAccessModule('attendance')
-    },
-    {
-      title: 'Financeiro',
-      description: 'Gestão financeira e faturas',
-      href: '/admin/financeiro',
-      iconName: 'financeiro',
-      fallbackIcon: DollarSign,
-      color: 'bg-yellow-600 hover:bg-yellow-700',
-      permission: canAccessModule('financeiro') || canAccessModule('finance_control') || canAccessModule('finance_materials') || canAccessModule('finance_config')
-    },
-    {
-      title: 'Gerenciar Materiais',
-      description: 'Cadastro de materiais e gestão de pedidos',
-      href: '/admin/materiais',
-      iconName: 'materiais',
-      fallbackIcon: ShoppingCart,
-      color: 'bg-red-600 hover:bg-red-700',
-      permission: canAccessModule('materials') || canAccessModule('materials_catalog') || canAccessModule('materials_orders')
-    },
-    {
-      title: 'Relatórios',
-      description: 'Gerar relatórios e estatísticas',
-      href: '/admin/relatorios',
-      iconName: 'relatorios',
-      fallbackIcon: BarChart3,
-      color: 'bg-gray-600 hover:bg-gray-700',
-      permission: canViewReports()
-    },
-    {
-      title: 'Gerenciar Pré-matrículas',
-      description: 'Análise de documentos e conclusão de novas matrículas.',
-      iconName: 'pre_matricula',
-      fallbackIcon: FileCheck,
-      href: '/admin/pre-matriculas',
-      color: 'bg-orange-500',
-      permission: canAccessModule('pre-enrollments')
-    },
-    {
-      title: 'Configurações',
-      description: 'Usuários, acessos e configurações do sistema',
-      href: '/admin/configuracoes',
-      iconName: 'configuracoes',
-      fallbackIcon: Settings,
-      color: 'bg-indigo-600 hover:bg-indigo-700',
-      permission: canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('settings_events') || canAccessModule('dracmas_settings') || canAccessModule('security') ||  canAccessModule('backup')
+  const quickActions = ADMIN_NAV_ITEMS.filter(item => {
+    switch (item.module) {
+      case 'settings':
+        if (item.href === '/admin/modulos') {
+          return canAccessModule('settings') || canAccessModule('enrollments');
+        }
+        return canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('settings_events') || canAccessModule('dracmas_settings') || canAccessModule('security') || canAccessModule('backup');
+      case 'directorate':
+        return canAccessModule('directorate');
+      case 'polos':
+        return canManagePolos();
+      case 'students':
+        return canAccessModule('students');
+      case 'staff':
+        return canManageStaff();
+      case 'enrollments':
+        return canAccessModule('enrollments');
+      case 'attendance':
+        return canAccessModule('attendance');
+      case 'financeiro':
+        return canAccessModule('financeiro') || canAccessModule('finance_control') || canAccessModule('finance_materials') || canAccessModule('finance_config');
+      case 'materials':
+        return canAccessModule('materials') || canAccessModule('materials_catalog') || canAccessModule('materials_orders');
+      case 'reports':
+        return canViewReports();
+      case 'pre-enrollments':
+        return canAccessModule('pre-enrollments');
+      default:
+        return false;
     }
-  ];
-
-  // Filtra ações baseado nas permissões
-  const quickActions = allQuickActions.filter(action => action.permission);
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
