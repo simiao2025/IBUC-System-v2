@@ -1,5 +1,6 @@
 import React from 'react';
 import Card from '../../components/ui/Card';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   GraduationCap,
   BookOpen
