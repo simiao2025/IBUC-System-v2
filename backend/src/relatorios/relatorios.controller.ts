@@ -92,13 +92,7 @@ export class RelatoriosController {
     return this.service.gerarHistoricoPdf(alunoId, req.user);
   }
 
-  @Get('estatisticas-por-polo')
-  async estatisticasPorPolo(
-    @Query('periodo') periodo?: string,
-    @Request() req?: any
-  ) {
-    return this.service.estatisticasPorPolo(periodo, req?.user);
-  }
+
 
   @Get('dracmas')
   async relatorioDracmas(
@@ -176,24 +170,7 @@ export class RelatoriosController {
     }
   }
 
-  @Get('lista-chamada')
-  async relatorioListaChamada(
-    @Query('turma_id') turma_id: string,
-    @Request() req?: any
-  ) {
-    return this.service.relatorioListaChamada(turma_id, req?.user);
-  }
 
-  @Get('consolidado-frequencia')
-  async relatorioConsolidadoFrequencia(
-    @Query('polo_id') polo_id?: string,
-    @Query('turma_id') turma_id?: string,
-    @Query('inicio') inicio?: string,
-    @Query('fim') fim?: string,
-    @Request() req?: any
-  ) {
-    return this.service.relatorioConsolidadoFrequencia({ polo_id, turma_id, inicio, fim }, req?.user);
-  }
 
   @Get('inadimplencia')
   async relatorioInadimplencia(

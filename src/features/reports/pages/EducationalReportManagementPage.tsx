@@ -3,12 +3,11 @@ import PageHeader from '@/shared/ui/PageHeader';
 import Card from '@/shared/ui/Card';
 import BoletimView from '@/components/reports/BoletimView';
 import HistoricoView from '@/components/reports/HistoricoView';
-import EstatisticasView from '@/components/reports/EstatisticasView';
+
 import DracmasReportView from '@/components/reports/DracmasReportView';
 import ListaAlunosView from '@/components/reports/ListaAlunosView';
 
-import ListaChamadaView from '@/components/reports/ListaChamadaView';
-import ConsolidadoFrequenciaView from '@/components/reports/ConsolidadoFrequenciaView';
+
 import InadimplenciaReportView from '@/components/reports/InadimplenciaReportView';
 import CertificadoView from '@/components/reports/CertificadoView';
 import { 
@@ -26,12 +25,9 @@ import { useAccessControl } from '@/features/auth/ui/AccessControl';
 type ReportTab = 
   | 'boletim' 
   | 'historico' 
-  | 'chamada' 
   | 'lista_alunos' 
-  | 'frequencia_consolidada' 
   | 'dracmas' 
   | 'financeiro' 
-  | 'estatisticas'
   | 'certificado';
 
 const EducationalReportManagementPage: React.FC = () => {
@@ -41,9 +37,7 @@ const EducationalReportManagementPage: React.FC = () => {
   const reportModules = [
     { id: 'boletim', label: 'Boletim Escolar', icon: FileText, color: 'text-blue-600' },
     { id: 'historico', label: 'Histórico Escolar', icon: GraduationCap, color: 'text-indigo-600' },
-    { id: 'chamada', label: 'Lista de Chamada', icon: ClipboardCheck, color: 'text-orange-600' },
     { id: 'lista_alunos', label: 'Lista de Alunos', icon: Users, color: 'text-green-600' },
-    { id: 'frequencia_consolidada', label: 'Consolidado Frequência', icon: BarChart2, color: 'text-pink-600' },
     { id: 'dracmas', label: 'Relatório de Drácmas', icon: Award, color: 'text-yellow-600' },
     { 
       id: 'financeiro', 
@@ -52,7 +46,6 @@ const EducationalReportManagementPage: React.FC = () => {
       color: 'text-red-600',
       permission: canAccessModule('financeiro')
     },
-    { id: 'estatisticas', label: 'Estatísticas Gerais', icon: BarChart2, color: 'text-purple-600' },
     { id: 'certificado', label: 'Certificado do Aluno', icon: Award, color: 'text-red-600' },
   ];
 
@@ -96,10 +89,8 @@ const EducationalReportManagementPage: React.FC = () => {
             {activeTab === 'historico' && <HistoricoView />}
             {activeTab === 'dracmas' && <DracmasReportView />}
             {activeTab === 'lista_alunos' && <ListaAlunosView />}
-            {activeTab === 'chamada' && <ListaChamadaView />}
-            {activeTab === 'frequencia_consolidada' && <ConsolidadoFrequenciaView />}
+
             {activeTab === 'financeiro' && <InadimplenciaReportView />}
-            {activeTab === 'estatisticas' && <EstatisticasView />}
             {activeTab === 'certificado' && <CertificadoView />}
           </div>
         </div>

@@ -33,12 +33,7 @@ export const RelatoriosAPI = {
     return api.get(`/relatorios/historico?${query}`);
   },
   gerarHistoricoPdf: (alunoId: string) => api.get(`/relatorios/historico-pdf?aluno_id=${alunoId}`),
-  estatisticasPorPolo: (periodo?: string) => {
-    const params = new URLSearchParams();
-    if (periodo) params.append('periodo', periodo);
-    const query = params.toString();
-    return api.get(`/relatorios/estatisticas-por-polo${query ? `?${query}` : ''}`);
-  },
+
   relatorioDracmas: (filtros: any) => {
     const params = new URLSearchParams();
     Object.entries(filtros).forEach(([key, value]) => {
@@ -61,14 +56,7 @@ export const RelatoriosAPI = {
     return api.get(`/relatorios/lista-alunos-pdf?${params.toString()}`, { responseType: 'blob' });
   },
 
-  relatorioListaChamada: (turmaId: string) => api.get(`/relatorios/lista-chamada?turma_id=${turmaId}`),
-  relatorioConsolidadoFrequencia: (filtros: any) => {
-    const params = new URLSearchParams();
-    Object.entries(filtros).forEach(([key, value]) => {
-      if (value) params.append(key, value as string);
-    });
-    return api.get(`/relatorios/consolidado-frequencia?${params.toString()}`);
-  },
+
   relatorioInadimplencia: (filtros: any) => {
     const params = new URLSearchParams();
     Object.entries(filtros).forEach(([key, value]) => {
@@ -110,9 +98,6 @@ export class RelatorioService {
     return res;
   }
 
-  static async estatisticasPorPolo(periodo?: string) {
-    return RelatoriosAPI.estatisticasPorPolo(periodo);
-  }
 
   static async relatorioDracmas(filtros: any) {
     return RelatoriosAPI.relatorioDracmas(filtros);
@@ -127,13 +112,6 @@ export class RelatorioService {
   }
 
 
-  static async relatorioListaChamada(turmaId: string) {
-    return RelatoriosAPI.relatorioListaChamada(turmaId);
-  }
-
-  static async relatorioConsolidadoFrequencia(filtros: any) {
-    return RelatoriosAPI.relatorioConsolidadoFrequencia(filtros);
-  }
 
   static async relatorioInadimplencia(filtros: any) {
     return RelatoriosAPI.relatorioInadimplencia(filtros);
