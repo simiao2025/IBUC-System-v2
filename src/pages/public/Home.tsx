@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Users, BookOpen, MapPin, Award, ChevronDown, ChevronUp, Phone, Mail } from 'lucide-react';
+import { ChevronDown, ChevronUp, BookOpen, MapPin, Users } from 'lucide-react';
+import { Icon3D } from '../../components/ui/Icon3D';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { PoloService } from '../../services/polo.service';
@@ -176,7 +177,7 @@ const Home: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <Card className="text-center hover:shadow-lg transition-shadow">
-            <Users className="h-12 w-12 text-red-600 mx-auto mb-4" />
+            <Icon3D name="student" fallbackIcon={Users} size="md" className="mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Ensino Personalizado</h3>
             <p className="text-gray-600 text-sm">
               Atendimento individualizado respeitando o ritmo de aprendizado de cada criança
@@ -184,7 +185,7 @@ const Home: React.FC = () => {
           </Card>
 
           <Card className="text-center hover:shadow-lg transition-shadow">
-            <BookOpen className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+            <Icon3D name="book" fallbackIcon={BookOpen} size="md" className="mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Base Bíblica Sólida</h3>
             <p className="text-gray-600 text-sm">
               Ensino fundamentado nos princípios e valores da Palavra de Deus
@@ -192,7 +193,7 @@ const Home: React.FC = () => {
           </Card>
 
           <Card className="text-center hover:shadow-lg transition-shadow">
-            <MapPin className="h-12 w-12 text-green-600 mx-auto mb-4" />
+            <Icon3D name="polos" fallbackIcon={MapPin} size="md" className="mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Multiplicidade de Polos</h3>
             <p className="text-gray-600 text-sm">
               Atendimento em diversos locais para melhor atender a comunidade
@@ -200,7 +201,7 @@ const Home: React.FC = () => {
           </Card>
 
           <Card className="text-center hover:shadow-lg transition-shadow">
-            <Award className="h-12 w-12 text-yellow-600 mx-auto mb-4" />
+            <Icon3D name="certificado" fallbackIcon={BookOpen} size="md" className="mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Certificação</h3>
             <p className="text-gray-600 text-sm">
               Certificado de conclusão ao final de cada módulo do curso

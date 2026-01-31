@@ -19,6 +19,14 @@ const Footer: React.FC = () => {
                 <p className="text-gray-300 text-sm leading-relaxed">
                   ASR-SE 75, Alameda 2, Lote 53, Plano Diretor Sul. Palmas-Tocantins – Brasil.
                 </p>
+                <a 
+                  href="https://admissaoprv.com.br/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors inline-block mt-1"
+                >
+                  admissaoprv.com.br
+                </a>
               </div>
               <div className="flex items-center space-x-3 pt-4">
                 <img

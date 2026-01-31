@@ -25,10 +25,19 @@ const iconMap: Record<string, string> = {
   diretoria: '/icons/3d/diretoria.png',
   pre_matricula: '/icons/3d/pre_matricula.png',
   // Pending generation (fallbacks likely needed or placeholders)
-  certificado: '/icons/3d/certificado.png', // Not generated yet
-  ensino: '/icons/3d/ensino.png', // Not generated yet
-  personalizado: '/icons/3d/personalizado.png', // Not generated yet
-  localizacao: '/icons/3d/localizacao.png', // Not generated yet
+  certificado: '/icons/3d/certificado.png',
+  ensino: '/icons/3d/ensino.png',
+  personalizado: '/icons/3d/personalizado.png',
+  localizacao: '/icons/3d/localizacao.png',
+  projeto_cristao: '/icons/3d/projeto_cristao.png',
+  palavra_de_deus: '/icons/3d/palavra_de_deus.png',
+  missao: '/icons/3d/missao.png',
+  visao: '/icons/3d/visao.png',
+  valores: '/icons/3d/valores.png',
+  material: '/icons/3d/material.png',
+  plataforma: '/icons/3d/plataforma.png',
+  material_impresso: '/icons/3d/material_impresso.png',
+  book: '/icons/3d/book.png',
 };
 
 const sizeMap = {
