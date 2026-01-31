@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Play, Calendar, MapPin, ChevronRight, Info, X } from 'lucide-react';
 import { EventosService, type Evento } from '../../features/events/services/eventos.service';
-import Card from '../ui/Card';
 import Button from '../ui/Button';
 
 export const PublicEventsAgenda: React.FC = () => {

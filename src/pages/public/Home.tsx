@@ -10,6 +10,63 @@ import { PoloService } from '../../services/polo.service';
 import { ConfiguracoesService } from '../../services/configuracoes.service';
 import { ListaEsperaService } from '../../services/listaEspera.service';
 
+// Componente FAQ
+const FAQComponent = () => {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const faqs = [
+    {
+      question: "Qual a idade mínima para matrícula?",
+      answer: "Aceitamos crianças a partir dos 2 anos de idade em nosso Nível I."
+    },
+    {
+      question: "Quais documentos são necessários para a matrícula?",
+      answer: "É necessário apresentar cópia da certidão de nascimento ou RG da criança, comprovante de residência e uma foto 3x4."
+    },
+    {
+      question: "Qual o valor da mensalidade?",
+      answer: "O IBUC não cobra mensalidade. O investimento necessário é apenas para o material didático de cada módulo."
+    },
+    {
+      question: "Qual o horário das aulas?",
+      answer: "Os horários variam conforme o polo. Entre em contato com a secretaria do polo de seu interesse para mais informações."
+    },
+    {
+      question: "Há material didático incluso?",
+      answer: "Sim, todo o material didático é especializado para cada faixa etária e o pagamento é realizado por módulo."
+    }
+  ];
+
+  const toggleFAQ = (index: number) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
+
+  return (
+    <div className="space-y-4">
+      {faqs.map((faq, index) => (
+        <Card key={index} className="overflow-hidden">
+          <button
+            className="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none"
+            onClick={() => toggleFAQ(index)}
+          >
+            <span className="font-medium text-gray-900">{faq.question}</span>
+            {openIndex === index ? (
+              <ChevronUp className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-gray-500" />
+            )}
+          </button>
+          {openIndex === index && (
+            <div className="px-6 pb-4 pt-0">
+              <p className="text-gray-600">{faq.answer}</p>
+            </div>
+          )}
+        </Card>
+      ))}
+    </div>
+  );
+};
+
 const Home: React.FC = () => {
   const [polosAtivos, setPolosAtivos] = useState<any[]>([]);
   const [loadingPolos, setLoadingPolos] = useState(true);
@@ -122,7 +179,9 @@ const Home: React.FC = () => {
                     <span>Lista de Espera</span>
                   </Button>
                 )}
-                
+              </div>
+            </div>
+
             <div className="hidden lg:block relative animate-in zoom-in duration-1000">
               <div className="relative aspect-square max-w-sm mx-auto flex items-center justify-center">
                 {/* Decorative Elements - Subtle glow instead of boxes */}
@@ -458,6 +517,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+
       {/* FAQ Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
@@ -477,61 +537,5 @@ const Home: React.FC = () => {
   );
 };
 
-// Componente FAQ
-const FAQComponent = () => {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const faqs = [
-    {
-      question: "Qual a idade mínima para matrícula?",
-      answer: "Aceitamos crianças a partir dos 2 anos de idade em nosso Nível I."
-    },
-    {
-      question: "Quais documentos são necessários para a matrícula?",
-      answer: "É necessário apresentar cópia da certidão de nascimento ou RG da criança, comprovante de residência e uma foto 3x4."
-    },
-    {
-      question: "Qual o valor da mensalidade?",
-      answer: "O IBUC não cobra mensalidade. O investimento necessário é apenas para o material didático de cada módulo."
-    },
-    {
-      question: "Qual o horário das aulas?",
-      answer: "Os horários variam conforme o polo. Entre em contato com a secretaria do polo de seu interesse para mais informações."
-    },
-    {
-      question: "Há material didático incluso?",
-      answer: "Sim, todo o material didático é especializado para cada faixa etária e o pagamento é realizado por módulo."
-    }
-  ];
-
-  const toggleFAQ = (index: number) => {
-    setOpenIndex(openIndex === index ? null : index);
-  };
-
-  return (
-    <div className="space-y-4">
-      {faqs.map((faq, index) => (
-        <Card key={index} className="overflow-hidden">
-          <button
-            className="w-full px-6 py-4 text-left flex justify-between items-center focus:outline-none"
-            onClick={() => toggleFAQ(index)}
-          >
-            <span className="font-medium text-gray-900">{faq.question}</span>
-            {openIndex === index ? (
-              <ChevronUp className="h-5 w-5 text-gray-500" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
-            )}
-          </button>
-          {openIndex === index && (
-            <div className="px-6 pb-4 pt-0">
-              <p className="text-gray-600">{faq.answer}</p>
-            </div>
-          )}
-        </Card>
-      ))}
-    </div>
-  );
-};
 
 export default Home;
