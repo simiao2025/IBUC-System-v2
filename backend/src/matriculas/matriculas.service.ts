@@ -48,8 +48,8 @@ export class MatriculasService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
-        polo:polos!fk_polo(id, nome, codigo)
+        aluno:alunos(id, nome, cpf, data_nascimento),
+        polo:polos(id, nome, codigo)
       `)
       .eq('id', id)
       .single();
@@ -115,9 +115,9 @@ export class MatriculasService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
-        polo:polos!fk_polo(id, nome, codigo),
-        turma:turmas!fk_turma(id, nome)
+        aluno:alunos(id, nome, cpf, data_nascimento),
+        polo:polos(id, nome, codigo),
+        turma:turmas(id, nome)
       `)
       .eq('protocolo', protocolo)
       .single();
@@ -135,9 +135,9 @@ export class MatriculasService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
-        polo:polos!fk_polo(id, nome, codigo),
-        turma:turmas!fk_turma(id, nome, nivel_id, modulo_id:modulo_atual_id)
+        aluno:alunos(id, nome, cpf, data_nascimento),
+        polo:polos(id, nome, codigo),
+        turma:turmas(id, nome, nivel_id, modulo_id:modulo_atual_id)
       `)
       .order('created_at', { ascending: false });
 

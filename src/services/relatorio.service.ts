@@ -60,7 +60,7 @@ export const RelatoriosAPI = {
     });
     return api.get(`/relatorios/lista-alunos-pdf?${params.toString()}`, { responseType: 'blob' });
   },
-  relatorioAtestadoMatricula: (alunoId: string) => api.get(`/relatorios/atestado-matricula?aluno_id=${alunoId}`),
+
   relatorioListaChamada: (turmaId: string) => api.get(`/relatorios/lista-chamada?turma_id=${turmaId}`),
   relatorioConsolidadoFrequencia: (filtros: any) => {
     const params = new URLSearchParams();
@@ -126,9 +126,6 @@ export class RelatorioService {
     return RelatoriosAPI.gerarListaAlunosPdf(filtros);
   }
 
-  static async relatorioAtestadoMatricula(alunoId: string) {
-    return RelatoriosAPI.relatorioAtestadoMatricula(alunoId);
-  }
 
   static async relatorioListaChamada(turmaId: string) {
     return RelatoriosAPI.relatorioListaChamada(turmaId);

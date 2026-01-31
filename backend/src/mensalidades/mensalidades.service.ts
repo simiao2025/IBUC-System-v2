@@ -110,8 +110,8 @@ export class MensalidadesService {
       .from('mensalidades')
       .select(`
         *,
-        aluno:alunos!fk_aluno(id, nome, cpf),
-        polo:polos!fk_polo(id, nome)
+        aluno:alunos(id, nome, cpf),
+        polo:polos(id, nome)
       `)
       .order('vencimento', { ascending: false });
 

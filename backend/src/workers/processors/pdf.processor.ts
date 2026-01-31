@@ -38,9 +38,9 @@ export class PdfProcessor {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
-        polo:polos!fk_polo(id, nome, codigo),
-        turma:turmas!fk_turma(id, nome)
+        aluno:alunos(id, nome, cpf, data_nascimento),
+        polo:polos(id, nome, codigo),
+        turma:turmas(id, nome)
       `)
       .eq('id', matriculaId)
       .single();
@@ -144,7 +144,7 @@ export class PdfProcessor {
         nome,
         cpf,
         sexo,
-        polo:polos!fk_polo(id, nome)
+        polo:polos(id, nome)
       `)
       .eq('id', alunoId)
       .single();
@@ -160,7 +160,7 @@ export class PdfProcessor {
         id,
         status,
         protocolo,
-        turma:turmas!fk_turma(
+        turma:turmas(
           id, 
           nome, 
           dia_semana:dias_semana, 
@@ -389,7 +389,7 @@ export class PdfProcessor {
             nome, 
             cpf, 
             sexo,
-            polo:polos!fk_polo(nome)
+            polo:polos(nome)
           `)
           .eq('id', alunoId)
           .single();
@@ -406,7 +406,7 @@ export class PdfProcessor {
             id, 
             status, 
             protocolo,
-            turma:turmas!fk_turma(
+            turma:turmas(
               id, 
               nome, 
               dia_semana:dias_semana, 
@@ -766,7 +766,7 @@ export class PdfProcessor {
     // 1. Buscar Dados Básicos do Aluno
     const { data: aluno, error: alunoError } = await client
       .from('alunos')
-      .select('id, nome, cpf, rg, data_nascimento, status, polo:polos!fk_polo(id, nome, codigo)')
+      .select('id, nome, cpf, rg, data_nascimento, status, polo:polos(id, nome, codigo)')
       .eq('id', alunoId)
       .single();
 
@@ -813,7 +813,7 @@ export class PdfProcessor {
     // 3. Matrícula Atual e Turmas em Curso
     const { data: matriculasAtivas, error: mError } = await client
       .from('matriculas')
-      .select('*, turma:turmas!fk_turma(id, nome, modulo_atual_id, modulo:modulos(id, titulo, numero, carga_horaria))')
+      .select('*, turma:turmas(id, nome, modulo_atual_id, modulo:modulos(id, titulo, numero, carga_horaria))')
       .eq('aluno_id', alunoId)
       .eq('status', 'ativa');
 

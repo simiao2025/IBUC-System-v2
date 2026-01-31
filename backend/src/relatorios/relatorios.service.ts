@@ -93,7 +93,7 @@ export class RelatoriosService {
       .from('boletins')
       .select(`
         id, aluno_id, modulo_id, pdf_url, generated_at, periodo, situacao, nota_final,
-        aluno:alunos!fk_aluno(nome),
+        aluno:alunos(nome),
         modulo:modulos(titulo, numero),
         turma:turmas(nome)
       `)
@@ -140,10 +140,10 @@ export class RelatoriosService {
       .from('alunos')
       .select(`
         id, nome, cpf, data_nascimento,
-        polo:polos!fk_polo(id, nome),
-        matriculas:matriculas!fk_aluno(
+        polo:polos(id, nome),
+        matriculas:matriculas(
           id, status, 
-          turma:turmas!fk_turma(id, nome, nivel:niveis(nome))
+          turma:turmas(id, nome, nivel:niveis(nome))
         )
       `)
       .eq('id', alunoId)
@@ -347,7 +347,7 @@ export class RelatoriosService {
     // 1. Dados Básicos do Aluno
     const { data: aluno, error: alunoError } = await client
       .from('alunos')
-      .select('id, nome, cpf, data_nascimento, status, polo:polos!fk_polo(nome)')
+      .select('id, nome, cpf, data_nascimento, status, polo:polos(nome)')
       .eq('id', alunoId)
       .single();
 
@@ -370,7 +370,7 @@ export class RelatoriosService {
     // 3. Matrícula Atual e Turmas em Curso
     const { data: matriculasAtivas } = await client
       .from('matriculas')
-      .select('*, turma:turmas!fk_turma(id, nome, modulo_atual_id, modulo:modulos(titulo, numero))')
+      .select('*, turma:turmas(id, nome, modulo_atual_id, modulo:modulos(titulo, numero))')
       .eq('aluno_id', alunoId)
       .eq('status', 'ativa');
 
@@ -764,57 +764,6 @@ export class RelatoriosService {
     return await this.workers.gerarListaAlunosPdf(scopeFiltros, user);
   }
 
-  async relatorioAtestadoMatricula(alunoId: string, user?: CurrentUser) {
-    await this.validarAcessoAoAluno(alunoId, user);
-    try {
-      const client = this.supabase.getAdminClient();
-
-      const { data, error } = await client
-        .from('alunos')
-        .select(`
-          id,
-          nome,
-          cpf,
-          rg,
-          data_nascimento,
-          nacionalidade,
-          naturalidade,
-          status,
-          matriculas:matriculas!fk_aluno(
-            id,
-            status,
-            tipo,
-            periodo_letivo,
-            turma:turmas!fk_turma(id, nome, nivel:niveis(nome)),
-            polo:polos!fk_polo(id, nome, codigo)
-          )
-        `)
-        .eq('id', alunoId)
-        .single();
-
-      if (error) throw error;
-
-      // Pegar a matrícula ativa ou a mais recente
-      const matriculaAtiva = data.matriculas?.find((m: any) => m.status === 'ativa') || data.matriculas?.[0];
-
-      return {
-        aluno: {
-          id: data.id,
-          nome: data.nome,
-          cpf: data.cpf,
-          rg: data.rg,
-          data_nascimento: data.data_nascimento,
-          nacionalidade: data.nacionalidade,
-          naturalidade: data.naturalidade,
-        },
-        matricula: matriculaAtiva,
-        data_emissao: new Date().toISOString(),
-      };
-    } catch (error) {
-      console.error('Erro ao gerar atestado de matrícula:', error);
-      throw error;
-    }
-  }
 
   async relatorioListaChamada(turmaId: string, user?: CurrentUser) {
     await this.validarAcessoATurma(turmaId, user);
@@ -828,7 +777,7 @@ export class RelatoriosService {
           id,
           nome,
           horario,
-          polo:polos!fk_polo(id, nome),
+          polo:polos(id, nome),
           nivel:niveis(nome)
         `)
         .eq('id', turmaId)
@@ -841,7 +790,7 @@ export class RelatoriosService {
         .from('matriculas')
         .select(`
           id,
-          aluno:alunos!fk_aluno(id, nome)
+          aluno:alunos(id, nome)
         `)
         .eq('turma_id', turmaId)
         .eq('status', 'ativa')
@@ -877,8 +826,8 @@ export class RelatoriosService {
           status,
           data,
           aluno_id,
-          aluno:alunos!fk_aluno(id, nome),
-          turma:turmas!fk_turma(id, nome, polo_id)
+          aluno:alunos(id, nome),
+          turma:turmas(id, nome, polo_id)
         `);
 
       if (filtros.turma_id) query = query.eq('turma_id', filtros.turma_id);
@@ -941,7 +890,7 @@ export class RelatoriosService {
           valor_cents,
           vencimento,
           status,
-          aluno:alunos!fk_aluno(id, nome, whatsapp),
+          aluno:alunos!fk_aluno(id, nome, whatsapp:telefone_responsavel),
           polo:polos!fk_polo(id, nome)
         `)
         .eq('status', 'pendente')
@@ -959,6 +908,7 @@ export class RelatoriosService {
       const porAluno: Record<string, any> = {};
 
       (data || []).forEach((m: any) => {
+        if (!m.aluno) return;
         if (!porAluno[m.aluno.id]) {
           porAluno[m.aluno.id] = {
             aluno_id: m.aluno.id,

@@ -176,14 +176,6 @@ export class RelatoriosController {
     }
   }
 
-  @Get('atestado-matricula')
-  async relatorioAtestadoMatricula(
-    @Query('aluno_id') aluno_id: string,
-    @Request() req?: any
-  ) {
-    return this.service.relatorioAtestadoMatricula(aluno_id, req?.user);
-  }
-
   @Get('lista-chamada')
   async relatorioListaChamada(
     @Query('turma_id') turma_id: string,

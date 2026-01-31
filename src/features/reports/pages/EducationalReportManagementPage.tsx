@@ -6,7 +6,7 @@ import HistoricoView from '@/components/reports/HistoricoView';
 import EstatisticasView from '@/components/reports/EstatisticasView';
 import DracmasReportView from '@/components/reports/DracmasReportView';
 import ListaAlunosView from '@/components/reports/ListaAlunosView';
-import AtestadoMatriculaView from '@/components/reports/AtestadoMatriculaView';
+
 import ListaChamadaView from '@/components/reports/ListaChamadaView';
 import ConsolidadoFrequenciaView from '@/components/reports/ConsolidadoFrequenciaView';
 import InadimplenciaReportView from '@/components/reports/InadimplenciaReportView';
@@ -19,7 +19,6 @@ import {
   Users, 
   Award, 
   DollarSign,
-  FileCheck,
   ChevronRight
 } from 'lucide-react';
 import { useAccessControl } from '@/features/auth/ui/AccessControl';
@@ -27,7 +26,6 @@ import { useAccessControl } from '@/features/auth/ui/AccessControl';
 type ReportTab = 
   | 'boletim' 
   | 'historico' 
-  | 'atestado' 
   | 'chamada' 
   | 'lista_alunos' 
   | 'frequencia_consolidada' 
@@ -43,7 +41,6 @@ const EducationalReportManagementPage: React.FC = () => {
   const reportModules = [
     { id: 'boletim', label: 'Boletim Escolar', icon: FileText, color: 'text-blue-600' },
     { id: 'historico', label: 'Histórico Escolar', icon: GraduationCap, color: 'text-indigo-600' },
-    { id: 'atestado', label: 'Atestado de Matrícula', icon: FileCheck, color: 'text-teal-600' },
     { id: 'chamada', label: 'Lista de Chamada', icon: ClipboardCheck, color: 'text-orange-600' },
     { id: 'lista_alunos', label: 'Lista de Alunos', icon: Users, color: 'text-green-600' },
     { id: 'frequencia_consolidada', label: 'Consolidado Frequência', icon: BarChart2, color: 'text-pink-600' },
@@ -99,7 +96,6 @@ const EducationalReportManagementPage: React.FC = () => {
             {activeTab === 'historico' && <HistoricoView />}
             {activeTab === 'dracmas' && <DracmasReportView />}
             {activeTab === 'lista_alunos' && <ListaAlunosView />}
-            {activeTab === 'atestado' && <AtestadoMatriculaView />}
             {activeTab === 'chamada' && <ListaChamadaView />}
             {activeTab === 'frequencia_consolidada' && <ConsolidadoFrequenciaView />}
             {activeTab === 'financeiro' && <InadimplenciaReportView />}

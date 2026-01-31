@@ -56,9 +56,9 @@ export class PdfService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
-        polo:polos!fk_polo(id, nome, codigo),
-        turma:turmas!fk_turma(id, nome)
+        aluno:alunos(id, nome, cpf, data_nascimento),
+        polo:polos(id, nome, codigo),
+        turma:turmas(id, nome)
       `)
       .eq('id', matriculaId)
       .single();
@@ -178,7 +178,7 @@ export class PdfService {
         nome,
         cpf,
         sexo,
-        polo:polos!fk_polo(id, nome)
+        polo:polos(id, nome)
       `)
       .eq('id', alunoId)
       .single();
@@ -194,10 +194,10 @@ export class PdfService {
         id,
         status,
         protocolo,
-        turma:turmas!fk_turma(
-          id, 
-          nome, 
-          dia_semana:dias_semana, 
+        turma:turmas(
+          id,
+          nome,
+          dia_semana:dias_semana,
           horario:horario_inicio,
           professor_id,
           nivel:niveis(nome)
@@ -453,7 +453,7 @@ export class PdfService {
             nome, 
             cpf, 
             sexo,
-            polo:polos!fk_polo(nome)
+            polo:polos(nome)
           `)
           .eq('id', alunoId)
           .single();
@@ -470,7 +470,7 @@ export class PdfService {
             id, 
             status, 
             protocolo,
-            turma:turmas!fk_turma(
+            turma:turmas(
               id, 
               nome, 
               dia_semana:dias_semana, 
@@ -953,7 +953,7 @@ export class PdfService {
     const client = this.supabase.getAdminClient();
     const { data: aluno, error: alunoError } = await client
       .from('alunos')
-      .select('id, nome, cpf, rg, data_nascimento, sexo, status, polo:polos!fk_polo(id, nome, codigo)')
+      .select('id, nome, cpf, rg, data_nascimento, sexo, status, polo:polos(id, nome, codigo)')
       .eq('id', alunoId)
       .single();
 
@@ -967,7 +967,7 @@ export class PdfService {
 
     const { data: matriculas } = await client
       .from('matriculas')
-      .select('*, turma:turmas!fk_turma(id, nome, dia_semana:dias_semana, horario:horario_inicio, nivel:niveis(nome), modulo_atual_id, modulo:modulos(id, titulo, numero, carga_horaria))')
+      .select('*, turma:turmas(id, nome, dia_semana:dias_semana, horario:horario_inicio, nivel:niveis(nome), modulo_atual_id, modulo:modulos(id, titulo, numero, carga_horaria))')
       .eq('aluno_id', alunoId)
       .eq('status', 'ativa');
 
@@ -1030,8 +1030,8 @@ export class PdfService {
         whatsapp:telefone_responsavel,
         data_nascimento,
         status,
-        polo:polos!fk_polo(id, nome),
-        turma:turmas!fk_turma(nome)
+        polo:polos(id, nome),
+        turma:turmas(nome)
       `);
 
     if (filtros.polo_id) query = query.eq('polo_id', filtros.polo_id);
@@ -1053,8 +1053,7 @@ export class PdfService {
       });
     }
 
-    // 2. Configurar PDF com nome determinístico baseado nos filtros
-    const crypto = require('crypto');
+    // 2. Configurar PDF
     const filterKey = JSON.stringify({
       polo_id: filtros.polo_id || 'all',
       turma_id: filtros.turma_id || 'all',
@@ -1063,17 +1062,10 @@ export class PdfService {
     });
     const hash = crypto.createHash('md5').update(filterKey).digest('hex');
     const fileName = `lista-alunos-${hash.substring(0, 12)}.pdf`;
-    const filePath = path.join(process.env.STORAGE_PATH || './storage', 'relatorios', fileName);
 
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
-
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
 
     // Cabeçalho Principal
     const logo = await this.getLogo();
@@ -1113,7 +1105,7 @@ export class PdfService {
 
     // Caso o admin seja geral, vamos agrupar
     alunos.forEach((aluno: any, index: number) => {
-      // Se o polo mudou e é admin geral, ou se é o primeiro aluno e é admin geral
+      // Se o polo mudou e é admin geral, ou se é the first aluno e é admin geral
       if (isGlobal && aluno.polo?.id !== lastPoloId) {
         if (currentY > 700) { doc.addPage(); currentY = 40; }
 
@@ -1124,11 +1116,11 @@ export class PdfService {
         doc.text(`POLO: ${aluno.polo?.nome?.toUpperCase() || 'SEM POLO'}`, 50, currentY);
         currentY += 15;
 
-        // Desenha o header da tabela para este grupo
+        // Desenha the header da tabela para este grupo
         currentY = drawTableHeader(currentY);
         lastPoloId = aluno.polo?.id;
       } else if (index === 0 && !isGlobal) {
-        // Para admin de polo, desenha o header apenas uma vez no topo
+        // Para admin de polo, desenha the header apenas uma vez no topo
         currentY = drawTableHeader(currentY);
       }
 
@@ -1159,15 +1151,13 @@ export class PdfService {
 
     doc.end();
 
-    await new Promise<void>((resolve) => {
-      stream.on('finish', () => resolve());
+    const fileBuffer = await new Promise<Buffer>((resolve, reject) => {
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
     });
 
-    const fileBuffer = fs.readFileSync(filePath);
     const storagePath = `relatorios/listas/${fileName}`;
     await client.storage.from('documentos').upload(storagePath, fileBuffer, { contentType: 'application/pdf', upsert: true });
-
-    fs.unlinkSync(filePath);
 
     const { data: publicUrl } = client.storage.from('documentos').getPublicUrl(storagePath);
     return { success: true, url: publicUrl.publicUrl };
