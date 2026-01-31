@@ -10,6 +10,12 @@ import { FileUpload } from '../ui/FileUpload';
 import { Trash2, Image as ImageIcon, Video, Star } from 'lucide-react';
 
 type ScopeMode = 'geral' | 'polo';
+  
+function getYouTubeId(url: string) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+}
 
 export const EventsSettings: React.FC = () => {
   const { currentUser, polos, hasAccessToAllPolos, showFeedback, showConfirm } = useApp();
@@ -415,8 +421,17 @@ export const EventsSettings: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
-                            <Video className="w-8 h-8 text-white" />
+                          <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center group-video">
+                            {getYouTubeId(item.url) ? (
+                              <img 
+                                src={`https://img.youtube.com/vi/${getYouTubeId(item.url)}/hqdefault.jpg`}
+                                className="w-full h-full object-cover opacity-80"
+                                alt="Youtube Thumb"
+                              />
+                            ) : null}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Video className="w-8 h-8 text-white drop-shadow-md" />
+                            </div>
                             <button
                               type="button"
                               onClick={() => {
@@ -425,7 +440,7 @@ export const EventsSettings: React.FC = () => {
                                   midia: p.midia.filter((_, i) => i !== idx)
                                 }));
                               }}
-                              className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -440,23 +455,71 @@ export const EventsSettings: React.FC = () => {
                 )}
 
                 {/* Upload de nova mídia */}
-                <FileUpload
-                  folder="eventos"
-                  accept="image/*,video/*"
-                  maxSizeMB={10}
-                  label="Adicionar imagem ou vídeo"
-                  onUploadComplete={(url, filename) => {
-                    const fileType = filename.match(/\.(mp4|webm|ogg|avi)$/i) ? 'video' : 'image';
-                    setForm((p) => ({
-                      ...p,
-                      midia: [...p.midia, { type: fileType, url, title: filename }]
-                    }));
-                    showFeedback('success', 'Sucesso', 'Mídia adicionada!');
-                  }}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Aceita imagens e vídeos. Cada arquivo pode ter até 10MB.
-                </p>
+                {/* Upload de nova mídia */}
+                <div className="space-y-4 border-t pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {/* Opção 1: Upload de Arquivo */}
+                     <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Opção A: Upload de Arquivo</p>
+                        <FileUpload
+                          folder="eventos"
+                          accept="image/*,video/*"
+                          maxSizeMB={50}
+                          label="Escolher arquivo"
+                          onUploadComplete={(url, filename) => {
+                            const fileType = filename.match(/\.(mp4|webm|ogg|avi)$/i) ? 'video' : 'image';
+                            setForm((p) => ({
+                              ...p,
+                              midia: [...p.midia, { type: fileType, url, title: filename }]
+                            }));
+                            showFeedback('success', 'Sucesso', 'Mídia adicionada!');
+                          }}
+                        />
+                     </div>
+
+                     {/* Opção 2: Link do YouTube */}
+                     <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Opção B: Vídeo do YouTube</p>
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="Cole o link do YouTube aqui..." 
+                            id="youtube-input"
+                            onChange={() => {}} // Controlled by ref or separate state if needed, but simpler to use DOM for this quick action or just generic Input without state binding if I don't want to add state
+                          />
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={(e) => {
+                              // Hack to get value without adding state, navigating DOM is acceptable here
+                              const input = document.getElementById('youtube-input') as HTMLInputElement;
+                              const url = input.value;
+                              if (!url) return;
+                              
+                              // Basic YouTube Validation
+                              const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                              const match = url.match(regExp);
+                              
+                              if (match && match[2].length === 11) {
+                                setForm((p) => ({
+                                  ...p,
+                                  midia: [...p.midia, { type: 'video', url, title: 'Vídeo do YouTube' }]
+                                }));
+                                showFeedback('success', 'Sucesso', 'Vídeo adicionado!');
+                                input.value = '';
+                              } else {
+                                showFeedback('error', 'Inválido', 'Link do YouTube inválido.');
+                              }
+                            }}
+                          >
+                            Adicionar
+                          </Button>
+                        </div>
+                     </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Formatos aceitos: Imagens (jpg, png), Vídeos MP4 (até 50MB) ou Links do YouTube.
+                  </p>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t">
