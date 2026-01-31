@@ -266,7 +266,7 @@ const ModulosManagementPage: React.FC = () => {
   };
 
   return (
-    <AccessControl allowedRoles={['super_admin', 'admin_geral', 'diretor_geral', 'coordenador_geral', 'secretario_geral']}>
+    <AccessControl requiredModule="settings">
       <div className="min-h-screen bg-gray-50">
         <PageHeader
           title="Módulos"

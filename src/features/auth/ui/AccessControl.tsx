@@ -9,6 +9,7 @@ interface AccessControlProps {
   requiresGeneralAccess?: boolean;
   requiresPoloAccess?: string;
   allowedRoles?: AdminRole[];
+  requiredModule?: AdminModuleKey;
   fallbackMessage?: string;
 }
 
@@ -17,9 +18,10 @@ const AccessControl: React.FC<AccessControlProps> = ({
   requiresGeneralAccess = false,
   requiresPoloAccess,
   allowedRoles,
+  requiredModule,
   fallbackMessage
 }) => {
-  const { currentUser, hasAccessToAllPolos, hasAccessToPolo } = useApp();
+  const { currentUser, hasAccessToAllPolos, hasAccessToPolo, canAccessModule } = useApp();
 
   // Se não é admin, nega acesso
   if (!currentUser || currentUser.role !== 'admin') {
@@ -81,6 +83,21 @@ const AccessControl: React.FC<AccessControlProps> = ({
         </div>
       );
     }
+  }
+
+  // Verifica permissão granular por módulo
+  if (requiredModule && !canAccessModule(requiredModule)) {
+     return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Card className="max-w-md text-center">
+            <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
+            <p className="text-gray-600">
+              {fallbackMessage || 'Você não tem permissão para acessar este módulo.'}
+            </p>
+          </Card>
+        </div>
+      );
   }
 
   // Se passou por todas as verificações, renderiza o conteúdo
