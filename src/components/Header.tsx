@@ -61,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
                   alt="IBUC Logo"
                   className="h-10 w-auto"
                 />
-                <h1 className="text-xl font-bold text-red-600 hidden sm:block">IBUC - Palmas - TO</h1>
+                <h1 className="text-xl font-bold text-red-600">IBUC - Palmas - TO</h1>
               </Link>
             </div>
           </div>
@@ -91,7 +91,7 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
                   <Link to="/login">Área do Aluno</Link>
                 </Button>
                 <Button asChild variant="outline" size="sm" className="border-red-600 text-red-600 hover:bg-red-50">
-                  <Link to="/admin">Admin</Link>
+                  <Link to="/admin">Área Administrativa</Link>
                 </Button>
               </div>
             </nav>

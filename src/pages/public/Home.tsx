@@ -123,32 +123,16 @@ const Home: React.FC = () => {
                   </Button>
                 )}
                 
-                <button 
-                  onClick={() => setShowHeroVideo(true)}
-                  className="flex items-center space-x-3 text-white font-semibold group transition-all"
-                >
-                  <div className="w-12 h-12 rounded-full border border-white/30 flex items-center justify-center bg-white/5 group-hover:bg-red-600 group-hover:border-red-600 transition-all">
-                    <BookOpen className="h-5 w-5 fill-current" />
-                  </div>
-                  <span className="group-hover:text-red-500">Conheça nossa História</span>
-                </button>
-              </div>
-            </div>
-
             <div className="hidden lg:block relative animate-in zoom-in duration-1000">
-              <div className="relative aspect-square max-w-md mx-auto">
-                {/* Decorative Elements */}
-                <div className="absolute inset-0 bg-red-600 rounded-3xl rotate-6 opacity-20 blur-2xl animate-pulse"></div>
-                <div className="absolute inset-0 bg-blue-600 rounded-3xl -rotate-6 opacity-10 blur-xl"></div>
+              <div className="relative aspect-square max-w-sm mx-auto flex items-center justify-center">
+                {/* Decorative Elements - Subtle glow instead of boxes */}
+                <div className="absolute inset-0 bg-red-600 rounded-full opacity-10 blur-3xl animate-pulse"></div>
                 
-                <div className="relative h-full w-full bg-gray-800 rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl group">
-                   <img 
-                    src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png" 
-                    alt="Logo IBUC" 
-                    className="absolute inset-0 m-auto h-40 w-auto object-contain drop-shadow-2xl brightness-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-gray-900/40 to-transparent"></div>
-                </div>
+                <img 
+                  src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png" 
+                  alt="Logo IBUC" 
+                  className="relative z-10 w-full h-auto object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                />
               </div>
             </div>
           </div>

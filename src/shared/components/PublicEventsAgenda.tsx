@@ -42,125 +42,151 @@ export const PublicEventsAgenda: React.FC = () => {
     if (loading) return <div className="text-center py-20 text-gray-500">Carregando eventos...</div>;
 
     return (
-        <section className="bg-white py-16 sm:py-24">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
-                {/* Próximos Eventos */}
-                {futureEvents.length > 0 && (
-                    <div className="space-y-12">
-                        <div className="text-center max-w-3xl mx-auto mb-16">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
-                                Agenda de Eventos
+        <div className="space-y-24">
+            {/* Seção 1: Agenda de Eventos (O que vem aí) */}
+            <section className="bg-white py-12 sm:py-20">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 border-b border-gray-100 pb-8">
+                        <div className="max-w-2xl">
+                            <h2 className="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight uppercase">
+                                Agenda de <span className="text-red-600">Eventos</span>
                             </h2>
-                            <div className="mt-4 h-1.5 w-24 bg-red-600 mx-auto rounded-full"></div>
-                            <p className="mt-6 text-lg text-gray-600 leading-relaxed font-light">
-                                Participe das nossas atividades e fique por dentro de tudo o que acontece na nossa comunidade.
+                            <p className="mt-4 text-xl text-gray-500 font-medium">
+                                Fique por dentro de tudo o que vai acontecer no IBUC.
                             </p>
                         </div>
+                        <div className="mt-6 md:mt-0">
+                            <div className="inline-flex items-center px-4 py-2 bg-red-50 rounded-xl text-red-700 font-bold text-sm">
+                                <Calendar className="h-5 w-5 mr-2" />
+                                {futureEvents.length} Eventos Agendados
+                            </div>
+                        </div>
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {futureEvents.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                             {futureEvents.map(evt => (
-                                <Card key={evt.id} className="flex flex-col h-full group hover:shadow-2xl transition-all duration-300 border-none bg-gray-50/50 hover:bg-white ring-1 ring-gray-100 hover:ring-red-100">
-                                    <div className="flex-1 flex flex-col p-6">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 uppercase tracking-wider">
-                                                {evt.categoria || 'Geral'}
+                                <div key={evt.id} className="group relative flex flex-col bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                                    {/* Tag de Data Lateral */}
+                                    <div className="absolute top-6 left-6 z-10">
+                                        <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-3 flex flex-col items-center min-w-[64px] border border-gray-100">
+                                            <span className="text-red-600 text-2xl font-black leading-none">
+                                                {new Date(evt.data_inicio + 'T12:00:00').getDate()}
                                             </span>
-                                            <div className="flex items-center text-gray-500 text-xs font-semibold">
-                                                <Calendar className="h-3 w-3 mr-1" />
-                                                {new Date(evt.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR')}
-                                            </div>
+                                            <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mt-1">
+                                                {new Date(evt.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-8 pt-24">
+                                        <div className="mb-4">
+                                            <span className="text-[10px] font-black bg-gray-900 text-white px-3 py-1 rounded-full uppercase tracking-[0.2em]">
+                                                {evt.categoria || 'Evento'}
+                                            </span>
                                         </div>
                                         
-                                        <h3 className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors line-clamp-2 mb-3">
+                                        <h3 className="text-2xl font-extrabold text-gray-900 group-hover:text-red-600 transition-colors mb-4 line-clamp-2">
                                             {evt.titulo}
                                         </h3>
                                         
-                                        <p className="text-gray-600 text-sm leading-relaxed mb-6 line-clamp-3">
-                                            {evt.descricao || 'Nenhuma descrição disponível para este evento.'}
+                                        <p className="text-gray-500 text-sm leading-relaxed mb-8 line-clamp-3 font-medium">
+                                            {evt.descricao || 'Detalhes do evento em breve.'}
                                         </p>
                                         
-                                        <div className="mt-auto pt-4 border-t border-gray-100">
-                                            <div className="flex items-center text-sm text-gray-500 mb-4">
-                                                <MapPin className="h-4 w-4 mr-2 text-red-500/60" />
+                                        <div className="mt-auto space-y-4">
+                                            <div className="flex items-center text-gray-400 text-sm font-semibold">
+                                                <MapPin className="h-5 w-5 mr-3 text-red-500/40" />
                                                 <span className="truncate">{evt.local || 'Local a definir'}</span>
                                             </div>
                                             
                                             {evt.link_cta && (
-                                                <Button asChild variant="primary" size="sm" className="w-full bg-red-600 hover:bg-red-700 shadow-md">
-                                                    <a href={evt.link_cta} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
-                                                        Mais Informações
-                                                        <ChevronRight className="ml-1 h-4 w-4" />
+                                                <Button asChild className="w-full bg-gray-900 hover:bg-red-600 text-white rounded-2xl py-6 transition-all duration-300">
+                                                    <a href={evt.link_cta} target="_blank" rel="noopener noreferrer">
+                                                        Garantir minha vaga
+                                                        <ChevronRight className="ml-2 h-5 w-5" />
                                                     </a>
                                                 </Button>
                                             )}
                                         </div>
                                     </div>
-                                </Card>
+                                </div>
                             ))}
                         </div>
-                    </div>
-                )}
-
-                {/* Galeria de Memórias */}
-                {pastEvents.length > 0 && (
-                    <div className="space-y-12">
-                        <div className="text-center max-w-3xl mx-auto">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
-                                Galeria de Memórias
-                            </h2>
-                            <div className="mt-4 h-1.5 w-24 bg-red-600 mx-auto rounded-full"></div>
-                            <p className="mt-6 text-lg text-gray-600 font-light">
-                                Retratos de momentos abençoados em nossos encontros realizados.
-                            </p>
+                    ) : (
+                        <div className="text-center py-20 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
+                            <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                            <p className="text-gray-500 font-bold italic">Nenhum evento agendado para os próximos dias.</p>
                         </div>
+                    )}
+                </div>
+            </section>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {pastEvents.flatMap(evt => evt.midia.map((m, idx) => ({ ...m, eventTitle: evt.titulo, id: `${evt.id}-${idx}` }))).slice(0, 12).map(m => (
+            {/* Seção 2: Mural de Memórias (Publicações) */}
+            <section className="bg-gray-50 py-16 sm:py-24 rounded-[3rem] sm:rounded-[5rem] mx-2 sm:mx-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center max-w-3xl mx-auto mb-20">
+                        <h2 className="text-3xl sm:text-5xl font-black text-gray-900 tracking-tight uppercase">
+                            Mural de <span className="text-blue-600">Publicações</span>
+                        </h2>
+                        <div className="mt-6 h-2 w-20 bg-blue-600 mx-auto rounded-full"></div>
+                        <p className="mt-8 text-xl text-gray-500 font-medium">
+                            Nossa história é feita de momentos. Relembre aqui as mídias e publicações dos nossos eventos.
+                        </p>
+                    </div>
+
+                    {pastEvents.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
+                            {pastEvents.flatMap(evt => evt.midia.map((m, idx) => ({ ...m, eventTitle: evt.titulo, id: `${evt.id}-${idx}` }))).map(m => (
                                 <div 
                                     key={m.id}
-                                    className="group relative aspect-[4/5] rounded-2xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 bg-gray-100"
+                                    className="group relative aspect-square rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden cursor-pointer shadow-xl transition-all duration-700"
                                     onClick={() => openLightbox(m.url, m.type)}
                                 >
                                     <img 
                                         src={m.type === 'image' ? m.url : `https://img.youtube.com/vi/${getYouTubeId(m.url)}/hqdefault.jpg`} 
                                         alt={m.eventTitle}
                                         loading="lazy"
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 brightness-95 group-hover:brightness-100"
+                                        className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-1000"
                                     />
                                     
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-90 transition-opacity"></div>
-                                    
-                                    <div className="absolute inset-0 p-6 flex flex-col justify-end transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="bg-red-600 text-[10px] text-white font-bold px-2 py-0.5 rounded uppercase tracking-tighter">
-                                                {m.type === 'video' ? 'Vídeo' : 'Foto'}
-                                            </span>
-                                            {m.type === 'video' && (
-                                                <div className="w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
-                                                    <Play className="h-4 w-4 text-white fill-white ml-0.5" />
-                                                </div>
+                                    <div className="absolute inset-0 bg-blue-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col items-center justify-center p-6 text-center backdrop-blur-[2px]">
+                                        <div className="bg-white/30 backdrop-blur-md p-4 rounded-full mb-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                                            {m.type === 'video' ? (
+                                                <Play className="h-8 w-8 text-white fill-white ml-1" />
+                                            ) : (
+                                                <Info className="h-8 w-8 text-white" />
                                             )}
                                         </div>
-                                        <p className="text-white text-sm font-bold line-clamp-2 leading-tight uppercase tracking-wide opacity-90 group-hover:opacity-100">
+                                        <span className="text-white text-xs font-black uppercase tracking-tighter sm:tracking-[0.1em] line-clamp-2">
                                             {m.eventTitle}
-                                        </p>
+                                        </span>
                                     </div>
+
+                                    {m.type === 'video' && (
+                                        <div className="absolute top-4 right-4 bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg">
+                                            Vídeo
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
-                    </div>
-                )}
-            </div>
+                    ) : (
+                        <div className="text-center py-20 text-gray-400">
+                            Nenhuma publicação encontrada.
+                        </div>
+                    )}
+                </div>
+            </section>
 
-            {/* Lightbox Profissional */}
+            {/* Lightbox Simples (já implementado mas mantendo o padrão) */}
             {selectedMedia && (
                 <div 
-                    className="fixed inset-0 z-[100] bg-black/98 flex items-center justify-center backdrop-blur-sm animate-in fade-in duration-300" 
+                    className="fixed inset-0 z-[100] bg-black/98 flex items-center justify-center backdrop-blur-md animate-in fade-in duration-300" 
                     onClick={() => setSelectedMedia(null)}
                 >
                     <button 
-                        className="absolute top-8 right-8 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full hover:bg-red-600 group"
-                        title="Fechar (Esc)"
+                        className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors bg-white/5 p-3 rounded-full"
                     >
                         <X className="h-8 w-8" />
                     </button>
@@ -170,27 +196,22 @@ export const PublicEventsAgenda: React.FC = () => {
                             <img 
                                 src={selectedMedia.url} 
                                 alt="Visualização" 
-                                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-white/10 animate-in zoom-in-95 duration-500" 
+                                className="max-w-full max-h-[85vh] object-contain rounded-3xl shadow-2xl animate-in zoom-in-95 duration-500" 
                             />
                         ) : (
-                            <div className="w-full max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-black animate-in zoom-in-95 duration-500">
+                            <div className="w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500">
                                 <iframe 
-                                    src={`https://www.youtube.com/embed/${getYouTubeId(selectedMedia.url)}?autoplay=1&rel=0&modestbranding=1`}
+                                    src={`https://www.youtube.com/embed/${getYouTubeId(selectedMedia.url)}?autoplay=1&rel=0`}
                                     className="w-full h-full"
                                     allow="autoplay; encrypted-media"
                                     allowFullScreen
-                                    title="Evento IBUC"
                                 ></iframe>
                             </div>
                         )}
                     </div>
-                    
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40 text-xs font-medium uppercase tracking-[0.2em]">
-                        Clique fora para fechar
-                    </div>
                 </div>
             )}
-        </section>
+        </div>
     );
 };
 
