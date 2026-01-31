@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, BookOpen, MapPin, Users, Phone, Mail } from 'lucide-react';
+import { ChevronDown, ChevronUp, BookOpen, MapPin, Users, Phone, Mail, X } from 'lucide-react';
 import { Icon3D } from '../../components/ui/Icon3D';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -17,6 +17,7 @@ const Home: React.FC = () => {
   const [waitlistData, setWaitlistData] = useState({ nome: '', email: '', telefone: '', cidade: '', bairro: '' });
   const [submittingWaitlist, setSubmittingWaitlist] = useState(false);
   const [waitlistSuccess, setWaitlistSuccess] = useState(false);
+  const [showHeroVideo, setShowHeroVideo] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -69,60 +70,155 @@ const Home: React.FC = () => {
   };
 
   return (
-    <div className="space-y-16">
-      {/* Hero Section */}
-      <section className="relative bg-red-700 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <div className="mb-8">
-              <img
-                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
-                alt="IBUC Logo"
-                className="h-20 w-auto mx-auto mb-6"
-              />
-              <h1 className="text-4xl md:text-6xl font-bold mb-4">
-                IBUC - Palmas - TO
-              </h1>
-              <p className="text-xl md:text-2xl font-light mb-8 max-w-3xl mx-auto">
-                Instituto Bíblico Único Caminho
+    <div className="space-y-24 pb-20">
+      {/* Premium Hero Section */}
+      <section className="relative min-h-[85vh] flex items-center bg-gray-900 overflow-hidden">
+        {/* Background Overlay with Image */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1510070112810-d4e9a46d9e91?auto=format&fit=crop&q=80&w=2070" 
+            alt="Fundo IBUC" 
+            className="w-full h-full object-cover opacity-30 scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent"></div>
+          <div className="absolute inset-0 bg-red-900/20 mix-blend-multiply"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="text-left space-y-8 animate-in slide-in-from-left duration-1000">
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-red-600/20 border border-red-500/30 text-red-500 text-sm font-bold tracking-widest uppercase">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                </span>
+                <span>Educação Cristã Gerando Frutos</span>
+              </div>
+              
+              <div className="space-y-4">
+                <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.1] tracking-tight">
+                  IBUC <span className="text-red-600">Palmas</span>
+                </h1>
+                <p className="text-2xl md:text-3xl font-light text-gray-300">
+                  Instituto Bíblico Único Caminho
+                </p>
+              </div>
+
+              <p className="text-lg md:text-xl text-gray-400 max-w-xl leading-relaxed">
+                Formamos crianças e adolescentes nos caminhos do Senhor através do ensino bíblico de qualidade, 
+                preparando uma nova geração para servir a Deus com valores inabaláveis.
               </p>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                {isEnrollmentOpen ? (
+                  <Button asChild size="lg" className="bg-red-600 hover:bg-red-700 text-white px-10 shadow-lg shadow-red-900/20 transition-all hover:scale-105 active:scale-95">
+                    <Link to="/pre-matricula">Fazer Matrícula</Link>
+                  </Button>
+                ) : (
+                  <Button asChild size="lg" className="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md px-10 transition-all hover:scale-105" onClick={() => {
+                    const el = document.getElementById('waitlist');
+                    el?.scrollIntoView({ behavior: 'smooth' });
+                  }}>
+                    <span>Lista de Espera</span>
+                  </Button>
+                )}
+                
+                <button 
+                  onClick={() => setShowHeroVideo(true)}
+                  className="flex items-center space-x-3 text-white font-semibold group transition-all"
+                >
+                  <div className="w-12 h-12 rounded-full border border-white/30 flex items-center justify-center bg-white/5 group-hover:bg-red-600 group-hover:border-red-600 transition-all">
+                    <BookOpen className="h-5 w-5 fill-current" />
+                  </div>
+                  <span className="group-hover:text-red-500">Conheça nossa História</span>
+                </button>
+              </div>
             </div>
 
-            <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto leading-relaxed">
-              Formamos crianças e adolescentes nos caminhos do Senhor através do ensino bíblico de qualidade,
-              desenvolvendo valores cristãos e preparando uma nova geração para servir a Deus.
-            </p>
-
-            {isEnrollmentOpen ? (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button asChild variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-red-600">
-                  <Link to="/pre-matricula">Fazer pré-matrícula</Link>
-                </Button>
+            <div className="hidden lg:block relative animate-in zoom-in duration-1000">
+              <div className="relative aspect-square max-w-md mx-auto">
+                {/* Decorative Elements */}
+                <div className="absolute inset-0 bg-red-600 rounded-3xl rotate-6 opacity-20 blur-2xl animate-pulse"></div>
+                <div className="absolute inset-0 bg-blue-600 rounded-3xl -rotate-6 opacity-10 blur-xl"></div>
+                
+                <div className="relative h-full w-full bg-gray-800 rounded-[2.5rem] border border-white/10 overflow-hidden shadow-2xl group">
+                   <img 
+                    src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png" 
+                    alt="Logo IBUC" 
+                    className="absolute inset-0 m-auto h-40 w-auto object-contain drop-shadow-2xl brightness-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-gray-900/40 to-transparent"></div>
+                </div>
               </div>
-            ) : (
-              <div className="max-w-md mx-auto bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                <p className="text-lg font-medium mb-4">Matrículas encerradas no momento, deseja preecher lista de espera?</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-2 opacity-50">
+          <span className="text-[10px] text-white uppercase tracking-[0.3em]">Scroll</span>
+          <div className="w-px h-12 bg-gradient-to-b from-white to-transparent"></div>
+        </div>
+
+        {/* Video Modal - Lazy Loaded */}
+        {showHeroVideo && (
+          <div className="fixed inset-0 z-[110] bg-black/95 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowHeroVideo(false)}>
+            <div className="relative w-full max-w-4xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in-95 duration-500" onClick={e => e.stopPropagation()}>
+              <button 
+                className="absolute top-4 right-4 z-10 bg-black/40 text-white p-2 rounded-full hover:bg-red-600 transition-colors"
+                onClick={() => setShowHeroVideo(false)}
+              >
+                <X className="h-6 w-6" />
+              </button>
+              {/* Substitua pelo vídeo real da história do IBUC */}
+              <iframe 
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1" 
+                className="w-full h-full"
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Waitlist Section - Accessible via CTA or when Enrollment is closed */}
+      <section id="waitlist" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {!isEnrollmentOpen && (
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
+            <div className="grid md:grid-cols-2">
+              <div className="bg-red-700 p-8 text-white flex flex-col justify-center">
+                <h3 className="text-2xl font-bold mb-4">Lista de Espera</h3>
+                <p className="text-red-100 leading-relaxed">
+                  As matrículas estão encerradas no momento, mas não se preocupe! 
+                  Cadastre-se para ser o primeiro a saber quando abrirmos novas vagas.
+                </p>
+              </div>
+              <div className="p-8">
                 {waitlistSuccess ? (
-                  <div className="bg-green-500/20 border border-green-500 text-green-100 p-3 rounded-lg">
-                    ✅ Cadastro realizado! Notificaremos você assim que abrirmos novas vagas.
+                  <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                      <Users className="h-8 w-8 text-green-600" />
+                    </div>
+                    <h4 className="text-xl font-bold text-gray-900">Cadastro Realizado!</h4>
+                    <p className="text-gray-600">Entraremos em contato em breve.</p>
                   </div>
                 ) : (
-                  <form onSubmit={handleWaitlistSubmit} className="space-y-3">
+                  <form onSubmit={handleWaitlistSubmit} className="space-y-4">
                     <input
                       type="text"
-                      placeholder="Seu Nome completo"
+                      placeholder="Nome completo"
                       required
-                      className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition-all"
                       value={waitlistData.nome}
                       onChange={e => setWaitlistData({ ...waitlistData, nome: e.target.value })}
                     />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <input
                         type="email"
                         placeholder="E-mail"
                         required
-                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition-all"
                         value={waitlistData.email}
                         onChange={e => setWaitlistData({ ...waitlistData, email: e.target.value })}
                       />
@@ -130,38 +226,24 @@ const Home: React.FC = () => {
                         type="tel"
                         placeholder="Telefone"
                         required
-                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-500 focus:outline-none transition-all"
                         value={waitlistData.telefone}
                         onChange={e => setWaitlistData({ ...waitlistData, telefone: e.target.value })}
                       />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        placeholder="Cidade"
-                        required
-                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
-                        value={waitlistData.cidade}
-                        onChange={e => setWaitlistData({ ...waitlistData, cidade: e.target.value })}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Bairro"
-                        required
-                        className="w-full bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder:text-white/60 focus:bg-white/30 focus:outline-none"
-                        value={waitlistData.bairro}
-                        onChange={e => setWaitlistData({ ...waitlistData, bairro: e.target.value })}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full bg-white text-red-700 hover:bg-gray-100" disabled={submittingWaitlist}>
-                      {submittingWaitlist ? 'Cadastrando...' : 'Quero entrar na lista'}
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl shadow-lg shadow-red-600/20" 
+                      disabled={submittingWaitlist}
+                    >
+                      {submittingWaitlist ? 'Enviando...' : 'Entrar na Lista'}
                     </Button>
                   </form>
                 )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Dynamic Event Banner */}

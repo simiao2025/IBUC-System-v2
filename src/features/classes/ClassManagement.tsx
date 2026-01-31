@@ -634,12 +634,16 @@ export const ClassManagement: React.FC = () => {
                           </Button>
                         ) : (
                           <>
+                            <Button type="button" variant="outline" onClick={() => startEdit(t)} title="Editar Turma">
+                              Editar
+                            </Button>
+
                             <Button 
                               type="button" 
                               variant="outline" 
                               onClick={() => setCalendarTurma({ id: t.id, nome: t.nome })} 
                               title="Calendário de Aulas"
-                              className="text-red-600 border-red-100 hover:bg-red-50"
+                              className="text-red-700 border-red-100 hover:bg-red-50"
                             >
                               <Calendar className="h-4 w-4 mr-1" />
                               Calendário

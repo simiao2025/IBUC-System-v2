@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import ConfirmLink from './ui/ConfirmLink';
+import Button from './ui/Button';
 
 interface HeaderProps {
   onSidebarToggle?: () => void;
@@ -54,16 +55,47 @@ const Header: React.FC<HeaderProps> = ({ onSidebarToggle }) => {
 
             {/* Logo and Title */}
             <div className="flex items-center space-x-3">
-              <img
-                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
-                alt="IBUC Logo"
-                className="h-10 w-auto"
-              />
-              <div>
-                <h1 className="text-xl font-bold text-red-600">IBUC - Palmas - TO</h1>
-              </div>
+              <Link to="/" className="flex items-center space-x-3">
+                <img
+                  src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
+                  alt="IBUC Logo"
+                  className="h-10 w-auto"
+                />
+                <h1 className="text-xl font-bold text-red-600 hidden sm:block">IBUC - Palmas - TO</h1>
+              </Link>
             </div>
           </div>
+
+          {/* Desktop Navigation */}
+          {!isAdminRoute && (
+            <nav className="hidden md:flex items-center space-x-1">
+              {navItems.map((item) => {
+                if (item.isSpecial) return null;
+
+                const active = isActive(item.path);
+                const className = `px-3 py-2 text-sm font-medium transition-colors rounded-md ${
+                  active 
+                    ? 'text-red-700 bg-red-50' 
+                    : 'text-gray-700 hover:text-red-600 hover:bg-gray-50'
+                }`;
+
+                return (
+                  <Link key={item.path} to={item.path} className={className}>
+                    {item.label}
+                  </Link>
+                );
+              })}
+              
+              <div className="flex items-center ml-4 space-x-2">
+                <Button asChild variant="primary" size="sm" className="bg-red-600 hover:bg-red-700">
+                  <Link to="/login">Área do Aluno</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="border-red-600 text-red-600 hover:bg-red-50">
+                  <Link to="/admin">Admin</Link>
+                </Button>
+              </div>
+            </nav>
+          )}
         </div>
 
         {/* Mobile Navigation - oculto em rotas administrativas */}

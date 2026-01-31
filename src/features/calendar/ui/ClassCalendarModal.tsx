@@ -64,7 +64,7 @@ export const ClassCalendarModal: React.FC<ClassCalendarModalProps> = ({ turma, o
         currentDate.getMonth() + 1, 
         currentDate.getFullYear()
       );
-      setAgendamentos(data);
+      setAgendamentos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao carregar calendário:', error);
       showFeedback('error', 'Erro', 'Falha ao carregar agendamentos.');
@@ -76,7 +76,7 @@ export const ClassCalendarModal: React.FC<ClassCalendarModalProps> = ({ turma, o
   const carregarModulos = async () => {
     try {
       const resp = await ModulosAPI.listar();
-      setModulos(resp.data);
+      setModulos(Array.isArray(resp.data) ? resp.data : []);
     } catch (error) {
       console.error('Erro ao carregar módulos:', error);
     }
@@ -105,7 +105,7 @@ export const ClassCalendarModal: React.FC<ClassCalendarModalProps> = ({ turma, o
 
   const handleDayClick = (day: Date) => {
     setSelectedDate(day);
-    const existing = agendamentos.find(a => isSameDay(parseISO(a.data_aula), day));
+    const existing = agendamentos?.find(a => a.data_aula && isSameDay(parseISO(a.data_aula), day));
     
     if (existing) {
       setForm({
@@ -215,7 +215,7 @@ export const ClassCalendarModal: React.FC<ClassCalendarModalProps> = ({ turma, o
               ))}
               
               {calendarDays.map((day, idx) => {
-                const agendamento = agendamentos.find(a => isSameDay(parseISO(a.data_aula), day));
+                const agendamento = agendamentos?.find(a => a.data_aula && isSameDay(parseISO(a.data_aula), day));
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                 
                 return (
@@ -320,7 +320,7 @@ export const ClassCalendarModal: React.FC<ClassCalendarModalProps> = ({ turma, o
                     Salvar Agendamento
                   </Button>
                   
-                  {agendamentos.find(a => isSameDay(parseISO(a.data_aula), selectedDate!)) && (
+                  {agendamentos?.find(a => a.data_aula && isSameDay(parseISO(a.data_aula), selectedDate!)) && (
                     <Button 
                       variant="outline" 
                       className="w-full text-red-600 border-red-200 hover:bg-red-50"
