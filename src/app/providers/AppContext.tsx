@@ -49,7 +49,7 @@ interface AppContextType {
 
   // Global Feedback & Confirmation
   showFeedback: (type: FeedbackType, title: string, message: string, confirmText?: string) => void;
-  showConfirm: (title: string, message: string, onConfirm: () => void, confirmText?: string, cancelText?: string) => void;
+  showConfirm: (args: { title: string; message: string; confirmText?: string; cancelText?: string } | string, message?: string, onConfirm?: () => void, confirmText?: string, cancelText?: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -120,13 +120,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     title: string;
     message: string;
     onConfirm: () => void;
+    onCancel: () => void;
     confirmText?: string;
     cancelText?: string;
   }>({
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => { }
+    onConfirm: () => { },
+    onCancel: () => { }
   });
 
   const extractToken = (payload: any): string | null => {
@@ -396,17 +398,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setFeedback({ isOpen: true, type, title, message, confirmText });
   };
 
-  const showConfirm = (title: string, message: string, onConfirm: () => void, confirmText?: string, cancelText?: string) => {
-    setConfirm({
-      isOpen: true,
-      title,
-      message,
-      onConfirm: () => {
-        onConfirm();
-        setConfirm(prev => ({ ...prev, isOpen: false }));
-      },
-      confirmText,
-      cancelText
+  const showConfirm = (
+    args: { title: string; message: string; confirmText?: string; cancelText?: string } | string,
+    message?: string,
+    onConfirm?: () => void,
+    confirmText?: string,
+    cancelText?: string
+  ): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof args === 'object') {
+        setConfirm({
+          isOpen: true,
+          title: args.title,
+          message: args.message,
+          onConfirm: () => {
+            setConfirm(prev => ({ ...prev, isOpen: false }));
+            resolve(true);
+          },
+          onCancel: () => {
+            setConfirm(prev => ({ ...prev, isOpen: false }));
+            resolve(false);
+          },
+          confirmText: args.confirmText,
+          cancelText: args.cancelText
+        });
+      } else {
+        setConfirm({
+          isOpen: true,
+          title: args,
+          message: message || '',
+          onConfirm: () => {
+            if (onConfirm) onConfirm();
+            setConfirm(prev => ({ ...prev, isOpen: false }));
+            resolve(true);
+          },
+          onCancel: () => {
+            setConfirm(prev => ({ ...prev, isOpen: false }));
+            resolve(false);
+          },
+          confirmText,
+          cancelText
+        });
+      }
     });
   };
 
@@ -418,14 +451,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const poloId = isAdminRestricted ? currentUser.adminUser?.poloId : undefined;
 
       // Carregar dados em paralelo
-      const [alunosData, matriculasData, preMatriculasData] = await Promise.all([
+      const [alunosRaw, matriculasRaw, preMatriculasData, niveisRaw] = await Promise.all([
         import('@/entities/aluno/api/aluno.service').then(m => m.AlunosAPI.listar({ polo_id: poloId })),
         import('@/entities/enrollment/api/enrollment.service').then(m => m.MatriculaAPI.listar({ polo_id: poloId })),
-        PreMatriculasAPI.listar({ polo_id: poloId })
+        PreMatriculasAPI.listar({ polo_id: poloId }),
+        import('@/entities/turma/api/turma.service').then(m => m.NiveisAPI.listar())
       ]);
 
+      const alunosData = alunosRaw as any[];
+      const matriculasData = matriculasRaw as any[];
+      const niveisData = niveisRaw as any[];
+
+      // Mapear Níveis para busca rápida
+      const niveisSet = new Set(['NIVEL_I', 'NIVEL_II', 'NIVEL_III', 'NIVEL_IV']);
+      const getNivelKey = (nivelId: string): Level => {
+        const nivel = niveisData.find(n => n.id === nivelId);
+        const nome = nivel?.nome || '';
+        if (nome.includes('I') && !nome.includes('II') && !nome.includes('III')) return 'NIVEL_I';
+        if (nome.includes('II') && !nome.includes('III')) return 'NIVEL_II';
+        if (nome.includes('III')) return 'NIVEL_III';
+        if (nome.includes('IV')) return 'NIVEL_IV';
+        return 'NIVEL_I';
+      };
+
       // Mapear Alunos (DB) -> StudentData (UI)
-      const mappedStudents: StudentData[] = (alunosData as any[]).map(aluno => ({
+      const mappedStudents: StudentData[] = alunosData.map(aluno => ({
         id: aluno.id,
         name: aluno.nome,
         birthDate: aluno.data_nascimento,
@@ -454,14 +504,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
 
       // Mapear Matrículas (DB) -> Enrollment (UI)
-      // Precisamos do nome do aluno, então usamos o array de alunos carregado
-      const mappedEnrollments: Enrollment[] = (matriculasData as any[]).map(mat => {
-        const aluno = (alunosData as any[]).find(a => a.id === mat.aluno_id);
+      const mappedEnrollments: Enrollment[] = matriculasData.map(mat => {
+        const aluno = alunosData.find(a => a.id === mat.aluno_id);
+        const levelKey = mat.turma?.nivel_id ? getNivelKey(mat.turma.nivel_id) : 'NIVEL_I';
+
         return {
           id: mat.id,
           studentId: mat.aluno_id,
-          studentName: aluno?.nome || 'Aluno Desconhecido',
-          level: 'NIVEL_I', // Placeholder, ideal seria buscar da turma/aluno
+          studentName: aluno?.nome || mat.aluno?.nome || 'Aluno Desconhecido',
+          level: levelKey,
           polo: mat.polo_id,
           enrollmentDate: mat.created_at || new Date().toISOString(),
           observations: mat.status
@@ -533,7 +584,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         confirmText={confirm.confirmText}
         cancelText={confirm.cancelText}
         onConfirm={confirm.onConfirm}
-        onCancel={() => setConfirm(prev => ({ ...prev, isOpen: false }))}
+        onCancel={confirm.onCancel}
       />
     </AppContext.Provider>
   );

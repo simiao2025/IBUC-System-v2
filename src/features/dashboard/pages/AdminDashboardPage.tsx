@@ -459,25 +459,32 @@ const AdminDashboard: React.FC = () => {
               <UserCheck className="inline h-5 w-5 mr-2 text-green-600" />
               Matrículas Recentes
             </h3>
-            {enrollments.length > 0 ? (
-              <div className="space-y-3">
-                {enrollments.slice(-5).map((enrollment) => (
-                  <div key={enrollment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{enrollment.studentName}</p>
-                      <p className="text-sm text-gray-600">{enrollment.level}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500">
-                        {new Date(enrollment.enrollmentDate).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
+            {(() => {
+              const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+              const recentEnrollments = enrollments.filter(e => new Date(e.enrollmentDate) >= cutoff);
+              
+              if (recentEnrollments.length > 0) {
+                return (
+                  <div className="space-y-3">
+                    {recentEnrollments.slice(0, 5).map((enrollment) => (
+                      <div key={enrollment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{enrollment.studentName}</p>
+                          <p className="text-sm text-gray-600">{enrollment.level}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">
+                            {new Date(enrollment.enrollmentDate).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-4">Nenhuma matrícula registrada ainda</p>
-            )}
+                );
+              }
+              
+              return <p className="text-gray-500 text-center py-4">Nenhuma matrícula registrada nas últimas 24 horas</p>;
+            })()}
           </Card>
 
           {/* Upcoming Events */}
