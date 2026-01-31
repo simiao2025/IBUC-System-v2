@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Calendar, Info } from 'lucide-react';
-import { EventosService, type Evento } from '../features/events/services/eventos.service';
-import Button from '../components/ui/Button';
+import { EventosService, type Evento } from '../../features/events/services/eventos.service';
+import Button from '../ui/Button';
 
 export const EventHeroBanner: React.FC = () => {
     const [highlights, setHighlights] = useState<Evento[]>([]);
