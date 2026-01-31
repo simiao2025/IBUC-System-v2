@@ -153,7 +153,8 @@ export const EventList: React.FC = () => {
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Título</th>
                 {!isPoloScoped && <th className="px-4 py-3 text-left font-medium text-gray-700">Polo</th>}
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Local</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-700">Categoria</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Data</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-700">Ações</th>
               </tr>
@@ -176,10 +177,19 @@ export const EventList: React.FC = () => {
                     </td>
                     {!isPoloScoped && (
                       <td className="px-4 py-3 text-gray-900">
-                        {evt.polo_id ? (polosById.get(evt.polo_id) || evt.polo_id) : 'Geral'}
+                      {evt.polo_id ? (polosById.get(evt.polo_id) || evt.polo_id) : 'Geral'}
                       </td>
                     )}
-                    <td className="px-4 py-3 text-gray-900">{evt.local || '—'}</td>
+                    <td className="px-4 py-3 text-gray-900 capitalize">{evt.categoria || 'Geral'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        evt.status === 'agendado' ? 'bg-blue-100 text-blue-700' :
+                        evt.status === 'realizado' ? 'bg-green-100 text-green-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {evt.status === 'agendado' ? 'Agendado' : evt.status === 'realizado' ? 'Realizado' : 'Cancelado'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-gray-900">
                       {new Date(evt.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR')}
                     </td>

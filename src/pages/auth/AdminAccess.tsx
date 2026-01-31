@@ -79,8 +79,22 @@ const AdminAccess: React.FC = () => {
   }, [currentUser, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Logos */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-between px-4 opacity-[0.03] sm:opacity-[0.05]">
+        <img 
+          src="/icons/3d/Logo_admprv.png" 
+          alt="" 
+          className="w-[300px] md:w-[500px] lg:w-[600px] -translate-x-1/4"
+        />
+        <img 
+          src="/icons/3d/logo-IBUC.png" 
+          alt="" 
+          className="w-[300px] md:w-[500px] lg:w-[600px] translate-x-1/4"
+        />
+      </div>
+
+      <div className="max-w-md w-full space-y-8 relative z-10">
         <div className="text-center">
           <img
             src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
@@ -142,17 +156,18 @@ const AdminAccess: React.FC = () => {
             >
               Entrar
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/')}
+              className="w-full"
+              size="lg"
+            >
+              Voltar
+            </Button>
           </form>
         </Card>
-
-        <div className="text-center">
-          <Link
-            to="/"
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Voltar ao início
-          </Link>
-        </div>
       </div>
     </div>
   );

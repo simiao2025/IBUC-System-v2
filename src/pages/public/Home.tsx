@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, BookOpen, MapPin, Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, BookOpen, MapPin, Users, Phone, Mail } from 'lucide-react';
 import { Icon3D } from '../../components/ui/Icon3D';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import { EventHeroBanner } from '../../shared/components/EventHeroBanner';
+import { PublicEventsAgenda } from '../../shared/components/PublicEventsAgenda';
 import { PoloService } from '../../services/polo.service';
 import { ConfiguracoesService } from '../../services/configuracoes.service';
 import { ListaEsperaService } from '../../services/listaEspera.service';
@@ -162,6 +164,9 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* Dynamic Event Banner */}
+      <EventHeroBanner />
+
       {/* Mission Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
@@ -209,6 +214,9 @@ const Home: React.FC = () => {
           </Card>
         </div>
       </section>
+
+      {/* Events and Gallery Section */}
+      <PublicEventsAgenda />
 
       {/* Como Funciona Section */}
       <section className="bg-gradient-to-br from-blue-50 to-green-50 py-16">

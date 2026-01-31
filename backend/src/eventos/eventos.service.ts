@@ -13,6 +13,11 @@ export class EventosService {
     data_fim?: string;
     polo_id?: string | null;
     criado_por?: string | null;
+    status?: string;
+    categoria?: string;
+    is_destaque?: boolean;
+    midia?: any[];
+    link_cta?: string;
   }, token: string) {
     if (!dto.titulo || dto.titulo.trim().length === 0) {
       throw new BadRequestException('titulo é obrigatório');
@@ -32,6 +37,11 @@ export class EventosService {
         data_fim: dto.data_fim || null,
         polo_id: dto.polo_id || null,
         criado_por: dto.criado_por || null,
+        status: dto.status || 'agendado',
+        categoria: dto.categoria || 'geral',
+        is_destaque: dto.is_destaque ?? false,
+        midia: dto.midia || [],
+        link_cta: dto.link_cta || null,
       })
       .select('*')
       .single();
@@ -44,6 +54,9 @@ export class EventosService {
     polo_id?: string;
     include_geral?: boolean;
     date_from?: string;
+    status?: string | string[];
+    categoria?: string | string[];
+    is_destaque?: boolean;
     limit?: number;
   }, token: string) {
     let query = this.supabase
@@ -58,6 +71,26 @@ export class EventosService {
 
     if (typeof filtros?.limit === 'number' && Number.isFinite(filtros.limit) && filtros.limit > 0) {
       query = query.limit(filtros.limit);
+    }
+
+    if (filtros?.status) {
+      if (Array.isArray(filtros.status)) {
+        query = query.in('status', filtros.status);
+      } else {
+        query = query.eq('status', filtros.status);
+      }
+    }
+
+    if (filtros?.categoria) {
+      if (Array.isArray(filtros.categoria)) {
+        query = query.in('categoria', filtros.categoria);
+      } else {
+        query = query.eq('categoria', filtros.categoria);
+      }
+    }
+
+    if (filtros?.is_destaque !== undefined) {
+      query = query.eq('is_destaque', filtros.is_destaque);
     }
 
     // Logic related to polo filtering is now largely handled by RLS policies,
@@ -101,6 +134,11 @@ export class EventosService {
       data_inicio?: string;
       data_fim?: string | null;
       polo_id?: string | null;
+      status?: string;
+      categoria?: string;
+      is_destaque?: boolean;
+      midia?: any[];
+      link_cta?: string | null;
     },
     token: string
   ) {
@@ -113,6 +151,11 @@ export class EventosService {
     if (dto.data_inicio !== undefined) payload.data_inicio = dto.data_inicio;
     if (dto.data_fim !== undefined) payload.data_fim = dto.data_fim;
     if (dto.polo_id !== undefined) payload.polo_id = dto.polo_id;
+    if (dto.status !== undefined) payload.status = dto.status;
+    if (dto.categoria !== undefined) payload.categoria = dto.categoria;
+    if (dto.is_destaque !== undefined) payload.is_destaque = dto.is_destaque;
+    if (dto.midia !== undefined) payload.midia = dto.midia;
+    if (dto.link_cta !== undefined) payload.link_cta = dto.link_cta;
 
     const { data, error } = await this.supabase
       .getClientWithToken(token)
