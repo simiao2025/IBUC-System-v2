@@ -58,9 +58,9 @@ export class EventosService {
     categoria?: string | string[];
     is_destaque?: boolean;
     limit?: number;
-  }, token: string) {
-    let query = this.supabase
-      .getClientWithToken(token)
+  }, token?: string) {
+    const client = token ? this.supabase.getClientWithToken(token) : this.supabase.getClient();
+    let query = client
       .from('eventos')
       .select('*')
       .order('data_inicio', { ascending: true });
@@ -113,9 +113,9 @@ export class EventosService {
     return data || [];
   }
 
-  async buscarPorId(id: string, token: string) {
-    const { data, error } = await this.supabase
-      .getClientWithToken(token)
+  async buscarPorId(id: string, token?: string) {
+    const client = token ? this.supabase.getClientWithToken(token) : this.supabase.getClient();
+    const { data, error } = await client
       .from('eventos')
       .select('*')
       .eq('id', id)
