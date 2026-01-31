@@ -6,6 +6,9 @@ import Select from '../ui/Select';
 import { useApp } from '../../context/AppContext';
 import { EventosService, type Evento } from '../../services/eventos.service';
 
+import { FileUpload } from '../ui/FileUpload';
+import { Trash2, Image as ImageIcon, Video, Star } from 'lucide-react';
+
 type ScopeMode = 'geral' | 'polo';
 
 export const EventsSettings: React.FC = () => {
@@ -32,6 +35,11 @@ export const EventsSettings: React.FC = () => {
     local: '',
     data_inicio: new Date().toISOString().split('T')[0],
     data_fim: '',
+    status: 'agendado' as Evento['status'],
+    categoria: 'geral' as Evento['categoria'],
+    is_destaque: false,
+    link_cta: '',
+    midia: [] as Evento['midia']
   });
 
   useEffect(() => {
@@ -82,6 +90,11 @@ export const EventsSettings: React.FC = () => {
       local: '',
       data_inicio: new Date().toISOString().split('T')[0],
       data_fim: '',
+      status: 'agendado',
+      categoria: 'geral',
+      is_destaque: false,
+      link_cta: '',
+      midia: []
     });
   };
 
@@ -96,8 +109,13 @@ export const EventsSettings: React.FC = () => {
       titulo: evt.titulo,
       descricao: evt.descricao || '',
       local: evt.local || '',
-      data_inicio: evt.data_inicio,
-      data_fim: evt.data_fim || '',
+      data_inicio: evt.data_inicio ? evt.data_inicio.split('T')[0] : '', // Garantir formato YYYY-MM-DD
+      data_fim: evt.data_fim ? evt.data_fim.split('T')[0] : '',
+      status: evt.status || 'agendado',
+      categoria: evt.categoria || 'geral',
+      is_destaque: evt.is_destaque || false,
+      link_cta: evt.link_cta || '',
+      midia: Array.isArray(evt.midia) ? evt.midia : []
     });
     setShowForm(true);
   };
@@ -135,17 +153,15 @@ export const EventsSettings: React.FC = () => {
         data_fim: form.data_fim || undefined,
         polo_id: getPayloadPoloId(),
         criado_por: currentUser?.adminUser?.id || null,
+        status: form.status,
+        categoria: form.categoria,
+        is_destaque: form.is_destaque,
+        link_cta: form.link_cta || undefined,
+        midia: form.midia
       };
 
       if (editing) {
-        await EventosService.atualizar(editing.id, {
-          titulo: payload.titulo,
-          descricao: payload.descricao ?? null,
-          local: payload.local ?? null,
-          data_inicio: payload.data_inicio,
-          data_fim: payload.data_fim ?? null,
-          polo_id: payload.polo_id,
-        });
+        await EventosService.atualizar(editing.id, payload);
         showFeedback('success', 'Sucesso', 'Evento atualizado com sucesso!');
       } else {
         await EventosService.criar(payload);
@@ -284,7 +300,7 @@ export const EventsSettings: React.FC = () => {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">{editing ? 'Editar Evento' : 'Novo Evento'}</h3>
 
             <div className="space-y-4">
@@ -321,7 +337,129 @@ export const EventsSettings: React.FC = () => {
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <Select 
+                    value={form.status} 
+                    onChange={(v) => setForm((p) => ({ ...p, status: v as Evento['status'] }))}
+                  >
+                    <option value="agendado">Agendado</option>
+                    <option value="realizado">Realizado</option>
+                    <option value="cancelado">Cancelado</option>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                  <Select 
+                    value={form.categoria} 
+                    onChange={(v) => setForm((p) => ({ ...p, categoria: v as Evento['categoria'] }))}
+                  >
+                    <option value="geral">Geral</option>
+                    <option value="matricula">Matrícula</option>
+                    <option value="formatura">Formatura</option>
+                    <option value="aula">Aula</option>
+                    <option value="comemorativo">Comemorativo</option>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_destaque"
+                  checked={form.is_destaque}
+                  onChange={(e) => setForm((p) => ({ ...p, is_destaque: e.target.checked }))}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="is_destaque" className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                  <Star className="w-4 h-4" />
+                  Marcar como destaque
+                </label>
+              </div>
+
+              <Input
+                label="Link CTA (Call-to-Action)"
+                value={form.link_cta}
+                onChange={(e) => setForm((p) => ({ ...p, link_cta: e.target.value }))}
+                placeholder="https://exemplo.com/inscricoes"
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Galeria de Mídia</label>
+                
+                {/* Preview de mídia existente */}
+                {form.midia.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                    {form.midia.map((item, idx) => (
+                      <div key={idx} className="relative group">
+                        {item.type === 'image' ? (
+                          <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                            <img 
+                              src={item.url} 
+                              alt={item.title || `Mídia ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setForm((p) => ({
+                                  ...p,
+                                  midia: p.midia.filter((_, i) => i !== idx)
+                                }));
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
+                            <Video className="w-8 h-8 text-white" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setForm((p) => ({
+                                  ...p,
+                                  midia: p.midia.filter((_, i) => i !== idx)
+                                }));
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                        {item.title && (
+                          <p className="text-xs text-gray-600 mt-1 truncate">{item.title}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload de nova mídia */}
+                <FileUpload
+                  folder="eventos"
+                  accept="image/*,video/*"
+                  maxSizeMB={10}
+                  label="Adicionar imagem ou vídeo"
+                  onUploadComplete={(url, filename) => {
+                    const fileType = filename.match(/\.(mp4|webm|ogg|avi)$/i) ? 'video' : 'image';
+                    setForm((p) => ({
+                      ...p,
+                      midia: [...p.midia, { type: fileType, url, title: filename }]
+                    }));
+                    showFeedback('success', 'Sucesso', 'Mídia adicionada!');
+                  }}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Aceita imagens e vídeos. Cada arquivo pode ter até 10MB.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button
                   variant="outline"
                   onClick={() => {
