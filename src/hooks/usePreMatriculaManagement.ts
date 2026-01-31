@@ -5,6 +5,7 @@ import { PreMatriculasAPI } from '../features/enrollments/matricula.service';
 import { TurmaService } from '../services/turma.service';
 import { REQUIRED_DOCUMENTS } from '../constants/enrollment';
 import type { PreMatricula, StatusPreMatricula, TipoDocumento, Nivel } from '../types/database';
+import { API_BASE_URL } from '@/shared/api/api';
 
 export const usePreMatriculaManagement = () => {
   const { getUserAllowedPolos, hasAccessToAllPolos, polos, currentUser } = useApp();
@@ -146,7 +147,8 @@ export const usePreMatriculaManagement = () => {
     const loadTurmas = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('http://localhost:3000/turmas', {
+        // Usar API_BASE_URL
+        const response = await fetch(`${API_BASE_URL}/turmas`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         if (!response.ok) return;

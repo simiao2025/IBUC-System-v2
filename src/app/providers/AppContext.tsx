@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { api } from '@/shared/api/api';
+import { api, API_BASE_URL } from '@/shared/api/api';
 import { StudentData, Enrollment, Polo as UiPolo, User, AdminUser, AccessLevel, Level } from '@/types';
 import type { Polo as DbPolo, PreMatricula } from '@/types/database';
 import { PoloService } from '@/services/polo.service';
@@ -198,7 +198,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       try {
-        const response = await fetch('http://localhost:3000/usuarios/me', {
+        // Usar API_BASE_URL do arquivo de configuração compartilhado
+        const response = await fetch(`${API_BASE_URL}/usuarios/me`, {
           cache: 'no-store',
           headers: {
             Authorization: `Bearer ${token}`,

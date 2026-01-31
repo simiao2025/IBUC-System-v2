@@ -7,6 +7,7 @@ import { useApp } from '../../context/AppContext';
 import { FinanceiroService } from '../../features/finance/financeiro.service';
 import type { Mensalidade } from '../../types/database';
 import StudentMaterialOrder from '../../features/materials/StudentMaterialOrder';
+import { API_BASE_URL } from '@/shared/api/api';
 
 const AppFinanceiro: React.FC = () => {
   const { currentUser, showFeedback } = useApp();
@@ -83,7 +84,7 @@ const AppFinanceiro: React.FC = () => {
 
       // Usando fetch nativo ou axios para o endpoint /upload do backend
       // Considerando que o backend roda localmente ou na mesma origem da API
-      const API_URL = 'http://localhost:3000'; // Ajustar conforme env se necessário, ou usar config
+      const API_URL = API_BASE_URL;
 
       const uploadResponse = await fetch(`${API_URL}/upload`, {
         method: 'POST',
