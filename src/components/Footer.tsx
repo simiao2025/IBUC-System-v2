@@ -31,6 +31,24 @@ const Footer: React.FC = () => {
                   <p className="text-sm text-gray-300">Instituto Bíblico Único Caminho</p>
                 </div>
               </div>
+              <div className="flex flex-col space-y-2 pt-2">
+                <a 
+                  href="https://admissaoprv.com.br/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center"
+                >
+                  admissaoprv.com.br
+                </a>
+                <a 
+                  href="https://ibuc.com.br/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center"
+                >
+                  ibuc.com.br
+                </a>
+              </div>
             </div>
             <p className="text-gray-300 text-sm">
               Formando crianças e jovens nos caminhos do Senhor através do ensino bíblico de qualidade.
