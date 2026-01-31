@@ -777,8 +777,8 @@ export class RelatoriosService {
           id,
           nome,
           horario,
-          polo:polos(id, nome),
-          nivel:niveis(nome)
+          polo:polos!fk_polo(id, nome),
+          nivel:niveis!fk_nivel(nome)
         `)
         .eq('id', turmaId)
         .single();
@@ -790,7 +790,7 @@ export class RelatoriosService {
         .from('matriculas')
         .select(`
           id,
-          aluno:alunos(id, nome)
+          aluno:alunos!fk_aluno(id, nome)
         `)
         .eq('turma_id', turmaId)
         .eq('status', 'ativa')
@@ -826,8 +826,8 @@ export class RelatoriosService {
           status,
           data,
           aluno_id,
-          aluno:alunos(id, nome),
-          turma:turmas(id, nome, polo_id)
+          aluno:alunos!fk_aluno(id, nome),
+          turma:turmas!fk_turma(id, nome, polo_id)
         `);
 
       if (filtros.turma_id) query = query.eq('turma_id', filtros.turma_id);

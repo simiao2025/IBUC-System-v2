@@ -1,0 +1,162 @@
+{
+  "alunos_turmas": {
+    "hint": "Try changing 'turmas' to one of the following: 'turmas!alunos_turma_id_fkey', 'turmas!fk_turma'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "alunos with turmas",
+        "relationship": "alunos_turma_id_fkey using alunos(turma_id) and turmas(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "alunos with turmas",
+        "relationship": "fk_turma using alunos(turma_id) and turmas(id)"
+      }
+    ]
+  },
+  "alunos_niveis": {
+    "hint": "Try changing 'niveis' to one of the following: 'niveis!alunos_nivel_atual_id_fkey', 'niveis!fk_nivel'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "alunos with niveis",
+        "relationship": "alunos_nivel_atual_id_fkey using alunos(nivel_atual_id) and niveis(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "alunos with niveis",
+        "relationship": "fk_nivel using alunos(nivel_atual_id) and niveis(id)"
+      }
+    ]
+  },
+  "alunos_polos": {
+    "hint": "Try changing 'polos' to one of the following: 'polos!alunos_polo_id_fkey', 'polos!fk_polo'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "alunos with polos",
+        "relationship": "alunos_polo_id_fkey using alunos(polo_id) and polos(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "alunos with polos",
+        "relationship": "fk_polo using alunos(polo_id) and polos(id)"
+      }
+    ]
+  },
+  "matriculas_alunos": {
+    "hint": "Try changing 'alunos' to one of the following: 'alunos!fk_aluno', 'alunos!matriculas_aluno_id_fkey'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "matriculas with alunos",
+        "relationship": "fk_aluno using matriculas(aluno_id) and alunos(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "matriculas with alunos",
+        "relationship": "matriculas_aluno_id_fkey using matriculas(aluno_id) and alunos(id)"
+      }
+    ]
+  },
+  "matriculas_turmas": {
+    "hint": "Try changing 'turmas' to one of the following: 'turmas!fk_turma', 'turmas!matriculas_turma_id_fkey'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "matriculas with turmas",
+        "relationship": "fk_turma using matriculas(turma_id) and turmas(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "matriculas with turmas",
+        "relationship": "matriculas_turma_id_fkey using matriculas(turma_id) and turmas(id)"
+      }
+    ]
+  },
+  "matriculas_polos": {
+    "hint": "Try changing 'polos' to one of the following: 'polos!fk_polo', 'polos!matriculas_polo_id_fkey'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "matriculas with polos",
+        "relationship": "fk_polo using matriculas(polo_id) and polos(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "matriculas with polos",
+        "relationship": "matriculas_polo_id_fkey using matriculas(polo_id) and polos(id)"
+      }
+    ]
+  },
+  "mensalidades_alunos": {
+    "hint": "Try changing 'alunos' to one of the following: 'alunos!fk_aluno', 'alunos!mensalidades_aluno_id_fkey'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "mensalidades with alunos",
+        "relationship": "fk_aluno using mensalidades(aluno_id) and alunos(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "mensalidades with alunos",
+        "relationship": "mensalidades_aluno_id_fkey using mensalidades(aluno_id) and alunos(id)"
+      }
+    ]
+  },
+  "mensalidades_polos": {
+    "hint": "Try changing 'polos' to one of the following: 'polos!fk_polo', 'polos!mensalidades_polo_id_fkey'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "mensalidades with polos",
+        "relationship": "fk_polo using mensalidades(polo_id) and polos(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "mensalidades with polos",
+        "relationship": "mensalidades_polo_id_fkey using mensalidades(polo_id) and polos(id)"
+      }
+    ]
+  },
+  "diretoria_polo_polos": {
+    "hint": "Try changing 'polos' to one of the following: 'polos!diretoria_polo_polo_id_fkey', 'polos!fk_polo'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "diretoria_polo with polos",
+        "relationship": "diretoria_polo_polo_id_fkey using diretoria_polo(polo_id) and polos(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "diretoria_polo with polos",
+        "relationship": "fk_polo using diretoria_polo(polo_id) and polos(id)"
+      }
+    ]
+  },
+  "diretoria_polo_usuarios": {
+    "hint": "Try changing 'usuarios' to one of the following: 'usuarios!diretoria_polo_created_by_fkey', 'usuarios!diretoria_polo_usuario_id_fkey', 'usuarios!fk_created_by', 'usuarios!fk_usuario'. Find the desired relationship in the 'details' key.",
+    "details": [
+      {
+        "cardinality": "many-to-one",
+        "embedding": "diretoria_polo with usuarios",
+        "relationship": "diretoria_polo_created_by_fkey using diretoria_polo(created_by) and usuarios(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "diretoria_polo with usuarios",
+        "relationship": "diretoria_polo_usuario_id_fkey using diretoria_polo(usuario_id) and usuarios(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "diretoria_polo with usuarios",
+        "relationship": "fk_created_by using diretoria_polo(created_by) and usuarios(id)"
+      },
+      {
+        "cardinality": "many-to-one",
+        "embedding": "diretoria_polo with usuarios",
+        "relationship": "fk_usuario using diretoria_polo(usuario_id) and usuarios(id)"
+      }
+    ]
+  }
+}

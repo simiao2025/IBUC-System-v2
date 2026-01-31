@@ -25,8 +25,8 @@ export class NotificacoesService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos(id, nome, cpf, data_nascimento),
-        polo:polos(id, nome, codigo, email)
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo, email)
       `)
       .eq('id', matriculaId)
       .single();
@@ -54,8 +54,8 @@ export class NotificacoesService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos(id, nome, cpf, data_nascimento),
-        polo:polos(id, nome, codigo, email)
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo, email)
       `)
       .eq('id', matriculaId)
       .single();
@@ -103,8 +103,8 @@ export class NotificacoesService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos(id, nome, cpf),
-        polo:polos(id, nome)
+        aluno:alunos!fk_aluno(id, nome, cpf),
+        polo:polos!fk_polo(id, nome)
       `)
       .eq('id', matriculaId)
       .single();

@@ -56,9 +56,9 @@ export class PdfService {
       .from('matriculas')
       .select(`
         *,
-        aluno:alunos(id, nome, cpf, data_nascimento),
-        polo:polos(id, nome, codigo),
-        turma:turmas(id, nome)
+        aluno:alunos!fk_aluno(id, nome, cpf, data_nascimento),
+        polo:polos!fk_polo(id, nome, codigo),
+        turma:turmas!fk_turma(id, nome)
       `)
       .eq('id', matriculaId)
       .single();
@@ -1030,8 +1030,8 @@ export class PdfService {
         whatsapp:telefone_responsavel,
         data_nascimento,
         status,
-        polo:polos(id, nome),
-        turma:turmas(nome)
+        polo:polos!fk_polo(id, nome),
+        turma:turmas!fk_turma(nome)
       `);
 
     if (filtros.polo_id) query = query.eq('polo_id', filtros.polo_id);
