@@ -13,6 +13,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Apenas esconde o cabeçalho na página de login
   const hideHeader = false; // Forçando o cabeçalho a ficar visível em todas as páginas
 
+  // Efeito para rolar ao topo em cada mudança de rota
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   // Estilização da barra de rolagem apenas para o ambiente administrativo
   React.useEffect(() => {
     const styleElement = document.createElement('style');

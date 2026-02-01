@@ -21,7 +21,7 @@ export const DocumentosAPI = {
 };
 
 export class DocumentoService {
-  static readonly BUCKET_NAME = 'matriculas';
+  static readonly BUCKET_NAME = 'documentos';
 
   /**
    * Faz upload de um documento para o storage

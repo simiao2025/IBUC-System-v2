@@ -29,7 +29,7 @@ export const uploadFile = async ({
 
   // Configura o upload com progresso
   const { data, error } = await supabase.storage
-    .from('matriculas')
+    .from('documentos')
     .upload(filePath, file, {
       cacheControl: '3600',
       upsert: false,
@@ -50,7 +50,7 @@ export const uploadFile = async ({
 
   // Obtém a URL pública do arquivo
   const { data: { publicUrl } } = supabase.storage
-    .from('matriculas')
+    .from('documentos')
     .getPublicUrl(data.path);
 
   return {

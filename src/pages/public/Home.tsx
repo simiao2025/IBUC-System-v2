@@ -143,7 +143,7 @@ const Home: React.FC = () => {
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="text-left space-y-8 animate-in slide-in-from-left duration-1000">
+            <div className="order-2 lg:order-1 text-left space-y-8 animate-in slide-in-from-left duration-1000">
               <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-red-600/20 border border-red-500/30 text-red-500 text-sm font-bold tracking-widest uppercase">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -183,7 +183,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Logo Section - Visible on all screens now with responsive sizing */}
-            <div className="relative animate-in zoom-in duration-1000 mt-12 lg:mt-0">
+            <div className="order-1 lg:order-2 relative animate-in zoom-in duration-1000 mt-12 lg:mt-0">
               <div className="relative aspect-square max-w-[280px] sm:max-w-sm mx-auto flex items-center justify-center">
                 {/* Decorative Elements - Subtle glow instead of boxes */}
                 <div className="absolute inset-0 bg-red-600 rounded-full opacity-10 blur-3xl animate-pulse"></div>
