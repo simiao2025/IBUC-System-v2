@@ -182,8 +182,9 @@ const Home: React.FC = () => {
               </div>
             </div>
 
-            <div className="hidden lg:block relative animate-in zoom-in duration-1000">
-              <div className="relative aspect-square max-w-sm mx-auto flex items-center justify-center">
+            {/* Logo Section - Visible on all screens now with responsive sizing */}
+            <div className="relative animate-in zoom-in duration-1000 mt-12 lg:mt-0">
+              <div className="relative aspect-square max-w-[280px] sm:max-w-sm mx-auto flex items-center justify-center">
                 {/* Decorative Elements - Subtle glow instead of boxes */}
                 <div className="absolute inset-0 bg-red-600 rounded-full opacity-10 blur-3xl animate-pulse"></div>
                 
@@ -291,6 +292,47 @@ const Home: React.FC = () => {
 
       {/* Dynamic Event Banner */}
       <EventHeroBanner />
+
+      {/* Seção Conheça o IBUC */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-gray-900 rounded-[2rem] sm:rounded-[4rem] overflow-hidden shadow-2xl border border-white/5 relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-transparent pointer-events-none"></div>
+          
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
+            <div className="p-8 sm:p-12 lg:p-16 space-y-6 relative z-10">
+              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-red-600/10 border border-red-600/20 text-red-500 text-sm font-bold uppercase tracking-wider">
+                Vídeo Institucional
+              </div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
+                Conheça o <span className="text-red-600">IBUC</span>
+              </h2>
+              <p className="text-lg text-gray-400 leading-relaxed">
+                Descubra como transformamos vidas através do ensino bíblico e da educação cristã. 
+                Nossa missão é preparar uma geração com valores sólidos e compromisso com o Reino.
+              </p>
+              <div className="pt-4">
+                <Button asChild variant="outline" className="border-white/20 text-white hover:bg-white/10 px-8">
+                  <a href="https://www.youtube.com/watch?v=N1YwNkO2kpY" target="_blank" rel="noopener noreferrer">
+                    Ver no YouTube
+                  </a>
+                </Button>
+              </div>
+            </div>
+            
+            <div className="p-4 sm:p-8 lg:p-12">
+              <div className="aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl relative group bg-black/40 border border-white/10 transition-transform hover:scale-[1.02] duration-500">
+                <iframe 
+                  src="https://www.youtube.com/embed/N1YwNkO2kpY" 
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                  allowFullScreen
+                  title="Conheça o IBUC"
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Mission Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,5 +1,9 @@
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
-import Select from '../../../components/ui/Select';
+import Select from '../../../shared/ui/Select';
+import Card from '../../../shared/ui/Card';
+import Button from '../../../shared/ui/Button';
+import Input from '../../../shared/ui/Input';
 import { useApp } from '../../../context/AppContext';
 import { EventosService, type Evento } from '../../../services/eventos.service';
 import FileUpload from '../../../shared/ui/FileUpload';
@@ -154,41 +158,75 @@ export const EventForm: React.FC<EventFormProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          {editingEvent ? 'Editar Evento' : 'Novo Evento'}
+          {editingEvent ? 'Editar Divulgação' : 'Nova Divulgação'}
         </h3>
 
         <div className="space-y-4">
+          {/* Tipo de Divulgação */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Divulgação</label>
+            <Select 
+              value={form.categoria} 
+              onChange={(v) => {
+                const type = v as Evento['categoria'];
+                setForm(p => ({
+                  ...p,
+                  categoria: type,
+                  status: type === 'publicacao' ? 'realizado' : 'agendado'
+                }));
+              }}
+              options={[
+                { value: 'geral', label: 'Evento (Padrão)' },
+                { value: 'informativo', label: 'Informativo (Avisos/Matrículas)' },
+                { value: 'publicacao', label: 'Publicação (Mídias de Eventos Realizados)' },
+                { value: 'matricula', label: 'Matrícula' },
+                { value: 'formatura', label: 'Formatura' },
+                { value: 'aula', label: 'Aula' },
+                { value: 'comemorativo', label: 'Comemorativo' },
+              ]}
+            />
+          </div>
+
           <Input
             label="Título"
+            placeholder={form.categoria === 'informativo' ? 'Ex: Início das Matrículas 2026' : 'Título da divulgação'}
             value={form.titulo}
             onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
           />
 
           <Input
             label="Descrição"
+            placeholder="Breve texto sobre a divulgação"
             value={form.descricao}
             onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
           />
 
-          <Input
-            label="Local"
-            value={form.local}
-            onChange={(e) => setForm((p) => ({ ...p, local: e.target.value }))}
-          />
+          {form.categoria !== 'publicacao' && (
+            <>
+              <Input
+                label="Local"
+                value={form.local}
+                onChange={(e) => setForm((p) => ({ ...p, local: e.target.value }))}
+                placeholder="Onde ocorrerá?"
+              />
+            </>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Data de Início"
+              label={form.categoria === 'publicacao' ? "Data do Registro" : "Data de Início"}
               type="date"
               value={form.data_inicio}
-              onChange={(e) => setForm((p) => ({ ...p, data_inicio: e.target.value }))}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((p) => ({ ...p, data_inicio: e.target.value }))}
             />
-            <Input
-              label="Data de Fim"
-              type="date"
-              value={form.data_fim}
-              onChange={(e) => setForm((p) => ({ ...p, data_fim: e.target.value }))}
-            />
+            {form.categoria !== 'publicacao' && form.categoria !== 'informativo' && (
+              <Input
+                label="Data de Fim"
+                type="date"
+                value={form.data_fim}
+                onChange={(e) => setForm((p) => ({ ...p, data_fim: e.target.value }))}
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -197,46 +235,37 @@ export const EventForm: React.FC<EventFormProps> = ({
               value={form.status}
               onChange={(v) => setForm((p) => ({ ...p, status: v as Evento['status'] }))}
               options={[
-                { value: 'agendado', label: 'Agendado' },
-                { value: 'realizado', label: 'Realizado' },
+                { value: 'agendado', label: 'Agendado/Ativo' },
+                { value: 'realizado', label: 'Realizado/Concluído' },
                 { value: 'cancelado', label: 'Cancelado' },
               ]}
             />
-            <Select
-              label="Categoria"
-              value={form.categoria}
-              onChange={(v) => setForm((p) => ({ ...p, categoria: v as Evento['categoria'] }))}
-              options={[
-                { value: 'matricula', label: 'Matrícula' },
-                { value: 'formatura', label: 'Formatura' },
-                { value: 'aula', label: 'Aula' },
-                { value: 'comemorativo', label: 'Comemorativo' },
-                { value: 'geral', label: 'Geral' },
-              ]}
-            />
+            <div className="flex items-end pb-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="is_destaque"
+                  checked={form.is_destaque}
+                  onChange={(e) => setForm((p) => ({ ...p, is_destaque: e.target.checked }))}
+                  className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                />
+                <label htmlFor="is_destaque" className="text-sm font-medium text-gray-700">
+                  Destaque no Banner
+                </label>
+              </div>
+            </div>
           </div>
 
-          <Input
-            label="Link de Ação (CTA)"
-            placeholder="https://..."
-            value={form.link_cta}
-            onChange={(e) => setForm((p) => ({ ...p, link_cta: e.target.value }))}
-          />
-
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="is_destaque"
-              checked={form.is_destaque}
-              onChange={(e) => setForm((p) => ({ ...p, is_destaque: e.target.checked }))}
-              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+          {form.categoria !== 'publicacao' && (
+            <Input
+              label="Link de Ação (CTA)"
+              placeholder="https://exemplo.com/inscricoes"
+              value={form.link_cta}
+              onChange={(e) => setForm((p) => ({ ...p, link_cta: e.target.value }))}
             />
-            <label htmlFor="is_destaque" className="text-sm font-medium text-gray-700">
-              Destaque na Página Inicial (Banner)
-            </label>
-          </div>
+          )}
 
-          <div className="border-t pt-4 mt-4">
+          <div className={`border-t pt-4 mt-4 ${form.categoria === 'publicacao' ? 'bg-red-50 -mx-4 px-4 pb-4 rounded-b-lg' : ''}`}>
             <h4 className="text-md font-medium text-gray-900 mb-4 flex items-center gap-2">
               <ImageIcon className="h-5 w-5 text-red-600" />
               Galeria de Mídias

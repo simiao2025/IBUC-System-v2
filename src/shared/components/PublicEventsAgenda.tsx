@@ -12,15 +12,15 @@ export const PublicEventsAgenda: React.FC = () => {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                // Próximos Eventos
+                // Próximos: Eventos + Informativos
                 const future = await EventosService.listar({
                     status: 'agendado',
-                    limit: 6
+                    limit: 9
                 });
-                // Eventos Realizados (para a galeria)
+                // Publicações (Eventos Realizados ou registros específicos)
                 const past = await EventosService.listar({
                     status: 'realizado',
-                    limit: 12
+                    limit: 16
                 });
                 
                 setFutureEvents(future);
@@ -57,7 +57,7 @@ export const PublicEventsAgenda: React.FC = () => {
                         <div className="mt-6 md:mt-0">
                             <div className="inline-flex items-center px-4 py-2 bg-red-50 rounded-xl text-red-700 font-bold text-sm">
                                 <Calendar className="h-5 w-5 mr-2" />
-                                {futureEvents.length} Eventos Agendados
+                                {futureEvents.length} Divulgações
                             </div>
                         </div>
                     </div>
@@ -81,7 +81,7 @@ export const PublicEventsAgenda: React.FC = () => {
                                     <div className="p-8 pt-24">
                                         <div className="mb-4">
                                             <span className="text-[10px] font-black bg-gray-900 text-white px-3 py-1 rounded-full uppercase tracking-[0.2em]">
-                                                {evt.categoria || 'Evento'}
+                                                {evt.categoria === 'informativo' ? 'Informativo' : (evt.categoria || 'Evento')}
                                             </span>
                                         </div>
                                         
@@ -102,7 +102,7 @@ export const PublicEventsAgenda: React.FC = () => {
                                             {evt.link_cta && (
                                                 <Button asChild className="w-full bg-gray-900 hover:bg-red-600 text-white rounded-2xl py-6 transition-all duration-300">
                                                     <a href={evt.link_cta} target="_blank" rel="noopener noreferrer">
-                                                        Garantir minha vaga
+                                                        {evt.categoria === 'informativo' ? 'Saber mais' : 'Garantir minha vaga'}
                                                         <ChevronRight className="ml-2 h-5 w-5" />
                                                     </a>
                                                 </Button>

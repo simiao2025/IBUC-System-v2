@@ -209,10 +209,10 @@ export const EventsSettings: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Eventos</h2>
-          <p className="text-sm text-gray-600">Cadastro de eventos para exibição no painel administrativo</p>
+          <h2 className="text-xl font-semibold text-gray-900">Divulgações</h2>
+          <p className="text-sm text-gray-600">Cadastro de comunicados, eventos e registros para o site</p>
         </div>
-        <Button onClick={openCreate}>Novo Evento</Button>
+        <Button onClick={openCreate}>Nova Divulgação</Button>
       </div>
 
       <Card className="p-6">
@@ -307,40 +307,85 @@ export const EventsSettings: React.FC = () => {
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">{editing ? 'Editar Evento' : 'Novo Evento'}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {editing ? 'Editar Divulgação' : 'Nova Divulgação'}
+            </h3>
 
             <div className="space-y-4">
+              {/* Novo campo: Tipo de Divulgação */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Divulgação</label>
+                <Select 
+                  value={form.categoria} 
+                  onChange={(v) => {
+                    const type = v as Evento['categoria'];
+                    setForm(p => ({
+                      ...p,
+                      categoria: type,
+                      // Lógica automática de status baseada no tipo
+                      status: (type === 'publicacao' as any) ? 'realizado' : 'agendado'
+                    }));
+                  }}
+                >
+                  <option value="geral">Evento (Padrão)</option>
+                  <option value="informativo">Informativo (Avisos/Matrículas)</option>
+                  <option value="publicacao">Publicação (Mídias de Eventos Realizados)</option>
+                  <option value="matricula">Matrícula</option>
+                  <option value="formatura">Formatura</option>
+                  <option value="aula">Aula</option>
+                  <option value="comemorativo">Comemorativo</option>
+                </Select>
+              </div>
+
               <Input
                 label="Título"
+                placeholder={form.categoria === 'informativo' as any ? 'Ex: Início das Matrículas 2026' : 'Título da divulgação'}
                 value={form.titulo}
                 onChange={(e) => setForm((p) => ({ ...p, titulo: e.target.value }))}
               />
 
               <Input
                 label="Descrição"
+                placeholder="Breve texto sobre a divulgação"
                 value={form.descricao}
                 onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))}
               />
 
-              <Input
-                label="Local"
-                value={form.local}
-                onChange={(e) => setForm((p) => ({ ...p, local: e.target.value }))}
-              />
+              {/* Campos dinâmicos: Local e Link CTA não costumam ser necessários para 'Publicação' pura */}
+              {form.categoria !== 'publicacao' as any && (
+                <>
+                  <Input
+                    label="Local"
+                    value={form.local}
+                    onChange={(e) => setForm((p) => ({ ...p, local: e.target.value }))}
+                    placeholder="Onde ocorrerá?"
+                  />
+
+                  <Input
+                    label="Link CTA (Call-to-Action)"
+                    value={form.link_cta}
+                    onChange={(e) => setForm((p) => ({ ...p, link_cta: e.target.value }))}
+                    placeholder="https://exemplo.com/inscricoes"
+                  />
+                </>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Data de Início"
+                  label={form.categoria === 'publicacao' as any ? "Data do Registro" : "Data de Início"}
                   type="date"
                   value={form.data_inicio}
                   onChange={(e) => setForm((p) => ({ ...p, data_inicio: e.target.value }))}
                 />
-                <Input
-                  label="Data de Fim"
-                  type="date"
-                  value={form.data_fim}
-                  onChange={(e) => setForm((p) => ({ ...p, data_fim: e.target.value }))}
-                />
+                {/* Data de fim apenas para Eventos */}
+                {form.categoria !== 'publicacao' as any && form.categoria !== 'informativo' as any && (
+                  <Input
+                    label="Data de Fim"
+                    type="date"
+                    value={form.data_fim}
+                    onChange={(e) => setForm((p) => ({ ...p, data_fim: e.target.value }))}
+                  />
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -350,49 +395,31 @@ export const EventsSettings: React.FC = () => {
                     value={form.status} 
                     onChange={(v) => setForm((p) => ({ ...p, status: v as Evento['status'] }))}
                   >
-                    <option value="agendado">Agendado</option>
-                    <option value="realizado">Realizado</option>
+                    <option value="agendado">Agendado/Ativo</option>
+                    <option value="realizado">Realizado/Concluído</option>
                     <option value="cancelado">Cancelado</option>
                   </Select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                  <Select 
-                    value={form.categoria} 
-                    onChange={(v) => setForm((p) => ({ ...p, categoria: v as Evento['categoria'] }))}
-                  >
-                    <option value="geral">Geral</option>
-                    <option value="matricula">Matrícula</option>
-                    <option value="formatura">Formatura</option>
-                    <option value="aula">Aula</option>
-                    <option value="comemorativo">Comemorativo</option>
-                  </Select>
+                <div className="flex items-end pb-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_destaque"
+                      checked={form.is_destaque}
+                      onChange={(e) => setForm((p) => ({ ...p, is_destaque: e.target.checked }))}
+                      className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500"
+                    />
+                    <label htmlFor="is_destaque" className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                      <Star className="w-4 h-4" />
+                      Destaque no Banner
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_destaque"
-                  checked={form.is_destaque}
-                  onChange={(e) => setForm((p) => ({ ...p, is_destaque: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="is_destaque" className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
-                  <Star className="w-4 h-4" />
-                  Marcar como destaque
-                </label>
-              </div>
-
-              <Input
-                label="Link CTA (Call-to-Action)"
-                value={form.link_cta}
-                onChange={(e) => setForm((p) => ({ ...p, link_cta: e.target.value }))}
-                placeholder="https://exemplo.com/inscricoes"
-              />
-
-              <div>
+              {/* Seção de Mídia - Prioritária para 'Publicação' */}
+              <div className={form.categoria === 'publicacao' as any ? "bg-red-50 p-4 rounded-xl border border-red-100" : ""}>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Galeria de Mídia</label>
                 
                 {/* Preview de mídia existente */}

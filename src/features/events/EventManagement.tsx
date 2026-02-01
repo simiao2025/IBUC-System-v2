@@ -1,7 +1,7 @@
 import React from 'react';
 import { EventList } from './components/EventList';
 import PageHeader from '../../components/ui/PageHeader';
-import { Calendar } from 'lucide-react';
+import { Megaphone } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,9 +19,9 @@ export const EventManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader
-        title="Gerenciar Eventos"
-        subtitle="Agendamento e controle de eventos do ministério"
-        icon={<Calendar className="h-6 w-6 text-gray-400" />}
+        title="Gerenciar Divulgações"
+        subtitle="Comunicados, eventos e registros para o site"
+        icon={<Megaphone className="h-6 w-6 text-gray-400" />}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

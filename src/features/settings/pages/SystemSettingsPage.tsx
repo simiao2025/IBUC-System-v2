@@ -5,7 +5,7 @@ import {
   Shield,
   Database,
   Award,
-  Calendar
+  Megaphone
 } from 'lucide-react';
 import { useApp } from '@/app/providers/AppContext';
 import { useAccessControl } from '@/features/auth/ui/AccessControl';
@@ -156,7 +156,7 @@ const SystemSettingsPage: React.FC = () => {
               {[
                 { id: 'users', label: 'Usuários', icon: Users, permission: canManageUsers() || canAccessModule('manage_users') },
                 { id: 'config', label: 'Parâmetros', icon: Settings, permission: canAccessModule('settings') },
-                { id: 'events', label: 'Eventos', icon: Calendar, permission: canAccessModule('settings_events') },
+                { id: 'events', label: 'Divulgações', icon: Megaphone, permission: canAccessModule('settings_events') },
                 { id: 'dracmas', label: 'Drácmas', icon: Award, permission: canAccessModule('dracmas_settings') },
                 { id: 'security', label: 'Segurança', icon: Shield, permission: canAccessModule('security') },
                 { id: 'backup', label: 'Backup', icon: Database, permission: canAccessModule('backup') }

@@ -10,7 +10,7 @@ export interface Evento {
   polo_id?: string | null;
   criado_por?: string | null;
   status: 'agendado' | 'realizado' | 'cancelado';
-  categoria: 'matricula' | 'formatura' | 'aula' | 'comemorativo' | 'geral';
+  categoria: 'matricula' | 'formatura' | 'aula' | 'comemorativo' | 'geral' | 'informativo' | 'publicacao';
   is_destaque: boolean;
   midia: Array<{ type: 'image' | 'video', url: string, title?: string }>;
   link_cta?: string | null;

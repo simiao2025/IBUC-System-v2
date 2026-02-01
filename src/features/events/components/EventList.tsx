@@ -101,12 +101,12 @@ export const EventList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          {/* Header content if needed inside the list */}
+        <div className="flex items-center justify-between">
+          <div>
+            {/* Header content if needed inside the list */}
+          </div>
+          <Button onClick={openCreate}>Nova Divulgação</Button>
         </div>
-        <Button onClick={openCreate}>Novo Evento</Button>
-      </div>
 
       <Card className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -166,7 +166,7 @@ export const EventList: React.FC = () => {
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={isPoloScoped ? 4 : 5} className="px-4 py-10 text-center text-gray-500">Nenhum evento encontrado</td>
+                  <td colSpan={isPoloScoped ? 4 : 5} className="px-4 py-10 text-center text-gray-500">Nenhuma divulgação encontrada</td>
                 </tr>
               ) : (
                 items.map((evt) => (
