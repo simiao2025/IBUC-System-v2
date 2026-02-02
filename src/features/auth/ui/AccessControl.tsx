@@ -3,6 +3,84 @@ import { useApp } from '@/app/providers/AppContext';
 import { Shield, Lock } from 'lucide-react';
 import Card from '@/shared/ui/Card';
 import type { AdminRole, AdminModuleKey, AdminPermissions } from '@/shared/types';
+import React from 'react';
+import { useApp } from '@/app/providers/AppContext';
+import { Shield, Lock } from 'lucide-react';
+import Card from '@/shared/ui/Card';
+import type { AdminRole, AdminModuleKey, AdminPermissions } from '@/shared/types';
+
+// Hook para verificações de acesso em componentes
+export const useAccessControl = () => {
+  const { currentUser, hasAccessToAllPolos, hasAccessToPolo, getCurrentUserAccessLevel, getUserAllowedPolos } = useApp();
+
+  const getUserPermissions = (): AdminPermissions | undefined => {
+    return currentUser?.adminUser?.permissions;
+  };
+
+  const canAccessModule = (moduleKey: AdminModuleKey): boolean => {
+    if (!currentUser?.adminUser) return false;
+
+    // Super Admin e Admin Geral sempre têm acesso total
+    if (['super_admin', 'admin_geral'].includes(currentUser.adminUser.role)) return true;
+
+    const permissions = getUserPermissions();
+    if (!permissions) return true; // fallback: mantém acesso total se não houver configuração explícita (legacy)
+
+    if (permissions.mode === 'full') return true;
+    
+    // Check granular permissions
+    const isExplicitlyAllowed = Array.isArray(permissions.modules) && permissions.modules.includes(moduleKey);
+    
+    if (isExplicitlyAllowed) return true;
+
+    // Hierarchy logic: if requesting a parent module, permit if any child is allowed
+    const hierarchy: Record<string, AdminModuleKey[]> = {
+      financeiro: ['finance_control', 'finance_materials', 'finance_config'],
+      dracmas: [], // Dracmas is independent
+      materials: ['materials_catalog', 'materials_orders'],
+      settings: ['manage_users', 'settings_events', 'dracmas_settings', 'security', 'backup'],
+      enrollments: ['pre-enrollments']
+    };
+
+    if (hierarchy[moduleKey]) {
+      return hierarchy[moduleKey].some(subKey => 
+        Array.isArray(permissions.modules) && permissions.modules.includes(subKey)
+      );
+    }
+    
+    return false;
+  };
+
+  const canManageUsers = () => canAccessModule('manage_users');
+  const canManageStaff = () => canAccessModule('staff');
+  const canManagePolos = () => canAccessModule('polos');
+  const canViewReports = () => canAccessModule('reports');
+  const canManageEnrollments = () => canAccessModule('enrollments');
+
+  const getFilteredPolos = (allPolos: any[]) => {
+    if (hasAccessToAllPolos()) {
+      return allPolos;
+    }
+    
+    const allowedPoloIds = getUserAllowedPolos();
+    return allPolos.filter(polo => allowedPoloIds.includes(polo.id));
+  };
+
+  return {
+    canManageUsers,
+    canManageStaff,
+    canManagePolos,
+    canViewReports,
+    canManageEnrollments,
+    canAccessModule,
+    getUserPermissions,
+    getFilteredPolos,
+    hasAccessToAllPolos,
+    hasAccessToPolo,
+    getCurrentUserAccessLevel,
+    getUserAllowedPolos
+  };
+};
 
 interface AccessControlProps {
   children: React.ReactNode;
@@ -21,7 +99,8 @@ const AccessControl: React.FC<AccessControlProps> = ({
   requiredModule,
   fallbackMessage
 }) => {
-  const { currentUser, hasAccessToAllPolos, hasAccessToPolo, canAccessModule } = useApp();
+  const { currentUser, hasAccessToAllPolos, hasAccessToPolo } = useApp();
+  const { canAccessModule } = useAccessControl();
 
   // Se não é admin, nega acesso
   if (!currentUser || currentUser.role !== 'admin') {
@@ -105,76 +184,3 @@ const AccessControl: React.FC<AccessControlProps> = ({
 };
 
 export default AccessControl;
-
-// Hook para verificações de acesso em componentes
-export const useAccessControl = () => {
-  const { currentUser, hasAccessToAllPolos, hasAccessToPolo, getCurrentUserAccessLevel, getUserAllowedPolos } = useApp();
-
-  const getUserPermissions = (): AdminPermissions | undefined => {
-    return currentUser?.adminUser?.permissions;
-  };
-
-  const canAccessModule = (moduleKey: AdminModuleKey): boolean => {
-    if (!currentUser?.adminUser) return false;
-
-    // Super Admin e Admin Geral sempre têm acesso total
-    if (['super_admin', 'admin_geral'].includes(currentUser.adminUser.role)) return true;
-
-    const permissions = getUserPermissions();
-    if (!permissions) return true; // fallback: mantém acesso total se não houver configuração explícita (legacy)
-
-    if (permissions.mode === 'full') return true;
-    
-    // Check granular permissions
-    const isExplicitlyAllowed = Array.isArray(permissions.modules) && permissions.modules.includes(moduleKey);
-    
-    if (isExplicitlyAllowed) return true;
-
-    // Hierarchy logic: if requesting a parent module, permit if any child is allowed
-    const hierarchy: Record<string, AdminModuleKey[]> = {
-      financeiro: ['finance_control', 'finance_materials', 'finance_config'],
-      dracmas: [], // Dracmas is independent
-      materials: ['materials_catalog', 'materials_orders'],
-      settings: ['manage_users', 'settings_events', 'dracmas_settings', 'security', 'backup'],
-      enrollments: ['pre-enrollments']
-    };
-
-    if (hierarchy[moduleKey]) {
-      return hierarchy[moduleKey].some(subKey => 
-        Array.isArray(permissions.modules) && permissions.modules.includes(subKey)
-      );
-    }
-    
-    return false;
-  };
-
-  const canManageUsers = () => canAccessModule('manage_users');
-  const canManageStaff = () => canAccessModule('staff');
-  const canManagePolos = () => canAccessModule('polos');
-  const canViewReports = () => canAccessModule('reports');
-  const canManageEnrollments = () => canAccessModule('enrollments');
-
-  const getFilteredPolos = (allPolos: any[]) => {
-    if (hasAccessToAllPolos()) {
-      return allPolos;
-    }
-    
-    const allowedPoloIds = getUserAllowedPolos();
-    return allPolos.filter(polo => allowedPoloIds.includes(polo.id));
-  };
-
-  return {
-    canManageUsers,
-    canManageStaff,
-    canManagePolos,
-    canViewReports,
-    canManageEnrollments,
-    canAccessModule,
-    getUserPermissions,
-    getFilteredPolos,
-    hasAccessToAllPolos,
-    hasAccessToPolo,
-    getCurrentUserAccessLevel,
-    getUserAllowedPolos
-  };
-};
