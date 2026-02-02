@@ -49,49 +49,16 @@ export const PublicEventsAgenda: React.FC = () => {
         setSelectedMedia({ url, type });
     };
 
+    const parseDate = (dateStr: string) => {
+        if (!dateStr) return new Date();
+        if (dateStr.includes('T')) return new Date(dateStr);
+        return new Date(dateStr + 'T12:00:00');
+    };
+
     if (loading) return <div className="text-center py-20 text-gray-500">Carregando eventos...</div>;
 
     return (
         <div className="space-y-16 sm:space-y-32 pb-20">
-            {/* Seção 1: Informativos & Avisos (Destaque Moderno) */}
-            {informativos.length > 0 && (
-                <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
-                     <div className="flex items-center gap-3 mb-8">
-                        <div className="h-8 w-1.5 bg-red-600 rounded-full"></div>
-                        <h2 className="text-2xl sm:text-3xl font-black text-gray-900 uppercase tracking-tight">
-                            Comunicados <span className="text-red-600">& Avisos</span>
-                        </h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {informativos.map(info => (
-                            <div key={info.id} className="relative group bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden flex flex-col sm:flex-row gap-6 items-center">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700 opacity-50"></div>
-                                
-                                <div className="relative z-10 bg-red-600 text-white p-5 rounded-2xl shadow-lg shadow-red-200">
-                                    <Info className="h-8 w-8" />
-                                </div>
-
-                                <div className="relative z-10 flex-1 text-center sm:text-left">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2 truncate-2-lines">{info.titulo}</h3>
-                                    <p className="text-gray-500 text-sm line-clamp-2 mb-4 font-medium">{info.descricao}</p>
-                                    {info.link_cta && (
-                                        <a 
-                                            href={info.link_cta} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center text-red-600 font-bold text-sm hover:gap-2 transition-all"
-                                        >
-                                            Saiba mais <ChevronRight className="h-4 w-4" />
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
-
             {/* Seção 2: Agenda de Eventos (Cards Verticais) */}
             <section className="relative overflow-hidden pt-12">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-gray-50/50 to-transparent -z-10"></div>
@@ -116,58 +83,63 @@ export const PublicEventsAgenda: React.FC = () => {
 
                     {eventosAgendados.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {eventosAgendados.map(evt => (
-                                <div key={evt.id} className="group bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col">
-                                    <div className="relative aspect-[4/3] overflow-hidden">
-                                        <img 
-                                            src={evt.midia?.[0]?.url || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop"} 
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                                            alt={evt.titulo}
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                                        
-                                        {/* Badge de Data */}
-                                        <div className="absolute bottom-6 left-6 flex items-center gap-3">
-                                            <div className="bg-white rounded-2xl p-2 px-3 text-center min-w-[50px] shadow-xl">
-                                                <p className="text-red-600 text-xl font-black leading-none">{new Date(evt.data_inicio + 'T12:00:00').getDate()}</p>
-                                                <p className="text-gray-500 text-[9px] font-bold uppercase">{new Date(evt.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</p>
-                                            </div>
-                                            <div className="text-white">
-                                                <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Início às</p>
-                                                <p className="text-sm font-black">20:00h</p>
+                            {eventosAgendados.map(evt => {
+                                const evtDate = parseDate(evt.data_inicio);
+                                return (
+                                    <div key={evt.id} className="group bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col">
+                                        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                                            <img 
+                                                src={evt.midia?.[0]?.url || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop"} 
+                                                className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-1000"
+                                                alt={evt.titulo}
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-30"></div>
+                                            
+                                            {/* Badge de Data */}
+                                            <div className="absolute bottom-6 left-6 flex items-center gap-3">
+                                                <div className="bg-white rounded-2xl p-2 px-3 text-center min-w-[50px] shadow-xl">
+                                                    <p className="text-red-600 text-xl font-black leading-none">{evtDate.getDate()}</p>
+                                                    <p className="text-gray-500 text-[9px] font-bold uppercase">
+                                                        {evtDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                                                    </p>
+                                                </div>
+                                                <div className="text-white drop-shadow-md">
+                                                    <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Agenda</p>
+                                                    <p className="text-sm font-black">IBUC Palmas</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="p-8 flex-1 flex flex-col">
-                                        <div className="mb-4">
-                                            <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full uppercase tracking-widest">
-                                                {evt.categoria || 'Geral'}
-                                            </span>
-                                        </div>
-                                        
-                                        <h3 className="text-2xl font-black text-gray-900 mb-4 line-clamp-2 leading-tight">
-                                            {evt.titulo}
-                                        </h3>
-                                        
-                                        <div className="space-y-3 mb-8">
-                                            <div className="flex items-center text-gray-500 text-sm font-medium">
-                                                <MapPin className="h-4 w-4 mr-2 text-red-500" />
-                                                <span className="truncate">{evt.local || 'Sede IBUC'}</span>
+                                        <div className="p-8 flex-1 flex flex-col">
+                                            <div className="mb-4">
+                                                <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full uppercase tracking-widest">
+                                                    {evt.categoria === 'informativo' ? 'IMPORTANTE' : (evt.categoria || 'Geral')}
+                                                </span>
                                             </div>
+                                            
+                                            <h3 className="text-2xl font-black text-gray-900 mb-4 line-clamp-2 leading-tight">
+                                                {evt.titulo}
+                                            </h3>
+                                            
+                                            <div className="space-y-3 mb-8">
+                                                <div className="flex items-center text-gray-500 text-sm font-medium">
+                                                    <MapPin className="h-4 w-4 mr-2 text-red-500" />
+                                                    <span className="truncate">{evt.local || 'Sede IBUC'}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            {evt.link_cta && (
+                                                <Button asChild className="mt-auto w-full bg-red-600 hover:bg-red-700 text-white rounded-2xl py-6 shadow-lg shadow-red-200 transition-all font-bold">
+                                                    <a href={evt.link_cta} target="_blank" rel="noopener noreferrer">
+                                                        {evt.categoria === 'informativo' ? 'Saiba Mais' : 'Garantir Vaga'}
+                                                        <ChevronRight className="ml-2 h-4 w-4" />
+                                                    </a>
+                                                </Button>
+                                            )}
                                         </div>
-                                        
-                                        {evt.link_cta && (
-                                            <Button asChild className="mt-auto w-full bg-red-600 hover:bg-red-700 text-white rounded-2xl py-6 shadow-lg shadow-red-200 transition-all font-bold">
-                                                <a href={evt.link_cta} target="_blank" rel="noopener noreferrer">
-                                                    Garantir Vaga
-                                                    <ChevronRight className="ml-2 h-4 w-4" />
-                                                </a>
-                                            </Button>
-                                        )}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="text-center py-20 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
@@ -238,7 +210,7 @@ export const PublicEventsAgenda: React.FC = () => {
                 </div>
             </section>
 
-            {/* Lightbox Simples (já implementado mas mantendo o padrão) */}
+            {/* Lightbox Simples */}
             {selectedMedia && (
                 <div 
                     className="fixed inset-0 z-[100] bg-black/98 flex items-center justify-center backdrop-blur-md animate-in fade-in duration-300" 

@@ -226,6 +226,9 @@ const Home: React.FC = () => {
         )}
       </section>
 
+      {/* Dynamic Event Banner - Moved here as requested (Below Hero) */}
+      <EventHeroBanner />
+
       {/* Waitlist Section - Accessible via CTA or when Enrollment is closed */}
       <section id="waitlist" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {!isEnrollmentOpen && (
@@ -289,9 +292,6 @@ const Home: React.FC = () => {
           </div>
         )}
       </section>
-
-      {/* Dynamic Event Banner */}
-      <EventHeroBanner />
 
       {/* Seção Conheça o IBUC */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
