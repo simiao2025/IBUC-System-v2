@@ -11,11 +11,19 @@ export const EventHeroBanner: React.FC = () => {
     useEffect(() => {
         const fetchHighlights = async () => {
             try {
-                const data = await EventosService.listar({
+                let data = await EventosService.listar({
                     is_destaque: true,
                     status: 'agendado',
                     limit: 3
                 });
+
+                // Fallback: Se não houver destaques, pega os próximos agendados
+                if (data.length === 0) {
+                    data = await EventosService.listar({
+                        status: 'agendado',
+                        limit: 3
+                    });
+                }
                 setHighlights(data);
             } catch (error) {
                 console.error('Erro ao buscar destaques:', error);
