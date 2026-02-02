@@ -296,11 +296,6 @@ export const ClassManagement: React.FC = () => {
             await Promise.all(days.map(day => 
               CalendarioService.criar({
                 turma_id: createdTurmaId!,
-                modulo_id: day.modelo_id ? form.modulo_atual_id : '', // Ensure we use the class's module if generic, but here we can check the model's module or day's module logic. Actually, CalendarioService needs modulo_id.
-                // Wait, model days are linked to model. We want to link new class days to modulo_id selected in form.
-                // The day.modelo_id is irrelevant for the new class link.
-                // We should use form.modulo_atual_id for the lesson link context.
-                // But wait, the lesson is what matters.
                 modulo_id: form.modulo_atual_id, 
                 licao_id: day.licao_id!,
                 data_aula: day.data_aula,
