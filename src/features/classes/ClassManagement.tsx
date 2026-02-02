@@ -14,8 +14,8 @@ import PageHeader from '../../components/ui/PageHeader';
 import { Lock, Users, UserPlus, Eye, Calendar } from 'lucide-react';
 
 import { ModuleTransitionWizard } from './ModuleTransitionWizard';
-import { CalendarioService } from '../../entities/calendar/api/calendario.service';
-import { CalendarModelsAPI, type CalendarModel } from '../calendar/services/calendarModels.service';
+
+import { ClassCalendarModal } from '../calendar/ui/ClassCalendarModal';
 
 type PoloOption = { id: string; nome: string };
 type NivelOption = { id: string; nome: string; ordem?: number };
@@ -37,7 +37,6 @@ type TurmaFormState = {
   data_previsao_termino: string;
   data_conclusao: string;
   migracao_concluida: boolean;
-  calendar_model_id: string;
 };
 
 const DEFAULT_FORM: TurmaFormState = {
@@ -56,7 +55,6 @@ const DEFAULT_FORM: TurmaFormState = {
   data_previsao_termino: '',
   data_conclusao: '',
   migracao_concluida: false,
-  calendar_model_id: '',
 };
 
 export const ClassManagement: React.FC = () => {
@@ -65,7 +63,6 @@ export const ClassManagement: React.FC = () => {
   const [niveis, setNiveis] = useState<NivelOption[]>([]);
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [professores, setProfessores] = useState<ProfessorOption[]>([]);
-  const [calendarModels, setCalendarModels] = useState<CalendarModel[]>([]);
 
   const [turmas, setTurmas] = useState<TurmaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,11 +98,7 @@ export const ClassManagement: React.FC = () => {
   const modulosById = useMemo(() => new Map(modulos.map(m => [m.id, m.titulo])), [modulos]);
   const professoresById = useMemo(() => new Map(professores.map(p => [p.id, p.nome_completo])), [professores]);
 
-  // Models filtered by selected Module (if any)
-  const availableCalendarModels = useMemo(() => {
-    if (!form.modulo_atual_id) return [];
-    return calendarModels.filter(m => m.modulo_id === form.modulo_atual_id);
-  }, [calendarModels, form.modulo_atual_id]);
+
 
   const carregarOpcoes = async () => {
     setError(null);
@@ -113,12 +106,11 @@ export const ClassManagement: React.FC = () => {
       const professorFilters: any = { role: 'professor', ativo: true };
       if (isPoloScoped && userPoloId) professorFilters.polo_id = userPoloId;
 
-      const [polosResp, niveisResp, modulosResp, professoresResp, calendarModelsResp] = await Promise.all([
+      const [polosResp, niveisResp, modulosResp, professoresResp] = await Promise.all([
         PolosAPI.listar(true),
         NiveisAPI.listar(),
         ModulosAPI.listar(),
         UserService.listUsers(professorFilters),
-        CalendarModelsAPI.listar(),
       ]);
 
       const polosList = (polosResp as any) as any[];
@@ -133,7 +125,6 @@ export const ClassManagement: React.FC = () => {
       })));
 
       setModulos(Array.isArray(modulosResp) ? modulosResp : []);
-      setCalendarModels(Array.isArray(calendarModelsResp) ? calendarModelsResp : []);
 
       const profList = (professoresResp as any) as any[];
       setProfessores((Array.isArray(profList) ? profList : []).map(u => ({
@@ -203,7 +194,6 @@ export const ClassManagement: React.FC = () => {
       dias_semana: globalConfigs.dias_semana || [],
       horario_inicio: globalConfigs.horario_aulas || '',
       data_inicio: new Date().toISOString().split('T')[0],
-      calendar_model_id: '',
     });
   };
 
@@ -225,7 +215,6 @@ export const ClassManagement: React.FC = () => {
       data_previsao_termino: t.data_previsao_termino || '',
       data_conclusao: t.data_conclusao || '',
       migracao_concluida: !!t.migracao_concluida,
-      calendar_model_id: '', // Editing doesn't apply new model
     });
   };
 
@@ -274,45 +263,14 @@ export const ClassManagement: React.FC = () => {
         data_inicio: form.data_inicio || undefined,
         data_previsao_termino: form.data_previsao_termino || undefined,
         data_conclusao: form.data_conclusao || undefined,
-        migracao_concluida: form.migracao_concluida,
-      };
-
-      let createdTurmaId: string | null = null;
 
       if (editingId) {
         await TurmasAPI.atualizar(editingId, payload);
       } else {
-        const resp = await TurmasAPI.criar(payload);
-        createdTurmaId = (resp as any).id;
+        await TurmasAPI.criar(payload);
       }
 
-      // Handle Calendar Model Copying
-      if (createdTurmaId && !editingId && form.calendar_model_id) {
-        try {
-          // 1. Fetch days from model
-          const days = await CalendarModelsAPI.listarDias(form.calendar_model_id);
-          if (Array.isArray(days) && days.length > 0) {
-            // 2. Create calendar entries for the new class
-            await Promise.all(days.map(day => 
-              CalendarioService.criar({
-                turma_id: createdTurmaId!,
-                modulo_id: form.modulo_atual_id, 
-                licao_id: day.licao_id!,
-                data_aula: day.data_aula,
-                observacoes: day.observacoes
-              })
-            ));
-            showFeedback('success', 'Sucesso', 'Turma criada e calendário gerado com sucesso.');
-          } else {
-            showFeedback('success', 'Sucesso', 'Turma criada, mas o modelo selecionado não tinha datas.');
-          }
-        } catch (calErr) {
-          console.error("Erro ao aplicar modelo de calendário", calErr);
-          showFeedback('warning', 'Atenção', 'Turma criada, mas houve erro ao gerar o calendário.');
-        }
-      } else {
-         showFeedback('success', 'Sucesso', editingId ? 'Turma atualizada com sucesso.' : 'Turma criada com sucesso.');
-      }
+      showFeedback('success', 'Sucesso', editingId ? 'Turma atualizada com sucesso.' : 'Turma criada com sucesso.');
 
       await carregarTurmas();
       startCreate();
@@ -513,7 +471,7 @@ export const ClassManagement: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Módulo Inicial/Atual</label>
-            <Select value={form.modulo_atual_id} onChange={val => setForm(prev => ({ ...prev, modulo_atual_id: val, calendar_model_id: '' }))}>
+            <Select value={form.modulo_atual_id} onChange={val => setForm(prev => ({ ...prev, modulo_atual_id: val }))}>
               <option value="">Selecione o módulo</option>
               {modulos.map(m => (
                 <option key={m.id} value={m.id}>
@@ -523,29 +481,7 @@ export const ClassManagement: React.FC = () => {
             </Select>
           </div>
 
-          {!editingId && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                Modelo de Calendário
-                <span className="text-xs text-gray-500 font-normal">(opcional)</span>
-              </label>
-              <Select 
-                value={form.calendar_model_id} 
-                onChange={val => setForm(prev => ({ ...prev, calendar_model_id: val }))}
-                disabled={!form.modulo_atual_id}
-              >
-                  <option value="">{form.modulo_atual_id ? 'Selecione ou deixe em branco' : 'Selecione o módulo primeiro'}</option>
-                  {availableCalendarModels.map(m => (
-                    <option key={m.id} value={m.id}>
-                       {m.nome} ({m.ano}/{m.semestre})
-                    </option>
-                  ))}
-              </Select>
-              {form.modulo_atual_id && availableCalendarModels.length === 0 && (
-                <p className="text-xs text-yellow-600 mt-1">Nenhum modelo encontrado para este módulo.</p>
-              )}
-            </div>
-          )}
+
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Horário de Início</label>
