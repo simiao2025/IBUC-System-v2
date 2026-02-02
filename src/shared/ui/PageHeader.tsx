@@ -11,6 +11,7 @@ interface PageHeaderProps {
   onAction?: () => void;
   showBackButton?: boolean;
   backTo?: string;
+  children?: React.ReactNode;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({
@@ -21,6 +22,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   onAction,
   showBackButton = true,
   backTo = '/admin/dashboard',
+  children,
 }) => {
   const navigate = useNavigate();
 
@@ -50,16 +52,22 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               )}
             </div>
           </div>
-
-          {/* Right: Action Button (optional) */}
-          {actionLabel && onAction && (
-            <Button
-              onClick={onAction}
-              className="bg-red-600 hover:bg-red-700 text-white flex items-center justify-center w-full sm:w-auto"
-            >
-              {actionIcon}
-              {actionLabel}
-            </Button>
+          
+          {/* Right: Action Button (optional) or Children */}
+          {children ? (
+            <div className="flex-shrink-0">
+              {children}
+            </div>
+          ) : (
+            actionLabel && onAction && (
+              <Button
+                onClick={onAction}
+                className="bg-red-600 hover:bg-red-700 text-white flex items-center justify-center w-full sm:w-auto"
+              >
+                {actionIcon}
+                {actionLabel}
+              </Button>
+            )
           )}
         </div>
       </div>

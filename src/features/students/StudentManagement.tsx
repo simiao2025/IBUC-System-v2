@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { AlunoService, AlunosAPI } from './aluno.service';
+import BlankStudentForm from './BlankStudentForm';
 import StudentForm from '../../components/admin/StudentForm';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -16,7 +17,8 @@ import {
   Filter,
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from 'lucide-react';
 
 const StudentManagement: React.FC = () => {
@@ -119,7 +121,7 @@ const StudentManagement: React.FC = () => {
     const poloId = aluno?.polo_id;
     if (!poloId) return '—';
     const found = polos?.find((p: any) => p.id === poloId);
-    return found?.name || found?.nome || '—';
+    return (found as any)?.name || (found as any)?.nome || '—';
   };
 
   return (
@@ -127,10 +129,23 @@ const StudentManagement: React.FC = () => {
       <PageHeader
         title={isPoloScoped ? 'Gerenciar Alunos do Polo' : 'Gerenciar Alunos'}
         subtitle={isPoloScoped ? 'Visualizar, editar e gerenciar dados dos alunos do polo' : 'Visualizar, editar e gerenciar dados dos alunos'}
-        actionLabel="Adicionar Aluno"
-        actionIcon={<Plus className="h-4 w-4 mr-2" />}
-        onAction={() => navigate('/admin/alunos/novo')}
-      />
+      >
+        <div className="flex gap-2 items-center">
+           <Button 
+               variant="outline" 
+               size="sm" 
+               onClick={() => window.print()}
+               className="bg-white hover:bg-gray-100"
+           >
+               <Printer className="h-4 w-4 mr-2" />
+               Ficha em Branco
+           </Button>
+           <Button size="sm" onClick={() => navigate('/admin/alunos/novo')}>
+               <Plus className="h-4 w-4 mr-2" />
+               Adicionar Aluno
+           </Button>
+        </div>
+      </PageHeader>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
@@ -199,8 +214,8 @@ const StudentManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">{aluno.cpf}</td>
-                    <td className="px-6 py-4">
-                      {aluno.turma?.nome || aluno.turma_nome || (aluno as any).turma_id ? 'Carregando...' : '—'}
+                    <td className="px-6 py-4 text-xs font-medium text-gray-600">
+                      {aluno.turma?.nome || aluno.turma_nome || (aluno as any).turma_id || '—'}
                     </td>
                     {!isPoloScoped && <td className="px-6 py-4">{getPoloLabel(aluno)}</td>}
                     <td className="px-6 py-4">
@@ -270,6 +285,10 @@ const StudentManagement: React.FC = () => {
           loading={editingLoading}
         />
       )}
+
+      <div className="hidden print:block">
+           <BlankStudentForm />
+      </div>
     </div>
   );
 };

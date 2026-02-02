@@ -66,18 +66,11 @@ export const PublicEventsAgenda: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
                         <div className="max-w-2xl">
-                            <div className="inline-flex items-center px-3 py-1 bg-red-100 text-red-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
-                                Próximos Encontros
-                            </div>
                             <h2 className="text-4xl sm:text-6xl font-black text-gray-900 tracking-tighter uppercase">
                                 Agenda de <span className="text-red-600">Eventos</span>
                             </h2>
                         </div>
                         <div className="mt-8 md:mt-0 flex gap-4">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Total</p>
-                                <p className="text-2xl font-black text-gray-900">{eventosAgendados.length}</p>
-                            </div>
                         </div>
                     </div>
 
@@ -124,7 +117,7 @@ export const PublicEventsAgenda: React.FC = () => {
                                             <div className="space-y-3 mb-8">
                                                 <div className="flex items-center text-gray-500 text-sm font-medium">
                                                     <MapPin className="h-4 w-4 mr-2 text-red-500" />
-                                                    <span className="truncate">{evt.local || 'Sede IBUC'}</span>
+                                                    <span className="truncate">{evt.local || ''}</span>
                                                 </div>
                                             </div>
                                             

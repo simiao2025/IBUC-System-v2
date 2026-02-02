@@ -43,6 +43,7 @@ export interface PreMatriculaFormData {
         convenio_medico: string;
         hospital_preferencia: string;
         autorizacao_medica: boolean;
+        autorizacao_imagem: boolean;
     };
 
     // Responsável
@@ -106,6 +107,7 @@ const INITIAL_FORM_DATA: PreMatriculaFormData = {
         convenio_medico: '',
         hospital_preferencia: '',
         autorizacao_medica: false,
+        autorizacao_imagem: false,
     },
 
     nome_responsavel: '',

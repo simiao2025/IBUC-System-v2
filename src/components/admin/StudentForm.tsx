@@ -153,6 +153,7 @@ const StudentForm: React.FC<StudentFormProps> = ({
     convenio_medico: safeString((student as any)?.convenio_medico || student?.saude?.convenio_medico),
     hospital_preferencia: safeString((student as any)?.hospital_preferencia || student?.saude?.hospital_preferencia),
     autorizacao_medica: (student as any)?.autorizacao_medica || student?.saude?.autorizacao_medica || false,
+    autorizacao_imagem: (student as any)?.autorizacao_imagem || student?.saude?.autorizacao_imagem || false,
 
     // Observações
     observacoes: safeString(student?.observacoes)
@@ -447,7 +448,8 @@ const StudentForm: React.FC<StudentFormProps> = ({
         contato_emergencia_telefone: formData.contato_emergencia_telefone,
         convenio_medico: formData.convenio_medico,
         hospital_preferencia: formData.hospital_preferencia,
-        autorizacao_medica: formData.autorizacao_medica
+        autorizacao_medica: formData.autorizacao_medica,
+        autorizacao_imagem: formData.autorizacao_imagem
       }
     };
 
@@ -961,6 +963,19 @@ const StudentForm: React.FC<StudentFormProps> = ({
                 />
                 <label htmlFor="autorizacao_medica" className="text-sm text-gray-700">
                   Autorizo o IBUC a prestar primeiros socorros e encaminhar ao hospital em caso de emergência médica.
+                </label>
+              </div>
+              <div className="md:col-span-2 flex items-start mt-2">
+                <input
+                  type="checkbox"
+                  id="autorizacao_imagem"
+                  name="autorizacao_imagem"
+                  checked={Boolean(formData.autorizacao_imagem)}
+                  onChange={(e) => handleInputChange('autorizacao_imagem', e.target.checked)}
+                  className="mt-1 mr-3 h-4 w-4 text-red-600 rounded"
+                />
+                <label htmlFor="autorizacao_imagem" className="text-sm text-gray-700">
+                  Autorizo o uso da imagem do aluno para fins de divulgação institucional e pedagógica, em redes sociais, sites e materiais impressos do IBUC, conforme a Lei Geral de Proteção de Dados (LGPD).
                 </label>
               </div>
             </div>

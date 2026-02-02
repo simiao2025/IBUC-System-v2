@@ -243,18 +243,32 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
 
                     {/* Sessão 6: Termos */}
                     <Card>
-                        <div className="flex items-start">
-                            <input
-                                type="checkbox"
-                                id="aceite_termo"
-                                name="aceite_termo"
-                                checked={formData.aceite_termo}
-                                onChange={(e) => setFormData(prev => ({ ...prev, aceite_termo: e.target.checked }))}
-                                className="mt-1 mr-3 h-4 w-4 text-red-600 rounded"
-                            />
-                            <label htmlFor="aceite_termo" className="text-sm text-gray-700">
-                                Li e aceito os termos de responsabilidade e autorizo o cadastro. *
-                            </label>
+                        <div className="space-y-4">
+                                <input
+                                    type="checkbox"
+                                    id="autorizacao_imagem"
+                                    name="autorizacao_imagem"
+                                    checked={formData.saude.autorizacao_imagem}
+                                    onChange={handleHealthChange}
+                                    className="mt-1 mr-3 h-4 w-4 text-red-600 rounded"
+                                />
+                                <label htmlFor="autorizacao_imagem" className="text-sm text-gray-700">
+                                    Autorizo o uso da imagem do aluno para fins de divulgação institucional e pedagógica, em redes sociais, sites e materiais impressos do IBUC, conforme a Lei Geral de Proteção de Dados (LGPD).
+                                </label>
+
+                            <div className="flex items-start">
+                                <input
+                                    type="checkbox"
+                                    id="aceite_termo"
+                                    name="aceite_termo"
+                                    checked={formData.aceite_termo}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, aceite_termo: e.target.checked }))}
+                                    className="mt-1 mr-3 h-4 w-4 text-red-600 rounded"
+                                />
+                                <label htmlFor="aceite_termo" className="text-sm text-gray-700">
+                                    Li e aceito os termos de responsabilidade e autorizo o cadastro. *
+                                </label>
+                            </div>
                         </div>
                     </Card>
 
