@@ -28,6 +28,7 @@ import { UserService } from '@/services/userService';
 import { api } from '@/shared/api/api';
 import { UrgentBanner } from '@/components/notifications/UrgentBanner';
 import { useNavigate } from 'react-router-dom';
+import { formatLocalDate, getLocalDay, getLocalMonth } from '@/shared/utils/dateUtils';
 
 const AdminDashboard: React.FC = () => {
   const { students, enrollments, polos, logout, currentUser, preMatriculas } = useApp();
@@ -393,7 +394,7 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-500">
-                            {new Date(enrollment.enrollmentDate).toLocaleDateString('pt-BR')}
+                            {formatLocalDate(enrollment.enrollmentDate, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </p>
                         </div>
                       </div>
@@ -419,9 +420,8 @@ const AdminDashboard: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {upcomingEvents.map((evt: any, idx: number) => {
-                  const date = new Date(evt.data_inicio);
-                  const day = date.getDate();
-                  const month = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+                  const day = getLocalDay(evt.data_inicio);
+                  const month = getLocalMonth(evt.data_inicio);
                   const colors = [
                     { bg: 'bg-blue-50', text: 'text-blue-600' },
                     { bg: 'bg-yellow-50', text: 'text-yellow-600' },

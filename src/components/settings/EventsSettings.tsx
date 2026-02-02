@@ -8,6 +8,7 @@ import { EventosService, type Evento } from '../../services/eventos.service';
 
 import { FileUpload } from '../ui/FileUpload';
 import { Trash2, Image as ImageIcon, Video, Star } from 'lucide-react';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 type ScopeMode = 'geral' | 'polo';
   
@@ -288,7 +289,7 @@ export const EventsSettings: React.FC = () => {
                     )}
                     <td className="px-4 py-3 text-gray-900">{evt.local || '—'}</td>
                     <td className="px-4 py-3 text-gray-900">
-                      {new Date(evt.data_inicio).toLocaleDateString('pt-BR')}
+                      {formatLocalDate(evt.data_inicio, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">

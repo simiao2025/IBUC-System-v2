@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Play, Calendar, MapPin, ChevronRight, Info, X, Image as ImageIcon } from 'lucide-react';
 import { EventosService, type Evento } from '../../features/events/services/eventos.service';
-import Button from '../ui/Button';
+import { parseISOToLocal, getLocalDay, getLocalMonth } from '../utils/dateUtils';
 
 export const PublicEventsAgenda: React.FC = () => {
     const [informativos, setInformativos] = useState<Evento[]>([]);
@@ -49,12 +49,6 @@ export const PublicEventsAgenda: React.FC = () => {
         setSelectedMedia({ url, type });
     };
 
-    const parseDate = (dateStr: string) => {
-        if (!dateStr) return new Date();
-        if (dateStr.includes('T')) return new Date(dateStr);
-        return new Date(dateStr + 'T12:00:00');
-    };
-
     if (loading) return <div className="text-center py-20 text-gray-500">Carregando eventos...</div>;
 
     return (
@@ -77,7 +71,6 @@ export const PublicEventsAgenda: React.FC = () => {
                     {eventosAgendados.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {eventosAgendados.map(evt => {
-                                const evtDate = parseDate(evt.data_inicio);
                                 return (
                                     <div key={evt.id} className="group bg-white rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col">
                                         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
@@ -91,9 +84,9 @@ export const PublicEventsAgenda: React.FC = () => {
                                             {/* Badge de Data */}
                                             <div className="absolute bottom-6 left-6 flex items-center gap-3">
                                                 <div className="bg-white rounded-2xl p-2 px-3 text-center min-w-[50px] shadow-xl">
-                                                    <p className="text-red-600 text-xl font-black leading-none">{evtDate.getDate()}</p>
+                                                    <p className="text-red-600 text-xl font-black leading-none">{getLocalDay(evt.data_inicio)}</p>
                                                     <p className="text-gray-500 text-[9px] font-bold uppercase">
-                                                        {evtDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                                                        {getLocalMonth(evt.data_inicio)}
                                                     </p>
                                                 </div>
                                                 <div className="text-white drop-shadow-md">

@@ -5,6 +5,7 @@ import Select from '../../../components/ui/Select';
 import { useApp } from '../../../context/AppContext';
 import { EventosService, type Evento } from '../../../services/eventos.service';
 import { EventForm } from './EventForm';
+import { formatLocalDate } from '../../../shared/utils/dateUtils';
 
 type ScopeMode = 'geral' | 'polo';
 
@@ -191,7 +192,7 @@ export const EventList: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-900">
-                      {new Date(evt.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      {formatLocalDate(evt.data_inicio, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">

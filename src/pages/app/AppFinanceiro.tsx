@@ -8,6 +8,7 @@ import { FinanceiroService } from '../../features/finance/financeiro.service';
 import type { Mensalidade } from '../../types/database';
 import StudentMaterialOrder from '../../features/materials/StudentMaterialOrder';
 import { API_BASE_URL } from '@/shared/api/api';
+import { formatLocalDate, parseISOToLocal } from '@/shared/utils/dateUtils';
 
 const AppFinanceiro: React.FC = () => {
   const { currentUser, showFeedback } = useApp();
@@ -198,8 +199,10 @@ const AppFinanceiro: React.FC = () => {
                   .slice()
                   .sort((a, b) => String(b.vencimento).localeCompare(String(a.vencimento)))
                   .map((c) => {
-                    const venc = c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—';
-                    const isVencida = c.status === 'pendente' && new Date(c.vencimento) < new Date();
+                    const venc = c.vencimento ? formatLocalDate(c.vencimento, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+                    // Para verificar se venceu, comparamos com a data atual (sem hora para ser justo com o fuso)
+                    const vencDate = c.vencimento ? parseISOToLocal(c.vencimento) : null;
+                    const isVencida = c.status === 'pendente' && vencDate && vencDate < new Date();
                     const statusLabel = isVencida ? 'vencida' : c.status;
 
                     const badge =

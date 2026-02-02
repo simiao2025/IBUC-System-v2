@@ -7,6 +7,7 @@ import Input from '../../../shared/ui/Input';
 import { useApp } from '../../../context/AppContext';
 import { EventosService, type Evento } from '../../../services/eventos.service';
 import FileUpload from '../../../shared/ui/FileUpload';
+import { parseISOToLocal } from '../../../shared/utils/dateUtils';
 
 interface EventFormProps {
   onClose: () => void;

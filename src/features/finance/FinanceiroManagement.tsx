@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Settings, CheckCircle } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import Button from '@/components/ui/Button';
@@ -6,8 +6,9 @@ import Select from '@/components/ui/Select';
 import { FinanceiroService } from './financeiro.service';
 import { TurmasAPI } from '@/services/turma.service';
 import { useApp } from '@/app/providers/AppContext';
-import AccessControl, { useAccessControl } from '@/features/auth/ui/AccessControl';
+import { useAccessControl } from '@/features/auth/ui/AccessControl';
 import TreasurerPaymentValidation from '@/features/materials/TreasurerPaymentValidation';
+import { formatLocalDate } from '@/shared/utils/dateUtils';
 
 type ActiveTab = 'controle' | 'validacao' | 'config';
 
@@ -36,11 +37,6 @@ const AdminFinanceiro: React.FC = () => {
       else if (hasConfigAccess) setActiveTab('config');
     }
   }, [hasControlAccess, hasValidationAccess, hasConfigAccess, activeTab]);
-
-  const isRestrictedTreasurer = useMemo(() => {
-    const role = currentUser?.adminUser?.role;
-    return role ? ['primeiro_tesoureiro_polo', 'segundo_tesoureiro_polo', 'tesoureiro_polo'].includes(role) : false;
-  }, [currentUser]);
 
   const [cobrancas, setCobrancas] = useState<any[]>([]);
   const [turmas, setTurmas] = useState<any[]>([]);
@@ -117,7 +113,7 @@ const AdminFinanceiro: React.FC = () => {
   };
 
   const formatarData = (data: string) => {
-    return new Date(data).toLocaleDateString('pt-BR');
+    return formatLocalDate(data, { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   return (

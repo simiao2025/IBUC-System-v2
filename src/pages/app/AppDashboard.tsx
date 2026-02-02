@@ -7,6 +7,7 @@ import Button from '../../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { Icon3D } from '../../components/ui/Icon3D';
 import { BookOpen, ClipboardList, Wallet, FolderOpen } from 'lucide-react';
+import { getLocalDay, getLocalMonth } from '../../shared/utils/dateUtils';
 
 
 
@@ -124,9 +125,8 @@ const AppDashboard: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {upcomingEvents.map((evt, idx) => {
-                const date = new Date(evt.data_inicio);
-                const day = date.getDate();
-                const month = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+                const day = getLocalDay(evt.data_inicio);
+                const month = getLocalMonth(evt.data_inicio);
 
                 const colors = [
                   { bg: 'bg-blue-50', text: 'text-blue-600' },

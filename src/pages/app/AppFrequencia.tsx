@@ -9,6 +9,7 @@ import type { Presenca } from '../../types/database';
 import { TurmasAPI } from '../../features/classes/services/turma.service';
 import { AlunosAPI } from '../../features/students/aluno.service';
 import { DracmasAPI } from '../../features/finance/dracmas.service';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const AppFrequencia: React.FC = () => {
   const { currentUser } = useApp();
@@ -249,7 +250,7 @@ const AppFrequencia: React.FC = () => {
                   .slice()
                   .sort((a, b) => String(a.data).localeCompare(String(b.data)))
                   .map((p) => {
-                    const dataFmt = p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '—';
+                    const dataFmt = p.data ? formatLocalDate(p.data, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
                     const badge =
                       p.status === 'presente'
                         ? 'bg-green-100 text-green-800'
@@ -305,7 +306,7 @@ const AppFrequencia: React.FC = () => {
                   .sort((a, b) => String(a.data).localeCompare(String(b.data)))
                   .map((d, idx) => (
                     <tr key={idx}>
-                      <td className="px-4 py-2">{d.data ? new Date(d.data).toLocaleDateString('pt-BR') : '—'}</td>
+                      <td className="px-4 py-2">{d.data ? formatLocalDate(d.data, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</td>
                       <td className="px-4 py-2 text-gray-700">{d.descricao || d.tipo}</td>
                       <td className="px-4 py-2 text-right font-bold text-yellow-700">+{d.quantidade}</td>
                     </tr>

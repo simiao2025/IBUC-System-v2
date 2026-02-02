@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext';
 import { AlunosAPI } from '../../features/students/aluno.service';
 import { ModulosAPI, LicoesAPI } from '../../services/modulos.service';
 import { BookOpen, Clock, CheckCircle } from 'lucide-react';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 type Licao = {
   id: string;
@@ -259,12 +260,12 @@ const AppModulos: React.FC = () => {
                         )}
                         {modulo.data_inicio && (
                           <span className="text-xs">
-                            Início: {new Date(modulo.data_inicio).toLocaleDateString('pt-BR')}
+                            Início: {formatLocalDate(modulo.data_inicio, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         )}
                         {modulo.data_conclusao && (
                           <span className="text-xs">
-                            Conclusão: {new Date(modulo.data_conclusao).toLocaleDateString('pt-BR')}
+                            Conclusão: {formatLocalDate(modulo.data_conclusao, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         )}
                       </div>

@@ -9,6 +9,7 @@ import { RegistrationCard } from '../../components/RegistrationCard';
 import { Printer, User as UserIcon, Edit, Save, X, Trash2 } from 'lucide-react';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 export const PreMatriculaManagement: React.FC = () => {
   const {
@@ -304,7 +305,7 @@ export const PreMatriculaManagement: React.FC = () => {
                                   />
                                 ) : (
                                   <p className="text-sm text-gray-900">
-                                    {selectedData.data_nascimento ? new Date(selectedData.data_nascimento).toLocaleDateString() : 'N/A'}
+                                    {selectedData.data_nascimento ? formatLocalDate(selectedData.data_nascimento, { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}
                                   </p>
                                 )}
                               </div>
@@ -391,7 +392,7 @@ export const PreMatriculaManagement: React.FC = () => {
                                   />
                                 ) : (
                                   <p className="text-sm text-gray-900">
-                                    {selectedData?.rg_data_expedicao ? new Date(selectedData.rg_data_expedicao).toLocaleDateString() : 'N/A'}
+                                    {selectedData?.rg_data_expedicao ? formatLocalDate(selectedData.rg_data_expedicao, { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}
                                   </p>
                                 )}
                               </div>

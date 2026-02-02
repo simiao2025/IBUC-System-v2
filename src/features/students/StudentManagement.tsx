@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Printer
 } from 'lucide-react';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const StudentManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -221,7 +222,7 @@ const StudentManagement: React.FC = () => {
                     <td className="px-6 py-4">
                       {getStatusBadge(aluno.status || 'ativo')}
                     </td>
-                    <td className="px-6 py-4">{new Date(aluno.data_criacao || aluno.created_at || new Date()).toLocaleDateString()}</td>
+                    <td className="px-6 py-4">{formatLocalDate(aluno.data_criacao || aluno.created_at, { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end space-x-2">
                         <button className="p-1 hover:bg-gray-100 rounded text-gray-600" title="Ver">

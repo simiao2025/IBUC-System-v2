@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Calendar, Info, MapPin } from 'lucide-react';
 import { EventosService, type Evento } from '../../features/events/services/eventos.service';
-import Button from '../ui/Button';
+import { parseISOToLocal, formatLocalDate } from '../utils/dateUtils';
 
 export const EventHeroBanner: React.FC = () => {
     const [highlights, setHighlights] = useState<Evento[]>([]);
@@ -33,12 +33,6 @@ export const EventHeroBanner: React.FC = () => {
         };
         fetchHighlights();
     }, []);
-
-    const parseDate = (dateStr: string) => {
-        if (!dateStr) return new Date();
-        if (dateStr.includes('T')) return new Date(dateStr);
-        return new Date(dateStr + 'T12:00:00');
-    };
 
     if (loading || highlights.length === 0) return null;
 
@@ -86,7 +80,7 @@ export const EventHeroBanner: React.FC = () => {
                                     <div className="flex items-center py-2 px-4 rounded-2xl bg-black/20 border border-white/5 backdrop-blur-sm">
                                         <Calendar className="h-5 w-5 mr-3 text-red-500" />
                                         <span className="text-white font-bold">
-                                            {parseDate(mainEvent.data_inicio).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                            {formatLocalDate(mainEvent.data_inicio)}
                                         </span>
                                     </div>
                                     
