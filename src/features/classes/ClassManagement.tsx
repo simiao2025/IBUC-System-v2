@@ -263,6 +263,7 @@ export const ClassManagement: React.FC = () => {
         data_inicio: form.data_inicio || undefined,
         data_previsao_termino: form.data_previsao_termino || undefined,
         data_conclusao: form.data_conclusao || undefined,
+      };
 
       if (editingId) {
         await TurmasAPI.atualizar(editingId, payload);
