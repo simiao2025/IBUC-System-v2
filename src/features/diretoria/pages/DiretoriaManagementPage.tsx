@@ -104,7 +104,7 @@ const reverseCargoMapping: Record<string, string> = {
 };
 
 const DiretoriaManagementPage: React.FC = () => {
-  const { polos, currentUser } = useApp();
+  const { polos, currentUser, showFeedback } = useApp();
   const [searchParams] = useSearchParams();
   const [directorate, setDirectorate] = useState<DirectoratePosition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,7 +226,7 @@ const DiretoriaManagementPage: React.FC = () => {
       setDirectorate(formattedData as DirectoratePosition[]);
     } catch (error: unknown) {
       console.error('Erro ao carregar diretorias:', error);
-      alert('Erro ao carregar diretorias. Verifique o console.');
+      showFeedback('error', 'Erro', 'Erro ao carregar diretorias. Verifique o console.');
     } finally {
       setLoading(false);
     }
@@ -295,17 +295,17 @@ const DiretoriaManagementPage: React.FC = () => {
     e.preventDefault();
 
     if (!formData.nome_completo || !formData.email || !formData.cargo) {
-      alert('Preencha todos os campos obrigatórios');
+      showFeedback('warning', 'Atenção', 'Preencha todos os campos obrigatórios');
       return;
     }
 
     if (directorateMode === 'polo' && !selectedPoloId) {
-      alert('Selecione um polo para cadastrar a diretoria do polo.');
+      showFeedback('warning', 'Atenção', 'Selecione um polo para cadastrar a diretoria do polo.');
       return;
     }
 
     if (directorateMode === 'polo' && !canManagePoloDirectorate) {
-      alert('Apenas Diretor Geral / Admin Geral pode cadastrar/alterar Diretor e Coordenador dos polos.');
+      showFeedback('error', 'Acesso Negado', 'Apenas Diretor Geral / Admin Geral pode cadastrar/alterar Diretor e Coordenador dos polos.');
       return;
     }
 
@@ -317,7 +317,7 @@ const DiretoriaManagementPage: React.FC = () => {
       // Se for novo usuário (ou diretoria geral sem usuário selecionado), criar primeiro
       if ((isNewUser || directorateMode === 'geral') && !editingPosition && !finalUsuarioId) {
         if (!formData.cpf) {
-          alert('CPF é obrigatório para criar um novo usuário (usado para gerar a senha inicial).');
+          showFeedback('warning', 'Atenção', 'CPF é obrigatório para criar um novo usuário (usado para gerar a senha inicial).');
           return;
         }
 
@@ -400,7 +400,7 @@ const DiretoriaManagementPage: React.FC = () => {
           });
         }
 
-        alert(`Diretoria atualizada com sucesso!${isNewUser ? ' Um novo usuário foi criado para este membro.' : ''}`);
+        showFeedback('success', 'Sucesso', `Diretoria atualizada com sucesso!${isNewUser ? ' Um novo usuário foi criado para este membro.' : ''}`);
       } else {
         if (directorateMode === 'polo') {
           await DiretoriaService.criarDiretoriaPolo({
@@ -424,7 +424,7 @@ const DiretoriaManagementPage: React.FC = () => {
             data_inicio: formData.data_inicio,
           });
         }
-        alert(`Diretoria criada com sucesso!${isNewUser ? ' Uma conta de usuário com senha (6 primeiros dígitos do CPF) também foi criada.' : ''}`);
+        showFeedback('success', 'Sucesso', `Diretoria criada com sucesso!${isNewUser ? ' Uma conta de usuário com senha (6 primeiros dígitos do CPF) também foi criada.' : ''}`);
       }
 
       // Recarregar lista
@@ -447,7 +447,7 @@ const DiretoriaManagementPage: React.FC = () => {
     } catch (error: unknown) {
       console.error('Erro ao salvar diretoria:', error);
       const message = error instanceof Error ? error.message : 'Erro ao salvar diretoria. Verifique o console.';
-      alert(message);
+      showFeedback('error', 'Erro ao Salvar', message);
     } finally {
       setSaving(false);
     }
@@ -455,7 +455,7 @@ const DiretoriaManagementPage: React.FC = () => {
 
   const handleEdit = (position: DirectoratePosition) => {
     if (directorateMode === 'polo' && !canManagePoloDirectorate) {
-      alert('Apenas Diretor Geral / Admin Geral pode editar cargos da diretoria do polo.');
+      showFeedback('error', 'Erro', 'Apenas Diretor Geral / Admin Geral pode editar cargos da diretoria do polo.');
       return;
     }
     setEditingPosition(position);
@@ -493,7 +493,7 @@ const DiretoriaManagementPage: React.FC = () => {
       if (!position) return;
 
       if (directorateMode === 'polo' && !canManagePoloDirectorate) {
-        alert('Apenas Diretor Geral / Admin Geral pode ativar/desativar cargos da diretoria do polo.');
+        showFeedback('error', 'Acesso Negado', 'Apenas Diretor Geral / Admin Geral pode ativar/desativar cargos da diretoria do polo.');
         return;
       }
 
@@ -504,12 +504,12 @@ const DiretoriaManagementPage: React.FC = () => {
       } else {
         await DiretoriaService.atualizarDiretoriaGeral(positionId, { status: newStatus });
       }
-      alert(`Diretoria ${newStatus === 'ativa' ? 'ativada' : 'desativada'} com sucesso!`);
+      showFeedback('info', 'Status Atualizado', `Diretoria ${newStatus === 'ativa' ? 'ativada' : 'desativada'} com sucesso!`);
       await carregarDiretorias();
     } catch (error: unknown) {
       console.error('Erro ao alterar status:', error);
       const message = error instanceof Error ? error.message : 'Erro ao alterar status. Verifique o console.';
-      alert(message);
+      showFeedback('error', 'Erro', message);
     }
   };
 
@@ -624,7 +624,7 @@ const DiretoriaManagementPage: React.FC = () => {
         actionIcon={<Crown className="h-4 w-4" />}
         onAction={() => {
           if (directorateMode === 'polo' && !canManagePoloDirectorate) {
-            alert('Apenas Diretor Geral / Admin Geral pode adicionar cargos na diretoria do polo.');
+            showFeedback('error', 'Acesso Negado', 'Apenas Diretor Geral / Admin Geral pode adicionar cargos na diretoria do polo.');
             return;
           }
           // Always force IS NEW USER logic to show inputs

@@ -55,31 +55,41 @@ export class DiretoriaService {
 
     const usuarioId = await this.resolveUsuarioId(dto, 'geral');
 
-    // Criar registro na diretoria_geral
-    const { data, error } = await this.supabase
-      .getAdminClient()
-      .from('diretoria_geral')
-      .insert({
-        usuario_id: usuarioId,
-        cargo: dto.cargo,
-        nome_completo: dto.nome_completo,
-        cpf: dto.cpf,
-        rg: dto.rg,
-        telefone: dto.telefone,
-        email: dto.email,
-        data_inicio: dto.data_inicio,
-        data_fim: dto.data_fim || null,
-        observacoes: dto.observacoes || null,
-        status: 'ativa',
-      })
-      .select()
-      .single();
+    try {
+      // Criar registro na diretoria_geral
+      const { data, error } = await this.supabase
+        .getAdminClient()
+        .from('diretoria_geral')
+        .insert({
+          usuario_id: usuarioId,
+          cargo: dto.cargo,
+          nome_completo: dto.nome_completo,
+          cpf: dto.cpf,
+          rg: dto.rg,
+          telefone: dto.telefone,
+          email: dto.email,
+          data_inicio: dto.data_inicio,
+          data_fim: dto.data_fim || null,
+          observacoes: dto.observacoes || null,
+          status: 'ativa',
+        })
+        .select()
+        .single();
 
-    if (error) {
-      throw new BadRequestException(`Erro ao criar diretoria: ${error.message}`);
+      if (error) {
+        if (error.code === '23505') {
+          throw new BadRequestException(
+            'Este CPF ou E-mail já está vinculado a um cargo na diretoria geral. Verifique os registros inativos se necessário.'
+          );
+        }
+        throw new BadRequestException(`Erro ao criar diretoria: ${error.message}`);
+      }
+
+      return data;
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(`Erro inesperado ao criar diretoria: ${e.message}`);
     }
-
-    return data;
   }
 
   async listarDiretoriaGeral(ativo?: boolean) {
@@ -205,31 +215,41 @@ export class DiretoriaService {
       }
     }
 
-    const { data, error } = await this.supabase
-      .getAdminClient()
-      .from('diretoria_geral')
-      .update({
-        ...(dto.cargo && { cargo: dto.cargo }),
-        ...(dto.nome_completo && { nome_completo: dto.nome_completo }),
-        ...(dto.cpf !== undefined && { cpf: dto.cpf }),
-        ...(dto.rg !== undefined && { rg: dto.rg }),
-        ...(dto.telefone !== undefined && { telefone: dto.telefone }),
-        ...(dto.email !== undefined && { email: dto.email }),
-        ...(dto.data_inicio && { data_inicio: dto.data_inicio }),
-        ...(dto.data_fim !== undefined && { data_fim: dto.data_fim }),
-        ...(dto.status && { status: dto.status }),
-        ...(dto.observacoes !== undefined && { observacoes: dto.observacoes }),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.supabase
+        .getAdminClient()
+        .from('diretoria_geral')
+        .update({
+          ...(dto.cargo && { cargo: dto.cargo }),
+          ...(dto.nome_completo && { nome_completo: dto.nome_completo }),
+          ...(dto.cpf !== undefined && { cpf: dto.cpf }),
+          ...(dto.rg !== undefined && { rg: dto.rg }),
+          ...(dto.telefone !== undefined && { telefone: dto.telefone }),
+          ...(dto.email !== undefined && { email: dto.email }),
+          ...(dto.data_inicio && { data_inicio: dto.data_inicio }),
+          ...(dto.data_fim !== undefined && { data_fim: dto.data_fim }),
+          ...(dto.status && { status: dto.status }),
+          ...(dto.observacoes !== undefined && { observacoes: dto.observacoes }),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      throw new BadRequestException(`Erro ao atualizar diretoria: ${error.message}`);
+      if (error) {
+        if (error.code === '23505') {
+          throw new BadRequestException(
+            'Não foi possível atualizar: o CPF ou E-mail informado já está em uso por outro registro na diretoria.'
+          );
+        }
+        throw new BadRequestException(`Erro ao atualizar diretoria: ${error.message}`);
+      }
+
+      return data;
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(`Erro inesperado ao atualizar diretoria: ${e.message}`);
     }
-
-    return data;
   }
 
   async desativarDiretoriaGeral(id: string) {
@@ -269,32 +289,42 @@ export class DiretoriaService {
 
     const usuarioId = await this.resolveUsuarioId(dto, 'polo');
 
-    // Criar registro na diretoria_polo
-    const { data, error } = await this.supabase
-      .getAdminClient()
-      .from('diretoria_polo')
-      .insert({
-        polo_id: poloId,
-        usuario_id: usuarioId,
-        cargo: dto.cargo,
-        nome_completo: dto.nome_completo,
-        cpf: dto.cpf,
-        rg: dto.rg,
-        telefone: dto.telefone,
-        email: dto.email,
-        data_inicio: dto.data_inicio,
-        data_fim: dto.data_fim || null,
-        observacoes: dto.observacoes || null,
-        status: 'ativa',
-      })
-      .select()
-      .single();
+    try {
+      // Criar registro na diretoria_polo
+      const { data, error } = await this.supabase
+        .getAdminClient()
+        .from('diretoria_polo')
+        .insert({
+          polo_id: poloId,
+          usuario_id: usuarioId,
+          cargo: dto.cargo,
+          nome_completo: dto.nome_completo,
+          cpf: dto.cpf,
+          rg: dto.rg,
+          telefone: dto.telefone,
+          email: dto.email,
+          data_inicio: dto.data_inicio,
+          data_fim: dto.data_fim || null,
+          observacoes: dto.observacoes || null,
+          status: 'ativa',
+        })
+        .select()
+        .single();
 
-    if (error) {
-      throw new BadRequestException(`Erro ao criar diretoria do polo: ${error.message}`);
+      if (error) {
+        if (error.code === '23505') {
+          throw new BadRequestException(
+            'Este CPF ou E-mail já está vinculado a um cargo de diretoria neste polo. Verifique os registros inativos.'
+          );
+        }
+        throw new BadRequestException(`Erro ao criar diretoria do polo: ${error.message}`);
+      }
+
+      return data;
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(`Erro inesperado ao criar diretoria do polo: ${e.message}`);
     }
-
-    return data;
   }
 
   async listarDiretoriaPolo(poloId?: string, ativo?: boolean) {
@@ -366,31 +396,41 @@ export class DiretoriaService {
       }
     }
 
-    const { data, error } = await this.supabase
-      .getAdminClient()
-      .from('diretoria_polo')
-      .update({
-        ...(dto.cargo && { cargo: dto.cargo }),
-        ...(dto.nome_completo && { nome_completo: dto.nome_completo }),
-        ...(dto.cpf !== undefined && { cpf: dto.cpf }),
-        ...(dto.rg !== undefined && { rg: dto.rg }),
-        ...(dto.telefone !== undefined && { telefone: dto.telefone }),
-        ...(dto.email !== undefined && { email: dto.email }),
-        ...(dto.data_inicio && { data_inicio: dto.data_inicio }),
-        ...(dto.data_fim !== undefined && { data_fim: dto.data_fim }),
-        ...(dto.status && { status: dto.status }),
-        ...(dto.observacoes !== undefined && { observacoes: dto.observacoes }),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    try {
+      const { data, error } = await this.supabase
+        .getAdminClient()
+        .from('diretoria_polo')
+        .update({
+          ...(dto.cargo && { cargo: dto.cargo }),
+          ...(dto.nome_completo && { nome_completo: dto.nome_completo }),
+          ...(dto.cpf !== undefined && { cpf: dto.cpf }),
+          ...(dto.rg !== undefined && { rg: dto.rg }),
+          ...(dto.telefone !== undefined && { telefone: dto.telefone }),
+          ...(dto.email !== undefined && { email: dto.email }),
+          ...(dto.data_inicio && { data_inicio: dto.data_inicio }),
+          ...(dto.data_fim !== undefined && { data_fim: dto.data_fim }),
+          ...(dto.status && { status: dto.status }),
+          ...(dto.observacoes !== undefined && { observacoes: dto.observacoes }),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      throw new BadRequestException(`Erro ao atualizar diretoria do polo: ${error.message}`);
+      if (error) {
+        if (error.code === '23505') {
+          throw new BadRequestException(
+            'Não foi possível atualizar: o CPF ou E-mail já está em uso por outro registro de diretoria neste polo.'
+          );
+        }
+        throw new BadRequestException(`Erro ao atualizar diretoria do polo: ${error.message}`);
+      }
+
+      return data;
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException(`Erro inesperado ao atualizar diretoria do polo: ${e.message}`);
     }
-
-    return data;
   }
 
   async desativarDiretoriaPolo(id: string) {
