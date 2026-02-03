@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { useApp } from '../../context/AppContext';
 import { DocumentosAPI, type Documento } from '../../services/documentos.service';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 import { FileText, Download, Upload, X } from 'lucide-react';
 
 const AppDocumentos: React.FC = () => {
@@ -258,7 +259,7 @@ const AppDocumentos: React.FC = () => {
                         <div className="flex items-center gap-3 text-xs text-gray-500">
                           {doc.created_at && (
                             <span>
-                              Enviado em {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                              Enviado em {formatLocalDate(doc.created_at)}
                             </span>
                           )}
                         </div>

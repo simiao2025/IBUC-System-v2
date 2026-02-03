@@ -8,12 +8,13 @@ import { AlunosAPI } from '../../features/students/aluno.service';
 import { TurmaService } from '../../services/turma.service';
 import { Loader2, FileText, Download, Award, Search } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const DracmasReportView: React.FC = () => {
   const { currentUser } = useApp();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Filtros
   const [filtros, setFiltros] = useState({
     aluno_id: '',
@@ -88,8 +89,8 @@ const DracmasReportView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Nível</label>
-            <Select 
-              value={filtros.nivel_id} 
+            <Select
+              value={filtros.nivel_id}
               onChange={val => setFiltros(f => ({ ...f, nivel_id: val }))}
             >
               <option value="">Todos os Níveis</option>
@@ -98,8 +99,8 @@ const DracmasReportView: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Turma</label>
-            <Select 
-              value={filtros.turma_id} 
+            <Select
+              value={filtros.turma_id}
               onChange={val => setFiltros(f => ({ ...f, turma_id: val, aluno_id: '' }))}
             >
               <option value="">Todas as Turmas</option>
@@ -108,8 +109,8 @@ const DracmasReportView: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Aluno Específico</label>
-            <Select 
-              value={filtros.aluno_id} 
+            <Select
+              value={filtros.aluno_id}
               onChange={val => setFiltros(f => ({ ...f, aluno_id: val }))}
               disabled={!filtros.turma_id}
             >
@@ -119,24 +120,24 @@ const DracmasReportView: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Data Início</label>
-            <Input 
-              type="date" 
-              value={filtros.inicio} 
-              onChange={e => setFiltros(f => ({ ...f, inicio: e.target.value }))} 
+            <Input
+              type="date"
+              value={filtros.inicio}
+              onChange={e => setFiltros(f => ({ ...f, inicio: e.target.value }))}
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Data Fim</label>
-            <Input 
-              type="date" 
-              value={filtros.fim} 
-              onChange={e => setFiltros(f => ({ ...f, fim: e.target.value }))} 
+            <Input
+              type="date"
+              value={filtros.fim}
+              onChange={e => setFiltros(f => ({ ...f, fim: e.target.value }))}
             />
           </div>
           <div className="flex items-end">
-            <Button 
-              className="w-full" 
-              onClick={handleFetch} 
+            <Button
+              className="w-full"
+              onClick={handleFetch}
               loading={loading}
             >
               <FileText className="h-4 w-4 mr-2" />
@@ -162,8 +163,8 @@ const DracmasReportView: React.FC = () => {
                 Relatório de Drácmas
               </h2>
               <p className="text-gray-500 text-sm mt-1">
-                {filtros.inicio && filtros.fim 
-                  ? `Período: ${new Date(filtros.inicio).toLocaleDateString()} até ${new Date(filtros.fim).toLocaleDateString()}`
+                {filtros.inicio && filtros.fim
+                  ? `Período: ${formatLocalDate(filtros.inicio)} até ${formatLocalDate(filtros.fim)}`
                   : 'Período: Completo'}
               </p>
             </div>
@@ -205,7 +206,7 @@ const DracmasReportView: React.FC = () => {
                 {data.transacoes?.map((t: any) => (
                   <tr key={t.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(t.data).toLocaleDateString()}
+                      {formatLocalDate(t.data)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {t.aluno?.nome}

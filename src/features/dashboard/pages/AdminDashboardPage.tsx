@@ -60,14 +60,14 @@ const AdminDashboard: React.FC = () => {
     const checkDrafts = async () => {
       // Secretários e Diretor Geral devem ver isso
       if (['secretario_polo', 'diretor_geral', 'super_admin'].includes(currentUser?.adminUser?.role || '')) {
-         try {
-           const result = await api.get<any[]>('/turmas?status=rascunho');
-           if (result && Array.isArray(result)) {
-             setPendingDraftsCount(result.length);
-           }
-         } catch (e) {
-           console.error('Erro ao buscar rascunhos', e);
-         }
+        try {
+          const result = await api.get<any[]>('/turmas?status=rascunho');
+          if (result && Array.isArray(result)) {
+            setPendingDraftsCount(result.length);
+          }
+        } catch (e) {
+          console.error('Erro ao buscar rascunhos', e);
+        }
       }
     };
     checkDrafts();
@@ -77,9 +77,9 @@ const AdminDashboard: React.FC = () => {
     const checkStaff = async () => {
       if (currentUser?.adminUser?.role === 'diretor_polo' && currentUser?.adminUser?.poloId) {
         try {
-          const staff = await UserService.listUsers({ 
+          const staff = await UserService.listUsers({
             polo_id: currentUser.adminUser.poloId,
-            ativo: true 
+            ativo: true
           });
           // Verifica se existe alguém além do próprio diretor que seja professor ou auxiliar
           const team = staff.filter(u => u.role === 'professor' || u.role === 'auxiliar');
@@ -172,10 +172,9 @@ const AdminDashboard: React.FC = () => {
 
   const quickActions = ADMIN_NAV_ITEMS.filter(item => {
     switch (item.module) {
+      case 'lessons':
+        return canAccessModule('lessons');
       case 'settings':
-        if (item.href === '/admin/modulos') {
-          return canAccessModule('settings') || canAccessModule('enrollments');
-        }
         return canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('settings_events') || canAccessModule('dracmas_settings') || canAccessModule('security') || canAccessModule('backup');
       case 'directorate':
         return canAccessModule('directorate');
@@ -295,9 +294,9 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+
         {/* Urgent Banner for Drafts */}
-        <UrgentBanner 
+        <UrgentBanner
           count={pendingDraftsCount}
           message={`Existem ${pendingDraftsCount} turmas pendentes de ativação!`}
           actionLabel="Revisar Turmas Agora"
@@ -382,7 +381,7 @@ const AdminDashboard: React.FC = () => {
             {(() => {
               const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
               const recentEnrollments = enrollments.filter(e => new Date(e.enrollmentDate) >= cutoff);
-              
+
               if (recentEnrollments.length > 0) {
                 return (
                   <div className="space-y-3">
@@ -402,7 +401,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
                 );
               }
-              
+
               return <p className="text-gray-500 text-center py-4">Nenhuma matrícula registrada nas últimas 24 horas</p>;
             })()}
           </Card>

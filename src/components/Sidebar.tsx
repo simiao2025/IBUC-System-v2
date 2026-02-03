@@ -15,10 +15,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const filteredItems = ADMIN_NAV_ITEMS.filter(item => {
     switch (item.module) {
+      case 'lessons':
+        return canAccessModule('lessons');
       case 'settings':
-        if (item.href === '/admin/modulos') {
-          return canAccessModule('settings') || canAccessModule('enrollments');
-        }
         return canAccessModule('settings') || canAccessModule('manage_users') || canAccessModule('settings_events') || canAccessModule('dracmas_settings') || canAccessModule('security') || canAccessModule('backup');
       case 'directorate':
         return canAccessModule('directorate');
@@ -78,23 +77,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <X size={20} />
           </button>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-1">
           <NavLink
             to="/admin/dashboard"
             onClick={() => onClose()}
             className={({ isActive }) =>
-              `flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${
-                isActive
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              `flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${isActive
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`
             }
           >
             <LayoutDashboard className="mr-3 h-5 w-5" />
             Dashboard
           </NavLink>
-          
+
           <div className="my-4 border-t border-gray-100 pt-4">
             <p className="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase">Ações Rápidas</p>
             {filteredItems.map((item) => {
@@ -104,16 +102,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   to={item.href}
                   onClick={() => onClose()}
                   className={({ isActive }) =>
-                    `flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    `flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-150 ${isActive
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`
                   }
                 >
                   <div className="mr-3">
-                    <Icon3D 
-                      name={item.iconName} 
+                    <Icon3D
+                      name={item.iconName}
                       fallbackIcon={item.fallbackIcon}
                       size="sm"
                       className="w-5 h-5 opacity-80"
@@ -125,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             })}
           </div>
         </nav>
-        
+
         <div className="p-4 border-t border-gray-100 text-[10px] text-gray-400 text-center">
           IBUC v2.0 © 2025
         </div>

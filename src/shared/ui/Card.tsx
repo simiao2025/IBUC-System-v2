@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
 interface CardProps {
   children: React.ReactNode;
@@ -7,7 +7,7 @@ interface CardProps {
   onClick?: () => void;
 }
 
-const Card: React.FC<CardProps> = ({ children, className = '', padding = 'md', onClick }) => {
+const Card = forwardRef<HTMLDivElement, CardProps>(({ children, className = '', padding = 'md', onClick }, ref) => {
   const paddingClasses = {
     sm: 'p-4',
     md: 'p-6',
@@ -15,13 +15,16 @@ const Card: React.FC<CardProps> = ({ children, className = '', padding = 'md', o
   };
 
   return (
-    <div 
+    <div
+      ref={ref}
       className={`bg-white rounded-lg shadow-md border border-gray-200 ${paddingClasses[padding]} ${className}`}
       onClick={onClick}
     >
       {children}
     </div>
   );
-};
+});
+
+Card.displayName = 'Card';
 
 export default Card;

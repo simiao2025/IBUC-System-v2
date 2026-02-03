@@ -191,7 +191,7 @@ export class UserManagementService {
                 .from('coordenadores_regionais_polos')
                 .select('polo_id')
                 .eq('usuario_id', id);
-            
+
             usuario.regionalPoloIds = regionalLinks ? regionalLinks.map(l => l.polo_id) : [];
 
             return usuario;
@@ -241,6 +241,7 @@ export class UserManagementService {
         return usuario;
     }
     async atualizarUsuario(id: string, updateData: UpdateUsuarioDto) {
+
         const { data, error } = await this.supabase
             .getAdminClient()
             .from('usuarios')
@@ -264,24 +265,24 @@ export class UserManagementService {
 
         // --- Sincronizar Vínculos Regionais ---
         if (updateData.regionalPoloIds !== undefined) {
-             // 1. Remover antigos
-             await this.supabase
+            // 1. Remover antigos
+            await this.supabase
                 .getAdminClient()
                 .from('coordenadores_regionais_polos')
                 .delete()
                 .eq('usuario_id', id);
 
-             // 2. Inserir novos se houver
-             if (Array.isArray(updateData.regionalPoloIds) && updateData.regionalPoloIds.length > 0) {
-                 const inserts = updateData.regionalPoloIds.map(poloId => ({
-                     usuario_id: id,
-                     polo_id: poloId
-                 }));
-                 await this.supabase
+            // 2. Inserir novos se houver
+            if (Array.isArray(updateData.regionalPoloIds) && updateData.regionalPoloIds.length > 0) {
+                const inserts = updateData.regionalPoloIds.map(poloId => ({
+                    usuario_id: id,
+                    polo_id: poloId
+                }));
+                await this.supabase
                     .getAdminClient()
                     .from('coordenadores_regionais_polos')
                     .insert(inserts);
-             }
+            }
         }
 
         return data;

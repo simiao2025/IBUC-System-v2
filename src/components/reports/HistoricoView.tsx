@@ -22,6 +22,7 @@ import { PolosAPI } from '../../services/polo.service';
 import { Download, GraduationCap, Loader2, Calendar, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { supabase } from '../../lib/supabase';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const HistoricoView: React.FC = () => {
   const { currentUser } = useApp();
@@ -110,7 +111,7 @@ const HistoricoView: React.FC = () => {
 
       const result = res.data?.result || res?.result || res;
       const path = result?.path;
-      
+
       if (path) {
         const { data } = supabase.storage.from('documentos').getPublicUrl(path);
         if (data?.publicUrl) {
@@ -172,7 +173,7 @@ const HistoricoView: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900">Histórico Escolar</h2>
             <p className="text-xl text-gray-700 mt-2">{historico.aluno?.nome}</p>
             <div className="flex justify-center gap-4 text-sm text-gray-500 mt-2">
-              <span className="flex items-center"><Calendar className="h-4 w-4 mr-1" /> Matrícula: {historico.matricula?.data_inicio ? new Date(historico.matricula.data_inicio).toLocaleDateString() : 'N/A'}</span>
+              <span className="flex items-center"><Calendar className="h-4 w-4 mr-1" /> Matrícula: {historico.matricula?.data_inicio ? formatLocalDate(historico.matricula.data_inicio) : 'N/A'}</span>
               <span className="flex items-center"><GraduationCap className="h-4 w-4 mr-1" /> Status: {historico.matricula?.status}</span>
             </div>
           </div>
@@ -194,7 +195,7 @@ const HistoricoView: React.FC = () => {
                     {historico.disciplinas.map((d: any, idx: number) => (
                       <tr key={idx}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {d.data_aula ? new Date(d.data_aula).toLocaleDateString('pt-BR') : '-'}
+                          {d.data_aula ? formatLocalDate(d.data_aula) : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{d.nome}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-indigo-600 font-bold">{d.dracmas}</td>

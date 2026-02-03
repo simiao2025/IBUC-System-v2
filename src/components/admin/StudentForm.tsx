@@ -164,6 +164,15 @@ const StudentForm: React.FC<StudentFormProps> = ({
   const [studentPhoto, setStudentPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Scroll modal to top when opened
+    if (modalRef.current) {
+      modalRef.current.scrollTop = 0;
+    }
+  }, []);
+
   useEffect(() => {
     const carregarNiveis = async () => {
       try {
@@ -458,7 +467,7 @@ const StudentForm: React.FC<StudentFormProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+      <div ref={modalRef} className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 rounded-t-xl">
           <div className="flex items-center justify-between">

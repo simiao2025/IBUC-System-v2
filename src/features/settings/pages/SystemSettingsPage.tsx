@@ -53,9 +53,23 @@ interface SystemConfig {
 }
 
 const SystemSettingsPage: React.FC = () => {
-  const { currentUser, showFeedback } = useApp();
+  const { showFeedback } = useApp();
   const { canManageUsers, canAccessModule } = useAccessControl();
-  const [activeTab, setActiveTab] = useState<'users' | 'config' | 'security' | 'backup' | 'dracmas' | 'events'>('users');
+
+  // Define as abas disponíveis baseadas em permissões
+  const availableTabs = [
+    { id: 'users', permission: canManageUsers() || canAccessModule('manage_users') },
+    { id: 'config', permission: canAccessModule('settings') },
+    { id: 'events', permission: canAccessModule('settings_events') },
+    { id: 'dracmas', permission: canAccessModule('dracmas_settings') },
+    { id: 'security', permission: canAccessModule('security') },
+    { id: 'backup', permission: canAccessModule('backup') }
+  ].filter(tab => tab.permission);
+
+  // Inicializa com a primeira aba disponível, ou fallback para 'users'
+  const [activeTab, setActiveTab] = useState<'users' | 'config' | 'security' | 'backup' | 'dracmas' | 'events'>(
+    (availableTabs[0]?.id as any) || 'users'
+  );
 
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({
     schoolYear: '2024',
@@ -153,28 +167,30 @@ const SystemSettingsPage: React.FC = () => {
         <Card className="mb-8">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px space-x-8 overflow-x-auto scrollbar-hide">
-              {[
-                { id: 'users', label: 'Usuários', icon: Users, permission: canManageUsers() || canAccessModule('manage_users') },
-                { id: 'config', label: 'Parâmetros', icon: Settings, permission: canAccessModule('settings') },
-                { id: 'events', label: 'Divulgações', icon: Megaphone, permission: canAccessModule('settings_events') },
-                { id: 'dracmas', label: 'Drácmas', icon: Award, permission: canAccessModule('dracmas_settings') },
-                { id: 'security', label: 'Segurança', icon: Shield, permission: canAccessModule('security') },
-                { id: 'backup', label: 'Backup', icon: Database, permission: canAccessModule('backup') }
-              ]
-                .filter(tab => tab.permission)
-                .map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => setActiveTab(id as any)}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center whitespace-nowrap ${activeTab === id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                  >
-                    <Icon className="h-4 w-4 mr-2 shrink-0" />
-                    {label}
-                  </button>
-                ))}
+              {(() => {
+                return [
+                  { id: 'users', label: 'Usuários', icon: Users, permission: canManageUsers() || canAccessModule('manage_users') },
+                  { id: 'config', label: 'Parâmetros', icon: Settings, permission: canAccessModule('settings') },
+                  { id: 'events', label: 'Divulgações', icon: Megaphone, permission: canAccessModule('settings_events') },
+                  { id: 'dracmas', label: 'Drácmas', icon: Award, permission: canAccessModule('dracmas_settings') },
+                  { id: 'security', label: 'Segurança', icon: Shield, permission: canAccessModule('security') },
+                  { id: 'backup', label: 'Backup', icon: Database, permission: canAccessModule('backup') }
+                ]
+                  .filter(tab => tab.permission)
+                  .map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setActiveTab(id as any)}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center whitespace-nowrap ${activeTab === id
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                      <Icon className="h-4 w-4 mr-2 shrink-0" />
+                      {label}
+                    </button>
+                  ));
+              })()}
             </nav>
           </div>
         </Card>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../../context/AppContext';
+import { formatLocalDate } from '../../../shared/utils/dateUtils';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -83,7 +84,7 @@ const StaffManagementPage: React.FC = () => {
     // Corrigindo labels conforme AdminRole types se necessário, mas mantendo logicamente
     professor: 'Professor',
     auxiliar: 'Auxiliar'
-  } as any; 
+  } as any;
   // Nota: O original tinha algumas inconsistências nas chaves do enum. Usando 'as any' para evitar erro de TS se o enum não bater 100% com o objeto.
   // Mas vamos tentar mapear melhor.
 
@@ -272,6 +273,21 @@ const StaffManagementPage: React.FC = () => {
 
   const staffByPolo = getStaffByPolo();
 
+  const createModalRef = React.useRef<HTMLDivElement>(null);
+  const editModalRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showCreateForm && createModalRef.current) {
+      createModalRef.current.scrollTop = 0;
+    }
+  }, [showCreateForm]);
+
+  useEffect(() => {
+    if (editingStaff && editModalRef.current) {
+      editModalRef.current.scrollTop = 0;
+    }
+  }, [editingStaff]);
+
   return (
     <div className="min-h-screen bg-gray-50 overflow-hidden">
       {/* Header */}
@@ -419,7 +435,7 @@ const StaffManagementPage: React.FC = () => {
                               </div>
                               <div className="flex items-center text-[10px] sm:text-xs text-gray-500 mt-1">
                                 <Calendar className="h-3 w-3 mr-1" />
-                                Contratado em {member.hireDate ? new Date(member.hireDate).toLocaleDateString('pt-BR') : 'N/A'}
+                                Contratado em {member.hireDate ? formatLocalDate(member.hireDate) : 'N/A'}
                               </div>
                             </div>
                           </div>
@@ -468,10 +484,9 @@ const StaffManagementPage: React.FC = () => {
         )}
       </div>
 
-      {/* Create Staff Modal */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <Card ref={createModalRef} className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Novo Membro da Equipe</h2>
 
             <div className="space-y-4">
@@ -493,7 +508,7 @@ const StaffManagementPage: React.FC = () => {
               {newStaff.role === 'coordenador_regional' && (
                 <div className="border rounded-lg p-3 bg-gray-50">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Polos da Região (Selecione um ou mais)
+                    Polos da Região (Selecione um ou mais)
                   </label>
                   <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
                     {polos.map(polo => (
@@ -506,7 +521,7 @@ const StaffManagementPage: React.FC = () => {
                             const currentIds = newStaff.regionalPoloIds || [];
                             setNewStaff(prev => ({
                               ...prev,
-                              regionalPoloIds: checked 
+                              regionalPoloIds: checked
                                 ? [...currentIds, polo.id]
                                 : currentIds.filter(id => id !== polo.id)
                             }));
@@ -594,10 +609,9 @@ const StaffManagementPage: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Staff Modal */}
       {editingStaff && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <Card ref={editModalRef} className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Editar Membro</h2>
 
             <div className="space-y-4">
@@ -621,7 +635,7 @@ const StaffManagementPage: React.FC = () => {
               {editingStaff.role === 'coordenador_regional' && (
                 <div className="border rounded-lg p-3 bg-gray-50">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Polos da Região (Selecione um ou mais)
+                    Polos da Região (Selecione um ou mais)
                   </label>
                   <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
                     {polos.map(polo => (
@@ -634,7 +648,7 @@ const StaffManagementPage: React.FC = () => {
                             const currentIds = editingStaff.regionalPoloIds || [];
                             setEditingStaff(prev => prev ? ({
                               ...prev,
-                              regionalPoloIds: checked 
+                              regionalPoloIds: checked
                                 ? [...currentIds, polo.id]
                                 : currentIds.filter(id => id !== polo.id)
                             }) : null);

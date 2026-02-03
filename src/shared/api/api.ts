@@ -15,7 +15,7 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit & { responseType?: 'json' | 'blob' } = {}
+    options: RequestInit & { responseType?: 'json' | 'blob'; skipGlobalErrorHandler?: boolean } = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const token = sessionStorage.getItem('auth_token');
@@ -32,7 +32,7 @@ class ApiClient {
       (headers as Record<string, string>)['Content-Type'] = 'application/json';
     }
 
-    const { responseType = 'json', ...fetchOptions } = options;
+    const { responseType = 'json', skipGlobalErrorHandler, ...fetchOptions } = options;
 
     const config: RequestInit = {
       ...fetchOptions,
@@ -45,7 +45,7 @@ class ApiClient {
       const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
       const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
 
-      if (this.onError) {
+      if (this.onError && !skipGlobalErrorHandler) {
         this.onError(error);
       }
 
@@ -73,14 +73,15 @@ class ApiClient {
     return response.json();
   }
 
-  async get<T>(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob' }): Promise<T> {
+  async get<T>(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob'; skipGlobalErrorHandler?: boolean }): Promise<T> {
     return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, options?: { skipGlobalErrorHandler?: boolean }): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data instanceof FormData ? data : JSON.stringify(data),
+      skipGlobalErrorHandler: options?.skipGlobalErrorHandler
     });
   }
 

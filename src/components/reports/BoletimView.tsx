@@ -24,6 +24,7 @@ import { PolosAPI } from '../../services/polo.service';
 import { BoletimAPI, Boletim, BoletimService } from '../../services/boletim.service';
 import { Loader2, FileText, Download, Building2, Layers, Calendar, ExternalLink, Award } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 import { supabase } from '../../lib/supabase';
 
 const BoletimView: React.FC = () => {
@@ -516,7 +517,7 @@ const BoletimView: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                          {new Date(bol.generated_at).toLocaleDateString('pt-BR')}
+                          {formatLocalDate(bol.generated_at)}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">

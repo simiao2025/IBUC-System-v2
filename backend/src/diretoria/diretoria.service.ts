@@ -33,7 +33,7 @@ export class DiretoriaService {
   constructor(
     private supabase: SupabaseService,
     private usuariosService: UsuariosService,
-  ) {}
+  ) { }
 
   // ========== DIRETORIA GERAL ==========
 
@@ -256,6 +256,31 @@ export class DiretoriaService {
     return this.atualizarDiretoriaGeral(id, { status: 'inativa' });
   }
 
+  async deletarDiretoriaGeral(id: string) {
+    const diretoria = await this.buscarDiretoriaGeralPorId(id);
+
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('diretoria_geral')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new BadRequestException(`Erro ao deletar cargo da diretoria: ${error.message}`);
+    }
+
+    if (diretoria.usuario_id) {
+      try {
+        await this.usuariosService.deletarUsuario(diretoria.usuario_id);
+      } catch (e) {
+        console.error(`Erro ao deletar usuário ${diretoria.usuario_id} vinculado ao cargo ${id}:`, e);
+        // Não lançar erro aqui para não falhar a operação principal, mas logar o erro
+      }
+    }
+
+    return { message: 'Cargo e usuário vinculado deletados com sucesso' };
+  }
+
   // ========== DIRETORIA POLO ==========
 
   async criarDiretoriaPolo(poloId: string, dto: CreateDiretoriaGeralDto) {
@@ -435,6 +460,30 @@ export class DiretoriaService {
 
   async desativarDiretoriaPolo(id: string) {
     return this.atualizarDiretoriaPolo(id, { status: 'inativa' });
+  }
+
+  async deletarDiretoriaPolo(id: string) {
+    const diretoria = await this.buscarDiretoriaPoloPorId(id);
+
+    const { error } = await this.supabase
+      .getAdminClient()
+      .from('diretoria_polo')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new BadRequestException(`Erro ao deletar cargo da diretoria do polo: ${error.message}`);
+    }
+
+    if (diretoria.usuario_id) {
+      try {
+        await this.usuariosService.deletarUsuario(diretoria.usuario_id);
+      } catch (e) {
+        console.error(`Erro ao deletar usuário ${diretoria.usuario_id} vinculado ao cargo de polo ${id}:`, e);
+      }
+    }
+
+    return { message: 'Cargo e usuário vinculado deletados com sucesso' };
   }
 
   // ========== HELPERS ==========

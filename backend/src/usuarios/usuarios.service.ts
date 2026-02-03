@@ -141,6 +141,8 @@ export class UsuariosService {
     if (dto.nome_completo !== undefined) updateData.nome_completo = dto.nome_completo;
     if (dto.cpf !== undefined) updateData.cpf = dto.cpf;
     if (dto.telefone !== undefined) updateData.telefone = dto.telefone;
+    // Also check 'phone' for frontend compatibility
+    if ((dto as any).phone !== undefined) updateData.telefone = (dto as any).phone;
     if (dto.role !== undefined) updateData.role = dto.role;
     if (dto.polo_id !== undefined) updateData.polo_id = dto.polo_id || null;
     if (dto.regionalPoloIds !== undefined) updateData.regionalPoloIds = dto.regionalPoloIds;

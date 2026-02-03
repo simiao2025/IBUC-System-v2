@@ -7,6 +7,7 @@ import { TurmaService } from '../../services/turma.service';
 import { PolosAPI } from '../../services/polo.service';
 import { Loader2, Download, ClipboardCheck, Search, Building2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const ListaChamadaView: React.FC = () => {
   const { currentUser } = useApp();
@@ -98,7 +99,7 @@ const ListaChamadaView: React.FC = () => {
             </div>
             <div className="text-right border-l-2 border-gray-300 pl-4">
               <p className="text-sm font-bold">Data: ____/____/________</p>
-              <p className="text-xs text-gray-500 mt-1 italic leading-tight">Emitido em: {new Date(data.data_geracao).toLocaleDateString()}</p>
+              <p className="text-xs text-gray-500 mt-1 italic leading-tight">Emitido em: {formatLocalDate(data.data_geracao)}</p>
             </div>
           </div>
 

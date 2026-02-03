@@ -155,9 +155,17 @@ export const EventForm: React.FC<EventFormProps> = ({
     }
   };
 
+  const modalRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (modalRef.current) {
+      modalRef.current.scrollTop = 0;
+    }
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <Card ref={modalRef} className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           {editingEvent ? 'Editar Divulgação' : 'Nova Divulgação'}
         </h3>
@@ -166,8 +174,8 @@ export const EventForm: React.FC<EventFormProps> = ({
           {/* Tipo de Divulgação */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Divulgação</label>
-            <Select 
-              value={form.categoria} 
+            <Select
+              value={form.categoria}
               onChange={(v) => {
                 const type = v as Evento['categoria'];
                 setForm(p => ({

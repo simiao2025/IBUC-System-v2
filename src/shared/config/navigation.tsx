@@ -1,15 +1,15 @@
-import { 
-  Users, 
-  MapPin, 
-  BookOpen, 
-  UserCheck, 
-  Building2, 
-  ClipboardList, 
-  DollarSign, 
-  ShoppingCart, 
-  BarChart3, 
-  FileCheck, 
-  Settings 
+import {
+  Users,
+  MapPin,
+  BookOpen,
+  UserCheck,
+  Building2,
+  ClipboardList,
+  DollarSign,
+  ShoppingCart,
+  BarChart3,
+  FileCheck,
+  Settings
 } from 'lucide-react';
 
 export interface NavItem {
@@ -30,7 +30,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     iconName: 'turmas',
     fallbackIcon: BookOpen,
     color: 'bg-purple-600 hover:bg-purple-700',
-    module: 'settings' // Using 'settings' as per AdminDashboardPage logic
+    module: 'lessons' // Módulos de ensino, não configurações
   },
   {
     title: 'Diretoria',

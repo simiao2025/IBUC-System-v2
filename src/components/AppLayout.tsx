@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from './ui/Button';
+import ScrollToTop from './common/ScrollToTop';
 import { useApp } from '../context/AppContext';
 import { AlunosAPI } from '../features/students/aluno.service';
 import { PoloService } from '../services/polo.service';
@@ -70,6 +71,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ScrollToTop />
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">

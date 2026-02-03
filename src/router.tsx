@@ -96,10 +96,10 @@ export const router = createBrowserRouter([
   { path: '/materiais', element: <PublicLayout><Materials /></PublicLayout> },
   { path: '/privacidade', element: <PublicLayout><PrivacyPolicy /></PublicLayout> },
 
-  // Auth Routes (with layout)
-  { path: '/login', element: <PublicLayout><StudentAccess /></PublicLayout> },
-  { path: '/acesso-aluno', element: <PublicLayout><StudentAccess /></PublicLayout> },
-  { path: '/login-admin', element: <PublicLayout><AdminAccess /></PublicLayout> },
+  // Auth Routes (standalone)
+  { path: '/login', element: <StudentAccess /> },
+  { path: '/acesso-aluno', element: <StudentAccess /> },
+  { path: '/login-admin', element: <AdminAccess /> },
 
   // Enrollment Routes (with layout)
   { path: '/pre-matricula', element: <PublicLayout><NovaMatriculaPage /></PublicLayout> },

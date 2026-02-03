@@ -23,6 +23,7 @@ import { API_BASE_URL } from '../../lib/api';
 import { Certificado } from '../../types/database';
 import { Loader2, Download, Award, Search, Users, ExternalLink, Calendar } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 
 interface Turma {
@@ -257,7 +258,7 @@ const CertificadoView: React.FC = () => {
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 <div className="flex items-center gap-1.5">
                                                     <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                                                    {new Date(cert.data_emissao).toLocaleDateString('pt-BR')}
+                                                    {formatLocalDate(cert.data_emissao)}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">

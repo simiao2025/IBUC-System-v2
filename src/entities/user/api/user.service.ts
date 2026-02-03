@@ -12,7 +12,7 @@ export interface BackendUsuario {
   telefone?: string | null;
   role: AdminRole;
   polo_id?: string | null;
-  metadata?: { 
+  metadata?: {
     permissions?: {
       mode: 'full' | 'limited';
       modules: AdminModuleKey[];
@@ -56,10 +56,10 @@ export const UserService = {
   /**
    * Lists users with optional filters
    */
-  async listUsers(filters: { 
-    role?: string; 
-    polo_id?: string; 
-    ativo?: boolean; 
+  async listUsers(filters: {
+    role?: string;
+    polo_id?: string;
+    ativo?: boolean;
     search?: string;
   } = {}): Promise<AdminUser[]> {
     const params = new URLSearchParams();
@@ -67,7 +67,7 @@ export const UserService = {
     if (filters.polo_id) params.append('polo_id', filters.polo_id);
     if (filters.ativo !== undefined) params.append('ativo', String(filters.ativo));
     if (filters.search) params.append('search', filters.search);
-    
+
     const query = params.toString() ? `?${params.toString()}` : '';
     const data = await api.get<BackendUsuario[]>(`/usuarios${query}`);
     return data.map(this.mapToAdminUser);
@@ -133,17 +133,17 @@ export const UserService = {
     if (userData.role !== undefined) payload.role = userData.role;
     if (userData.regionalPoloIds !== undefined) payload.regionalPoloIds = userData.regionalPoloIds;
     if (userData.isActive !== undefined) payload.ativo = userData.isActive;
-    
+
     // Update metadata while preserving existing if possible (though here we send full replacement for simplicity or partial logic)
     const metadata: any = {};
     if (userData.permissions !== undefined) metadata.permissions = userData.permissions;
     if ((userData as any).qualifications !== undefined) metadata.qualifications = (userData as any).qualifications;
     if ((userData as any).hireDate !== undefined) metadata.hireDate = (userData as any).hireDate;
-    
+
     if (Object.keys(metadata).length > 0) {
       payload.metadata = metadata;
     }
-    
+
     // Logic for polo_id based on accessLevel
     if (userData.accessLevel === 'geral') {
       payload.polo_id = null;
@@ -166,14 +166,14 @@ export const UserService = {
    * Login for admin users
    */
   async login(data: { email: string; password: string }): Promise<any> {
-    return api.post('/usuarios/login', data);
+    return api.post('/usuarios/login', data, { skipGlobalErrorHandler: true });
   },
 
   /**
    * Login for student users
    */
   async loginAluno(data: { cpf: string; password: string }): Promise<any> {
-    return api.post('/usuarios/login-aluno', data);
+    return api.post('/usuarios/login-aluno', data, { skipGlobalErrorHandler: true });
   },
 
   /**

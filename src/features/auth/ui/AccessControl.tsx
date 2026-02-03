@@ -3,11 +3,7 @@ import { useApp } from '@/app/providers/AppContext';
 import { Shield, Lock } from 'lucide-react';
 import Card from '@/shared/ui/Card';
 import type { AdminRole, AdminModuleKey, AdminPermissions } from '@/shared/types';
-import React from 'react';
-import { useApp } from '@/app/providers/AppContext';
-import { Shield, Lock } from 'lucide-react';
-import Card from '@/shared/ui/Card';
-import type { AdminRole, AdminModuleKey, AdminPermissions } from '@/shared/types';
+
 
 // Hook para verificações de acesso em componentes
 export const useAccessControl = () => {
@@ -27,27 +23,26 @@ export const useAccessControl = () => {
     if (!permissions) return true; // fallback: mantém acesso total se não houver configuração explícita (legacy)
 
     if (permissions.mode === 'full') return true;
-    
+
     // Check granular permissions
     const isExplicitlyAllowed = Array.isArray(permissions.modules) && permissions.modules.includes(moduleKey);
-    
+
     if (isExplicitlyAllowed) return true;
 
     // Hierarchy logic: if requesting a parent module, permit if any child is allowed
     const hierarchy: Record<string, AdminModuleKey[]> = {
       financeiro: ['finance_control', 'finance_materials', 'finance_config'],
-      dracmas: [], // Dracmas is independent
       materials: ['materials_catalog', 'materials_orders'],
       settings: ['manage_users', 'settings_events', 'dracmas_settings', 'security', 'backup'],
       enrollments: ['pre-enrollments']
     };
 
     if (hierarchy[moduleKey]) {
-      return hierarchy[moduleKey].some(subKey => 
+      return hierarchy[moduleKey].some(subKey =>
         Array.isArray(permissions.modules) && permissions.modules.includes(subKey)
       );
     }
-    
+
     return false;
   };
 
@@ -61,7 +56,7 @@ export const useAccessControl = () => {
     if (hasAccessToAllPolos()) {
       return allPolos;
     }
-    
+
     const allowedPoloIds = getUserAllowedPolos();
     return allPolos.filter(polo => allowedPoloIds.includes(polo.id));
   };
@@ -166,17 +161,17 @@ const AccessControl: React.FC<AccessControlProps> = ({
 
   // Verifica permissão granular por módulo
   if (requiredModule && !canAccessModule(requiredModule)) {
-     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <Card className="max-w-md text-center">
-            <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
-            <p className="text-gray-600">
-              {fallbackMessage || 'Você não tem permissão para acessar este módulo.'}
-            </p>
-          </Card>
-        </div>
-      );
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md text-center">
+          <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Acesso Negado</h2>
+          <p className="text-gray-600">
+            {fallbackMessage || 'Você não tem permissão para acessar este módulo.'}
+          </p>
+        </Card>
+      </div>
+    );
   }
 
   // Se passou por todas as verificações, renderiza o conteúdo

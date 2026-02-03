@@ -7,13 +7,14 @@ import { RelatorioService } from '../../services/relatorio.service';
 import { TurmaService } from '../../services/turma.service';
 import { Loader2, Download, BarChart2, Search } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const ConsolidadoFrequenciaView: React.FC = () => {
   const { currentUser } = useApp();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [turmas, setTurmas] = useState<any[]>([]);
-  
+
   const [filtros, setFiltros] = useState({
     turma_id: '',
     polo_id: currentUser?.adminUser?.poloId || '',
@@ -84,8 +85,8 @@ const ConsolidadoFrequenciaView: React.FC = () => {
                 Consolidado de Frequência
               </h2>
               <p className="text-gray-500 text-sm mt-1">
-                {filtros.inicio && filtros.fim 
-                  ? `Período: ${new Date(filtros.inicio).toLocaleDateString()} até ${new Date(filtros.fim).toLocaleDateString()}`
+                {filtros.inicio && filtros.fim
+                  ? `Período: ${formatLocalDate(filtros.inicio)} até ${formatLocalDate(filtros.fim)}`
                   : 'Análise Geral'}
               </p>
             </div>
@@ -118,7 +119,7 @@ const ConsolidadoFrequenciaView: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center">
                         <div className="w-16 bg-gray-200 rounded-full h-2 mr-2 overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full rounded-full ${item.frequencia >= 75 ? 'bg-green-500' : 'bg-red-500'}`}
                             style={{ width: `${item.frequencia}%` }}
                           ></div>

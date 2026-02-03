@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PreMatricula } from '../types/database';
+import { formatLocalDate } from '../shared/utils/dateUtils';
 
 interface RegistrationCardProps {
   data: PreMatricula;
@@ -57,7 +58,7 @@ export const RegistrationCard: React.FC<RegistrationCardProps> = ({ data, photoU
               </div>
               <div>
                 <span className="text-[10px] font-semibold text-gray-500 block uppercase">Data de Nascimento</span>
-                <span>{new Date(data.data_nascimento).toLocaleDateString('pt-BR')}</span>
+                <span>{formatLocalDate(data.data_nascimento)}</span>
               </div>
               <div>
                 <span className="text-[10px] font-semibold text-gray-500 block uppercase">Sexo</span>
@@ -177,7 +178,7 @@ export const RegistrationCard: React.FC<RegistrationCardProps> = ({ data, photoU
 
       <div className="mt-8 text-[9px] text-gray-400 text-center border-t pt-4">
         Este documento é uma ficha de pré-matrícula sujeita a validação oficial pela diretoria do IBUC.
-        Gerado automaticamente em {new Date().toLocaleString('pt-BR')}.
+        Gerado automaticamente em {formatLocalDate(new Date().toISOString(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}.
       </div>
 
       <style>{`

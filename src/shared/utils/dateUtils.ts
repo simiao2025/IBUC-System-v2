@@ -27,10 +27,10 @@ export const parseISOToLocal = (dateStr: string | null | undefined): Date => {
  */
 export const formatLocalDate = (
   date: Date | string | null | undefined,
-  options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' }
+  options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' }
 ): string => {
   if (!date) return '';
-  
+
   const dateObj = typeof date === 'string' ? parseISOToLocal(date) : date;
   return dateObj.toLocaleDateString('pt-BR', options);
 };

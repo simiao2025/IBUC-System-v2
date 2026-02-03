@@ -54,6 +54,11 @@ export class DiretoriaController {
     return this.diretoriaService.desativarDiretoriaGeral(id);
   }
 
+  @Delete('geral/:id')
+  async deletarDiretoriaGeral(@Param('id') id: string) {
+    return this.diretoriaService.deletarDiretoriaGeral(id);
+  }
+
   // ========== DIRETORIA POLO ==========
 
   @Post('polo/:poloId')
@@ -90,6 +95,11 @@ export class DiretoriaController {
   @Put('polo/:id/desativar')
   async desativarDiretoriaPolo(@Param('id') id: string) {
     return this.diretoriaService.desativarDiretoriaPolo(id);
+  }
+
+  @Delete('polo/:id')
+  async deletarDiretoriaPolo(@Param('id') id: string) {
+    return this.diretoriaService.deletarDiretoriaPolo(id);
   }
 }
 

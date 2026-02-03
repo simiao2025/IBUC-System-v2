@@ -6,6 +6,7 @@ import Select from '@/shared/ui/Select';
 import PageHeader from '@/shared/ui/PageHeader';
 import { useApp } from '@/app/providers/AppContext';
 import { Plus, Trash2, ShoppingCart, Package, List, AlertCircle } from 'lucide-react';
+import { formatLocalDate } from '@/shared/utils/dateUtils';
 import { MaterialsAPI, MaterialOrdersAPI, type Material, type MaterialOrderItem, type MaterialOrder } from './materials.service';
 import { ModulosAPI } from '@/services/modulos.service';
 import { NiveisAPI } from '@/features/classes/services/turma.service';
@@ -33,7 +34,7 @@ const MaterialOrderManagement: React.FC = () => {
   const [showMaterialPicker, setShowMaterialPicker] = useState(false); // NOVO
   const [orders, setOrders] = useState<MaterialOrder[]>([]);
   const [polos, setPolos] = useState<any[]>([]);
-  
+
   const [filtroPolo, setFiltroPolo] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('');
 
@@ -48,8 +49,8 @@ const MaterialOrderManagement: React.FC = () => {
         NiveisAPI.listar(),
         isGlobal ? api.get('/polos') : Promise.resolve([]),
         // Carregar alunos respeitando permissões de polo
-        isGlobal 
-          ? api.get('/alunos') 
+        isGlobal
+          ? api.get('/alunos')
           : (currentUser?.adminUser?.poloId ? api.get(`/alunos?polo_id=${currentUser.adminUser.poloId}`) : Promise.resolve({ data: [] })),
       ]);
       setMaterials(Array.isArray(mats) ? mats : []);
@@ -103,7 +104,7 @@ const MaterialOrderManagement: React.FC = () => {
   const filteredMaterials = useMemo(() => {
     if (modoCobranca === 'individual') {
       if (!selectedAlunoId) return [];
-      
+
       return materials.filter(m => {
         // Genéricos (sem vínculo) aparecem para todos
         if (!m.nivel_id && !m.modulo_id) return true;
@@ -125,7 +126,7 @@ const MaterialOrderManagement: React.FC = () => {
       return materials.filter(m => {
         // Se um módulo foi selecionado no filtro do pedido, mostra apenas materiais desse módulo
         if (selectedModuloId && m.modulo_id && m.modulo_id !== selectedModuloId) return false;
-        
+
         // Se níveis foram selecionados, opcionalmente filtrar materiais específicos desses níveis
         // (Geralmente kits são por módulo, mas alguns podem ser por nível)
         if (selectedNiveisIds.length > 0 && m.nivel_id && !selectedNiveisIds.includes(m.nivel_id)) return false;
@@ -144,10 +145,10 @@ const MaterialOrderManagement: React.FC = () => {
       return;
     }
 
-    setOrderItems([...orderItems, { 
-      material_id: material.id, 
-      quantidade: 1, 
-      valor_unitario_cents: material.valor_padrao_cents 
+    setOrderItems([...orderItems, {
+      material_id: material.id,
+      quantidade: 1,
+      valor_unitario_cents: material.valor_padrao_cents
     }]);
     setShowMaterialPicker(false);
   };
@@ -162,7 +163,7 @@ const MaterialOrderManagement: React.FC = () => {
       showFeedback('warning', 'Atenção', 'Selecione o módulo de destino.');
       return;
     }
-    
+
     // Validação para modo individual
     if (modoCobranca === 'individual' && !selectedAlunoId) {
       showFeedback('warning', 'Atenção', 'Selecione um aluno.');
@@ -187,7 +188,7 @@ const MaterialOrderManagement: React.FC = () => {
           valor_unitario_cents: item.valor_unitario_cents || 0,
         })),
       };
-      
+
       // Campos específicos para modo lote
       if (modoCobranca === 'lote') {
         payload.modulo_destino_id = (tipoCobranca === 'material_aluno' || tipoCobranca === 'material_professor') ? selectedModuloId : null;
@@ -210,7 +211,7 @@ const MaterialOrderManagement: React.FC = () => {
         const vencimentoPadrao = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         await MaterialOrdersAPI.gerarCobrancas(pedido.id, vencimentoPadrao);
       }
-      
+
       // Para modo individual, criar cobrança diretamente para o aluno
       if (modoCobranca === 'individual' && pedido.id) {
         const vencimentoPadrao = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -330,11 +331,10 @@ const MaterialOrderManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModoCobranca('lote')}
-                    className={`flex-1 py-4 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                      modoCobranca === 'lote'
+                    className={`flex-1 py-4 px-4 rounded-xl font-bold text-sm transition-all border-2 ${modoCobranca === 'lote'
                         ? 'bg-red-600 border-red-600 text-white shadow-lg scale-[1.02]'
                         : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center">
                       <span className="text-xl mb-1">📦 Por Lote</span>
@@ -344,11 +344,10 @@ const MaterialOrderManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModoCobranca('individual')}
-                    className={`flex-1 py-4 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                      modoCobranca === 'individual'
+                    className={`flex-1 py-4 px-4 rounded-xl font-bold text-sm transition-all border-2 ${modoCobranca === 'individual'
                         ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-[1.02]'
                         : 'bg-white border-gray-100 text-blue-900/60 hover:border-gray-200'
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col items-center">
                       <span className="text-xl mb-1">👤 Individual</span>
@@ -417,8 +416,8 @@ const MaterialOrderManagement: React.FC = () => {
                 />
                 <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
                   {alunosDisponiveis
-                    .filter(aluno => 
-                      !buscaAluno || 
+                    .filter(aluno =>
+                      !buscaAluno ||
                       aluno.nome?.toLowerCase().includes(buscaAluno.toLowerCase()) ||
                       aluno.email?.toLowerCase().includes(buscaAluno.toLowerCase())
                     )
@@ -431,9 +430,8 @@ const MaterialOrderManagement: React.FC = () => {
                           setSelectedAlunoId(aluno.id);
                           setBuscaAluno(aluno.nome);
                         }}
-                        className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-0 ${
-                          selectedAlunoId === aluno.id ? 'bg-blue-100' : ''
-                        }`}
+                        className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-0 ${selectedAlunoId === aluno.id ? 'bg-blue-100' : ''
+                          }`}
                       >
                         <div className="font-medium text-gray-900">{aluno.nome}</div>
                         <div className="text-xs text-gray-500">{aluno.email}</div>
@@ -442,13 +440,13 @@ const MaterialOrderManagement: React.FC = () => {
                         )}
                       </button>
                     ))}
-                  {buscaAluno && alunosDisponiveis.filter(a => 
+                  {buscaAluno && alunosDisponiveis.filter(a =>
                     a.nome?.toLowerCase().includes(buscaAluno.toLowerCase())
                   ).length === 0 && (
-                    <div className="p-4 text-center text-gray-400 text-sm">
-                      Nenhum aluno encontrado
-                    </div>
-                  )}
+                      <div className="p-4 text-center text-gray-400 text-sm">
+                        Nenhum aluno encontrado
+                      </div>
+                    )}
                 </div>
                 {selectedAlunoId && (
                   <p className="mt-2 text-xs text-green-600 font-medium bg-green-50 p-2 rounded">
@@ -482,12 +480,12 @@ const MaterialOrderManagement: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-gray-900 truncate">{material?.nome || 'Material não encontrado'}</h4>
                         <div className="flex items-center gap-3 mt-0.5">
-                           <span className="text-xs text-gray-500 font-medium">Qtd: {item.quantidade}</span>
-                           <span className="text-xs text-blue-600 font-bold">{formatCurrency((item.valor_unitario_cents || 0))} /un</span>
+                          <span className="text-xs text-gray-500 font-medium">Qtd: {item.quantidade}</span>
+                          <span className="text-xs text-blue-600 font-bold">{formatCurrency((item.valor_unitario_cents || 0))} /un</span>
                         </div>
                       </div>
 
@@ -506,7 +504,7 @@ const MaterialOrderManagement: React.FC = () => {
                     </div>
                   );
                 })}
-                
+
                 <button
                   type="button"
                   onClick={() => setShowMaterialPicker(true)}
@@ -516,7 +514,7 @@ const MaterialOrderManagement: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div 
+              <div
                 onClick={() => setShowMaterialPicker(true)}
                 className="group cursor-pointer py-12 border-2 border-dashed border-red-200 rounded-2xl flex flex-col items-center justify-center gap-3 bg-red-50/20 hover:bg-red-50 hover:border-red-400 transition-all active:scale-[0.99]"
               >
@@ -562,7 +560,7 @@ const MaterialOrderManagement: React.FC = () => {
               Lista de Pedidos
             </h3>
           </div>
-          
+
           {isGlobal && (
             <div className="w-48">
               <Select value={filtroPolo} onChange={setFiltroPolo} size="sm">
@@ -582,9 +580,9 @@ const MaterialOrderManagement: React.FC = () => {
             </Select>
           </div>
 
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             loading={saving}
             onClick={async () => {
               setSaving(true);
@@ -633,7 +631,7 @@ const MaterialOrderManagement: React.FC = () => {
                 {orders.map(order => (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(order.created_at).toLocaleDateString('pt-BR')}
+                      {formatLocalDate(order.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(order as any).aluno?.nome || order.modulo_destino?.titulo || '—'}
@@ -648,10 +646,10 @@ const MaterialOrderManagement: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full 
                           ${order.status === 'cobrado' ? 'bg-green-100 text-green-700' :
-                          order.status === 'rascunho' ? 'bg-amber-100 text-amber-700' : 
-                          order.status === 'aprovado' ? 'bg-blue-100 text-blue-700' :
-                          order.status === 'recusado' ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'}`}>
+                          order.status === 'rascunho' ? 'bg-amber-100 text-amber-700' :
+                            order.status === 'aprovado' ? 'bg-blue-100 text-blue-700' :
+                              order.status === 'recusado' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'}`}>
                         {order.status.toUpperCase()}
                       </span>
                     </td>
@@ -722,12 +720,12 @@ const MaterialOrderManagement: React.FC = () => {
                   Catálogo de Materiais
                 </h3>
                 <p className="text-xs text-gray-500 font-medium">
-                  {modoCobranca === 'individual' 
+                  {modoCobranca === 'individual'
                     ? `Filtrado para o nível e módulo atual do aluno`
                     : `Selecione os itens para o pedido em lote`}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => setShowMaterialPicker(false)}
                 className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-gray-200"
               >
@@ -749,11 +747,10 @@ const MaterialOrderManagement: React.FC = () => {
                   {filteredMaterials.map(material => {
                     const isAdded = orderItems.some(item => item.material_id === material.id);
                     return (
-                      <Card 
-                        key={material.id} 
-                        className={`group relative overflow-hidden transition-all duration-300 hover:shadow-xl border-gray-100 ${
-                          isAdded ? 'ring-2 ring-red-500' : 'hover:border-red-200'
-                        }`}
+                      <Card
+                        key={material.id}
+                        className={`group relative overflow-hidden transition-all duration-300 hover:shadow-xl border-gray-100 ${isAdded ? 'ring-2 ring-red-500' : 'hover:border-red-200'
+                          }`}
                       >
                         <div className="h-32 bg-gray-100 relative overflow-hidden">
                           {material.url_imagem ? (
@@ -775,9 +772,8 @@ const MaterialOrderManagement: React.FC = () => {
                           <Button
                             variant={isAdded ? "outline" : "primary"}
                             size="sm"
-                            className={`w-full mt-3 font-black text-[10px] uppercase tracking-widest ${
-                              isAdded ? 'border-red-200 text-red-600 bg-red-50' : 'bg-red-600 hover:bg-red-700'
-                            }`}
+                            className={`w-full mt-3 font-black text-[10px] uppercase tracking-widest ${isAdded ? 'border-red-200 text-red-600 bg-red-50' : 'bg-red-600 hover:bg-red-700'
+                              }`}
                             onClick={() => handleAddItem(material)}
                           >
                             {isAdded ? 'Já Adicionado' : 'Adicionar'}
@@ -789,7 +785,7 @@ const MaterialOrderManagement: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
               <Button variant="outline" onClick={() => setShowMaterialPicker(false)}>
                 Concluir Seleção

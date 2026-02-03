@@ -7,12 +7,13 @@ import { TurmaService } from '../../services/turma.service';
 import { PoloService } from '../../services/polo.service';
 import { Loader2, FileText, Download, Users, Search, Phone, MapPin } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const ListaAlunosView: React.FC = () => {
   const { currentUser } = useApp();
   const [alunos, setAlunos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   const isGlobal = currentUser?.role === 'admin_geral' || currentUser?.role === 'super_admin';
 
   // Filtros
@@ -43,7 +44,7 @@ const ListaAlunosView: React.FC = () => {
         }
 
         const [turmasRes, niveisRes, polosRes] = await Promise.all(promises);
-        
+
         setOpcoes({
           turmas: turmasRes as any[],
           niveis: niveisRes as any[],
@@ -75,7 +76,7 @@ const ListaAlunosView: React.FC = () => {
     setPdfLoading(true);
     try {
       const response: any = await RelatorioService.gerarListaAlunosPdf(filtros);
-      
+
       // Criar um link temporário para download do blob
       const url = window.URL.createObjectURL(new Blob([response]));
       const link = document.createElement('a');
@@ -107,8 +108,8 @@ const ListaAlunosView: React.FC = () => {
                 <MapPin className="h-3 w-3 mr-1 text-blue-500" />
                 Polo
               </label>
-              <Select 
-                value={filtros.polo_id} 
+              <Select
+                value={filtros.polo_id}
                 onChange={val => setFiltros(f => ({ ...f, polo_id: val, turma_id: '' }))}
               >
                 <option value="">Todos os Polos</option>
@@ -118,8 +119,8 @@ const ListaAlunosView: React.FC = () => {
           )}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-            <Select 
-              value={filtros.status} 
+            <Select
+              value={filtros.status}
               onChange={val => setFiltros(f => ({ ...f, status: val }))}
             >
               <option value="ativo">Ativos</option>
@@ -130,8 +131,8 @@ const ListaAlunosView: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Nível</label>
-            <Select 
-              value={filtros.nivel_id} 
+            <Select
+              value={filtros.nivel_id}
               onChange={val => setFiltros(f => ({ ...f, nivel_id: val }))}
             >
               <option value="">Todos os Níveis</option>
@@ -140,8 +141,8 @@ const ListaAlunosView: React.FC = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Turma</label>
-            <Select 
-              value={filtros.turma_id} 
+            <Select
+              value={filtros.turma_id}
               onChange={val => setFiltros(f => ({ ...f, turma_id: val }))}
             >
               <option value="">Todas as Turmas</option>
@@ -149,9 +150,9 @@ const ListaAlunosView: React.FC = () => {
             </Select>
           </div>
           <div className="flex items-end">
-            <Button 
-              className="w-full" 
-              onClick={handleFetch} 
+            <Button
+              className="w-full"
+              onClick={handleFetch}
               loading={loading}
             >
               <FileText className="h-4 w-4 mr-2" />
@@ -181,9 +182,9 @@ const ListaAlunosView: React.FC = () => {
               </p>
             </div>
             <div className="print:hidden">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handlePdf}
                 loading={pdfLoading}
               >
@@ -216,12 +217,11 @@ const ListaAlunosView: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {aluno.data_nascimento ? new Date(aluno.data_nascimento).toLocaleDateString() : '—'}
+                      {aluno.data_nascimento ? formatLocalDate(aluno.data_nascimento) : '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        aluno.status === 'ativo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${aluno.status === 'ativo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
                         {aluno.status}
                       </span>
                     </td>

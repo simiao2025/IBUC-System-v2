@@ -4,6 +4,7 @@ import {
   ArrowLeft, MapPin, Calendar
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 import { UserServiceV2 } from '../../services/userService.v2';
 import { PoloService } from '../../services/polo.service';
 import { DiretoriaAPI } from '../../services/diretoria.service';
@@ -22,7 +23,16 @@ const RESTRICTED_ROLES: AdminRole[] = ['professor', 'primeiro_tesoureiro_polo', 
 const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackButton = false }) => {
   const { polos, currentUser, showFeedback, showConfirm } = useApp();
   const isRestrictedUser = useMemo(() => {
-    return currentUser?.adminUser?.role ? RESTRICTED_ROLES.includes(currentUser.adminUser.role) : false;
+    // Usuários com funções específicas sempre restritos
+    if (currentUser?.adminUser?.role && RESTRICTED_ROLES.includes(currentUser.adminUser.role)) {
+      return true;
+    }
+    // Usuários com acesso limitado ao módulo manage_users também são restritos
+    const permissions = currentUser?.adminUser?.permissions;
+    if (permissions?.mode === 'limited' && permissions.modules.includes('manage_users')) {
+      return true;
+    }
+    return false;
   }, [currentUser]);
 
   // UI States
@@ -88,7 +98,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     { key: 'settings', label: 'Configurações' },
     { key: 'manage_users', label: 'Usuários' },
     { key: 'settings_events', label: 'Eventos' },
-    { key: 'dracmas_settings', label: 'Ajustes de Drácmas' }, 
+    { key: 'dracmas_settings', label: 'Ajustes de Drácmas' },
     { key: 'security', label: 'Segurança' },
     { key: 'backup', label: 'Backup' },
   ];
@@ -101,21 +111,21 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
     { label: 'Equipes', main: 'staff' as AdminModuleKey, sub: [] },
     { label: 'Gerenciar Turmas', main: 'enrollments' as AdminModuleKey, sub: [] },
     { label: 'Frequência/Drácmas', main: 'attendance' as AdminModuleKey, sub: [] },
-    { 
-      label: 'Financeiro', 
-      main: 'dracmas' as AdminModuleKey, 
+    {
+      label: 'Financeiro',
+      main: 'financeiro' as AdminModuleKey,
       sub: ['finance_control', 'finance_materials', 'finance_config'] as AdminModuleKey[]
     },
-    { 
-      label: 'Gerenciar Materiais', 
-      main: 'materials' as AdminModuleKey, 
+    {
+      label: 'Gerenciar Materiais',
+      main: 'materials' as AdminModuleKey,
       sub: ['materials_catalog', 'materials_orders'] as AdminModuleKey[]
     },
     { label: 'Relatórios', main: 'reports' as AdminModuleKey, sub: [] },
     { label: 'Gerenciar Pré-matrículas', main: 'pre-enrollments' as AdminModuleKey, sub: [] },
-    { 
-      label: 'Configurações', 
-      main: 'settings' as AdminModuleKey, 
+    {
+      label: 'Configurações',
+      main: 'settings' as AdminModuleKey,
       sub: ['manage_users', 'settings_events', 'dracmas_settings', 'security', 'backup'] as AdminModuleKey[]
     }
   ];
@@ -124,7 +134,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
   const currentAdmin = currentUser?.adminUser;
   const isSuperAdmin = currentAdmin?.role === 'super_admin' || currentAdmin?.role === 'admin_geral';
   const isGeneralManagement = [
-    'diretor_geral', 'vice_diretor_geral', 
+    'diretor_geral', 'vice_diretor_geral',
     'coordenador_geral', 'vice_coordenador_geral',
     'primeiro_secretario_geral', 'segundo_secretario_geral',
     'primeiro_tesoureiro_geral', 'segundo_tesoureiro_geral'
@@ -500,7 +510,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                       {user.poloId && (
                         <div className="flex items-center"><MapPin className="h-3 w-3 mr-2" /> {polos.find(p => p.id === user.poloId)?.name || 'Polo Associado'}</div>
                       )}
-                      <div className="flex items-center"><Calendar className="h-3 w-3 mr-2" /> {new Date(user.createdAt).toLocaleDateString()}</div>
+                      <div className="flex items-center"><Calendar className="h-3 w-3 mr-2" /> {formatLocalDate(user.createdAt)}</div>
                     </div>
                   </div>
                 </div>
@@ -654,12 +664,12 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                 {(editingUser?.permissions ?? newUser.permissions)?.mode === 'limited' && (
                   <div className="space-y-4 mt-6">
                     <h4 className="text-lg font-extrabold text-gray-900 mb-6 px-1">Módulos do Sistema</h4>
-                    
+
                     <div className="grid grid-cols-1 gap-5 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar pb-4">
                       {groupedModules.map(group => {
                         const mainMod = moduleOptions.find(m => m.key === group.main);
                         if (!mainMod) return null;
-                        
+
                         const currentPerms = (editingUser?.permissions ?? newUser.permissions) || { mode: 'limited', modules: [] };
                         const isMainChecked = currentPerms.modules.includes(mainMod.key);
 
@@ -667,12 +677,12 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                           let newModules = checked
                             ? [...currentPerms.modules, key]
                             : currentPerms.modules.filter(m => m !== key);
-                          
+
                           if (!checked && group.sub.length > 0) {
                             newModules = newModules.filter(m => !group.sub.includes(m as AdminModuleKey));
                           }
                           if (checked && group.sub.includes(key) && !currentPerms.modules.includes(group.main)) {
-                             newModules = [...newModules, group.main];
+                            newModules = [...newModules, group.main];
                           }
 
                           const perm = { ...currentPerms, modules: Array.from(new Set(newModules)) };
@@ -700,7 +710,7 @@ const UserManagementUnified: React.FC<UserManagementUnifiedProps> = ({ showBackB
                                   const subMod = moduleOptions.find(m => m.key === subKey);
                                   if (!subMod) return null;
                                   const isSubChecked = currentPerms.modules.includes(subMod.key);
-                                  
+
                                   return (
                                     <label key={subMod.key} className="flex items-center space-x-3 cursor-pointer group">
                                       <input

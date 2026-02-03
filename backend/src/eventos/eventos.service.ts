@@ -3,7 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class EventosService {
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService) { }
 
   async criar(dto: {
     titulo: string;
@@ -43,11 +43,10 @@ export class EventosService {
         midia: dto.midia || [],
         link_cta: dto.link_cta || null,
       })
-      .select('*')
-      .single();
+      .select('*');
 
     if (error) throw new BadRequestException(error.message);
-    return data;
+    return data?.[0];
   }
 
   async listar(filtros: {
@@ -106,8 +105,8 @@ export class EventosService {
 
     const { data, error } = await query;
     if (error) {
-       console.error('Erro no Supabase (listar):', JSON.stringify(error, null, 2));
-       throw new BadRequestException(error.message);
+      console.error('Erro no Supabase (listar):', JSON.stringify(error, null, 2));
+      throw new BadRequestException(error.message);
     }
 
     return data || [];

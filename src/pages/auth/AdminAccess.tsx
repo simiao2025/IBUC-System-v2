@@ -82,14 +82,14 @@ const AdminAccess: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background Logos */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-between px-4 opacity-[0.1] sm:opacity-[0.15]">
-        <img 
-          src="/icons/3d/Logo_admprv.png" 
-          alt="" 
+        <img
+          src="/icons/3d/Logo_admprv.png"
+          alt=""
           className="w-[300px] md:w-[500px] lg:w-[600px] -translate-x-1/4"
         />
-        <img 
-          src="/icons/3d/logo-IBUC.png" 
-          alt="" 
+        <img
+          src="/icons/3d/logo-IBUC.png"
+          alt=""
           className="w-[300px] md:w-[500px] lg:w-[600px] translate-x-1/4"
         />
       </div>
@@ -128,6 +128,7 @@ const AdminAccess: React.FC = () => {
                   required
                   autoComplete="email"
                   className="flex-1"
+                  autoFocus
                 />
               </div>
 

@@ -6,6 +6,7 @@ import Input from '../../../components/ui/Input';
 import { DiretoriaService } from '../../../services/diretoria.service';
 import { UserServiceV2 } from '../../../services/userService.v2';
 import { useApp } from '../../../context/AppContext';
+import { formatLocalDate } from '../../../shared/utils/dateUtils';
 import type { AdminUser, AdminRole } from '../../../types';
 import {
   Crown,
@@ -95,7 +96,7 @@ const reverseCargoMapping: Record<string, string> = {
   segundo_secretario: 'segundo_secretario_geral',
   primeiro_tesoureiro: 'primeiro_tesoureiro_geral',
   segundo_tesoureiro: 'segundo_tesoureiro_geral',
-  
+
   // Backward compatibility
   secretario: 'primeiro_secretario_geral',
   tesoureiro: 'primeiro_tesoureiro_geral',
@@ -424,7 +425,9 @@ const DiretoriaManagementPage: React.FC = () => {
             data_inicio: formData.data_inicio,
           });
         }
-        showFeedback('success', 'Sucesso', `Diretoria criada com sucesso!${isNewUser ? ' Uma conta de usuário com senha (6 primeiros dígitos do CPF) também foi criada.' : ''}`);
+
+        const cargoLabel = positionLabels[formData.cargo] || 'Diretoria';
+        showFeedback('success', 'Sucesso', `${cargoLabel} cadastrado(a) com sucesso!${isNewUser ? ' Uma conta de usuário com senha padrão também foi criada.' : ''}`);
       }
 
       // Recarregar lista
@@ -459,10 +462,10 @@ const DiretoriaManagementPage: React.FC = () => {
       return;
     }
     setEditingPosition(position);
-    
+
     // Mapear cargo do backend para o frontend com base no contexto (Geral vs Polo)
     let cargoFrontend = (reverseCargoMapping[position.cargo] || position.cargo) as string;
-    
+
     // Se estivermos no modo polo, e o cargo mapeado for do tipo 'geral', trocar o sufixo
     if (directorateMode === 'polo' && cargoFrontend.endsWith('_geral')) {
       const baseCargo = cargoFrontend.replace('_geral', '');
@@ -472,7 +475,7 @@ const DiretoriaManagementPage: React.FC = () => {
         cargoFrontend = poloVersion;
       }
     }
-    
+
     setFormData({
       nome_completo: position.nome_completo,
       telefone: position.telefone || '',
@@ -480,10 +483,10 @@ const DiretoriaManagementPage: React.FC = () => {
       cargo: cargoFrontend,
       data_inicio: position.data_inicio,
       usuario_id: position.usuario_id || '',
-      cpf: '', 
+      cpf: '',
     });
     // Always treat as "new user" regarding form fields (show all inputs)
-    setIsNewUser(true); 
+    setIsNewUser(true);
     setShowForm(true);
   };
 
@@ -791,7 +794,7 @@ const DiretoriaManagementPage: React.FC = () => {
                             {position.telefone || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(position.data_inicio).toLocaleDateString('pt-BR')}
+                            {formatLocalDate(position.data_inicio)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${position.status === 'ativa'
@@ -875,7 +878,7 @@ const DiretoriaManagementPage: React.FC = () => {
                   onChange={handleInputChange}
                   required
                 />
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cargo
@@ -896,7 +899,7 @@ const DiretoriaManagementPage: React.FC = () => {
                 {formData.cargo === 'coordenador_regional' && (
                   <div className="border rounded-lg p-3 bg-gray-50">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                       Polos da Região (Selecione um ou mais)
+                      Polos da Região (Selecione um ou mais)
                     </label>
                     <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
                       {polos.map(polo => (
@@ -908,7 +911,7 @@ const DiretoriaManagementPage: React.FC = () => {
                               const checked = e.target.checked;
                               setFormData(prev => ({
                                 ...prev,
-                                regionalPoloIds: checked 
+                                regionalPoloIds: checked
                                   ? [...prev.regionalPoloIds, polo.id]
                                   : prev.regionalPoloIds.filter(id => id !== polo.id)
                               }));

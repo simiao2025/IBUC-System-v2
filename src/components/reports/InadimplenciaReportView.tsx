@@ -7,13 +7,14 @@ import { RelatorioService } from '../../services/relatorio.service';
 import { PolosAPI } from '../../services/polo.service';
 import { Loader2, Download, DollarSign, Search, AlertCircle, Phone } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 
 const InadimplenciaReportView: React.FC = () => {
   const { currentUser } = useApp();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [polos, setPolos] = useState<any[]>([]);
-  
+
   const [filtros, setFiltros] = useState({
     polo_id: currentUser?.adminUser?.poloId || '',
     data_referencia: new Date().toISOString().split('T')[0],
@@ -22,7 +23,7 @@ const InadimplenciaReportView: React.FC = () => {
   useEffect(() => {
     // Apenas Diretoria Geral pode trocar de polo aqui se não estiver fixo
     if (!currentUser?.adminUser?.poloId) {
-       PolosAPI.listar().then(res => setPolos(res as any[]));
+      PolosAPI.listar().then(res => setPolos(res as any[]));
     }
   }, [currentUser]);
 
@@ -62,10 +63,10 @@ const InadimplenciaReportView: React.FC = () => {
           )}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Data de Referência</label>
-            <Input 
-              type="date" 
-              value={filtros.data_referencia} 
-              onChange={e => setFiltros(f => ({ ...f, data_referencia: e.target.value }))} 
+            <Input
+              type="date"
+              value={filtros.data_referencia}
+              onChange={e => setFiltros(f => ({ ...f, data_referencia: e.target.value }))}
             />
           </div>
           <Button onClick={handleFetch} loading={loading} variant="primary">
@@ -91,7 +92,7 @@ const InadimplenciaReportView: React.FC = () => {
                 Relatório de Inadimplência
               </h2>
               <p className="text-gray-500 text-sm mt-1">
-                Referência: {new Date(data.data_referencia).toLocaleDateString()}
+                Referência: {formatLocalDate(data.data_referencia)}
               </p>
             </div>
             <div className="print:hidden">
@@ -134,14 +135,14 @@ const InadimplenciaReportView: React.FC = () => {
                   <tr key={item.aluno_id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.nome}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                       <div className="flex items-center">
+                      <div className="flex items-center">
                         <Phone className="h-3 w-3 mr-1 text-green-500" />
                         {item.whatsapp || '—'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center">{item.parcelas_atrasadas}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
-                      {new Date(item.vencimento_mais_antigo).toLocaleDateString()}
+                      {formatLocalDate(item.vencimento_mais_antigo)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-red-700">
                       {formatCurrency(item.total_atrasado_cents)}

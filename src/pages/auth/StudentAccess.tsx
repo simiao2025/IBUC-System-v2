@@ -1,25 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { useNavigationConfirm } from '../../hooks/useNavigationConfirm';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
-import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { User, Lock } from 'lucide-react';
 
 const StudentAccess: React.FC = () => {
   const { login, currentUser, authLoading } = useApp();
   const navigate = useNavigate();
 
-  const { isDialogOpen, confirmNavigation, handleConfirm, handleCancel } = useNavigationConfirm({
-    title: 'Sair da área do aluno',
-    message: 'Você tem certeza que deseja voltar ao início?'
-  });
   const [formData, setFormData] = useState({
     cpf: '',
     password: '',
   });
+
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -61,20 +60,20 @@ const StudentAccess: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
-    
+
     const cleanCpf = formData.cpf.replace(/\D/g, '');
     const success = await login(cleanCpf, formData.password, 'student');
-    
+
     if (success) {
       navigate('/acesso-aluno');
     } else {
       setErrors({ password: 'CPF ou senha inválidos' });
     }
-    
+
     setLoading(false);
   };
 
@@ -99,14 +98,14 @@ const StudentAccess: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background Logos */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-between px-4 opacity-[0.1] sm:opacity-[0.15]">
-        <img 
-          src="/icons/3d/Logo_admprv.png" 
-          alt="" 
+        <img
+          src="/icons/3d/Logo_admprv.png"
+          alt=""
           className="w-[300px] md:w-[500px] lg:w-[600px] -translate-x-1/4"
         />
-        <img 
-          src="/icons/3d/logo-IBUC.png" 
-          alt="" 
+        <img
+          src="/icons/3d/logo-IBUC.png"
+          alt=""
           className="w-[300px] md:w-[500px] lg:w-[600px] translate-x-1/4"
         />
       </div>
@@ -141,6 +140,7 @@ const StudentAccess: React.FC = () => {
                   placeholder="000.000.000-00"
                   required
                   className="flex-1"
+                  autoFocus
                 />
               </div>
 
@@ -172,7 +172,7 @@ const StudentAccess: React.FC = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => confirmNavigation(() => navigate('/'))}
+              onClick={() => navigate('/')}
               className="w-full"
               size="lg"
             >
@@ -180,16 +180,6 @@ const StudentAccess: React.FC = () => {
             </Button>
           </form>
         </Card>
-
-        <ConfirmDialog
-          isOpen={isDialogOpen}
-          title="Sair da área do aluno"
-          message="Você tem certeza que deseja voltar ao início?"
-          onConfirm={handleConfirm}
-          onCancel={handleCancel}
-          confirmText="Sim"
-          cancelText="Não"
-        />
       </div>
     </div>
   );

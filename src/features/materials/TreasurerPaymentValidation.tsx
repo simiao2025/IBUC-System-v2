@@ -6,6 +6,7 @@ import PageHeader from '@/shared/ui/PageHeader';
 import { useApp } from '@/app/providers/AppContext';
 import { FileCheck, CheckCircle2, XCircle, Eye, Loader2, Filter, AlertCircle } from 'lucide-react';
 import { api } from '@/shared/api/api';
+import { formatLocalDate } from '@/shared/utils/dateUtils';
 
 interface PedidoPendente {
   id: string;
@@ -125,7 +126,7 @@ const TreasurerPaymentValidation: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
+    return formatLocalDate(dateString, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -148,31 +149,28 @@ const TreasurerPaymentValidation: React.FC = () => {
           <div className="flex gap-3">
             <button
               onClick={() => setFiltroStatus('pendente_validacao')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                filtroStatus === 'pendente_validacao'
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${filtroStatus === 'pendente_validacao'
                   ? 'bg-amber-600 text-white shadow'
                   : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
             >
               Pendentes
             </button>
             <button
               onClick={() => setFiltroStatus('pago')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                filtroStatus === 'pago'
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${filtroStatus === 'pago'
                   ? 'bg-green-600 text-white shadow'
                   : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
             >
               Validados
             </button>
             <button
               onClick={() => setFiltroStatus('pagamento_rejeitado')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                filtroStatus === 'pagamento_rejeitado'
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${filtroStatus === 'pagamento_rejeitado'
                   ? 'bg-red-600 text-white shadow'
                   : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
             >
               Rejeitados
             </button>
@@ -227,19 +225,18 @@ const TreasurerPaymentValidation: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          pedido.status === 'pendente_validacao'
+                        className={`px-2 py-1 text-xs font-semibold rounded-full ${pedido.status === 'pendente_validacao'
                             ? 'bg-amber-100 text-amber-700'
                             : pedido.status === 'pago'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
                       >
                         {pedido.status === 'pendente_validacao'
                           ? 'PENDENTE'
                           : pedido.status === 'pago'
-                          ? 'VALIDADO'
-                          : 'REJEITADO'}
+                            ? 'VALIDADO'
+                            : 'REJEITADO'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
