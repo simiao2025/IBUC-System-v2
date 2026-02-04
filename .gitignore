@@ -44,3 +44,9 @@ coverage/
 
 # Testing
 .nyc_output/
+
+# Playwright
+playwright-report/
+test-results/
+e2e/
+playwright.config.ts
