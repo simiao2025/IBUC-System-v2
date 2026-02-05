@@ -189,7 +189,7 @@ const Home: React.FC = () => {
                 <div className="absolute inset-0 bg-red-600 rounded-full opacity-10 blur-3xl animate-pulse"></div>
                 
                 <img 
-                  src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png" 
+                  src="/icons/3d/logo-IBUC.png" 
                   alt="Logo IBUC" 
                   className="relative z-10 w-full h-auto object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]"
                 />

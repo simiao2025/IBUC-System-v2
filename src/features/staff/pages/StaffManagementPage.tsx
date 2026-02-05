@@ -53,6 +53,13 @@ const StaffManagementPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPoloScoped, userPoloId]);
 
+  // Auto-populate poloId for polo-scoped users when opening create form
+  useEffect(() => {
+    if (showCreateForm && isPoloScoped && userPoloId) {
+      setNewStaff(prev => ({ ...prev, poloId: userPoloId }));
+    }
+  }, [showCreateForm, isPoloScoped, userPoloId]);
+
   const [newStaff, setNewStaff] = useState<Partial<AdminUser>>({
     name: '',
     cpf: '',

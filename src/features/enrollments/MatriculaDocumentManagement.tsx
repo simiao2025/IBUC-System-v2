@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { ArrowLeft, FileText } from 'lucide-react';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 import { MatriculaAPI as DocumentosAPI } from './matricula.service';
 
 interface DocumentoMatricula {
@@ -97,7 +98,7 @@ const MatriculaDocumentManagement: React.FC = () => {
                       <div className="text-right text-xs text-gray-500">
                         <p>{formatSize(doc.size)}</p>
                         {doc.created_at && (
-                          <p>{new Date(doc.created_at).toLocaleString('pt-BR')}</p>
+                          <p>{formatLocalDate(doc.created_at)}</p>
                         )}
                       </div>
                     </a>

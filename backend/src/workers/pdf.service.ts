@@ -28,6 +28,12 @@ export class PdfService {
 
   constructor(private supabase: SupabaseService) { }
 
+  private parseDateSafe(date: string | null | undefined): Date | null {
+    if (!date) return null;
+    const normalized = date.includes('T') ? date : `${date}T12:00:00`;
+    return new Date(normalized);
+  }
+
   /**
    * Gera um código de validação único para certificados
    * Formato: IBUC-YYYYMMDD-XXXXXX (onde XXXXXX é alfanumérico)
@@ -86,7 +92,8 @@ export class PdfService {
     doc.moveDown();
     doc.fontSize(12);
     doc.text(`Protocolo: ${matricula.protocolo}`);
-    doc.text(`Data: ${new Date(matricula.data_matricula).toLocaleDateString('pt-BR')}`);
+    const dataMatricula = this.parseDateSafe(matricula.data_matricula);
+    doc.text(`Data: ${dataMatricula ? dataMatricula.toLocaleDateString('pt-BR') : '---'}`);
     doc.moveDown();
     doc.text(`Aluno: ${matricula.aluno?.nome}`);
     doc.text(`Polo: ${matricula.polo?.nome}`);
@@ -804,7 +811,8 @@ export class PdfService {
     const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     const nomeAluno = (aluno?.nome || '').toUpperCase();
-    const dateStr = data_emissao ? new Date(data_emissao).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '---';
+    const dataEmissao = data_emissao ? this.parseDateSafe(data_emissao) : null;
+    const dateStr = dataEmissao ? dataEmissao.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '---';
     // Modulo Label logic
     let moduloLabel = (modulo?.numero ? `Módulo ${modulo.numero} - ${modulo.titulo}` : (nivel?.nome || '')).trim();
 
@@ -1139,7 +1147,8 @@ export class PdfService {
       doc.text((aluno.nome || '').toUpperCase(), 50, currentY + 6, { width: 175, ellipsis: true });
       doc.text((aluno.turma?.nome || 'SEM TURMA').toUpperCase(), 230, currentY + 6, { width: 85, ellipsis: true });
       doc.text(aluno.whatsapp || '---', 320, currentY + 6, { width: 100 });
-      doc.text(aluno.data_nascimento ? new Date(aluno.data_nascimento).toLocaleDateString('pt-BR') : '---', 430, currentY + 6, { width: 75 });
+      const dataNasc = this.parseDateSafe(aluno.data_nascimento);
+      doc.text(dataNasc ? dataNasc.toLocaleDateString('pt-BR') : '---', 430, currentY + 6, { width: 75 });
       doc.text((aluno.status || '').toUpperCase(), 510, currentY + 6, { width: 40 });
 
       currentY += 20;

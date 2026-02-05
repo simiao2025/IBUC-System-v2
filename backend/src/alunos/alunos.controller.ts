@@ -10,10 +10,12 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AlunosService, CreateAlunoDto, UpdateAlunoDto } from './alunos.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
@@ -22,10 +24,15 @@ import { AlunosService, CreateAlunoDto, UpdateAlunoDto } from './alunos.service'
 export class AlunosController {
   constructor(private readonly service: AlunosService) { }
 
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Criar novo aluno' })
-  async criar(@Body() dto: CreateAlunoDto) {
+  async criar(@Body() dto: CreateAlunoDto, @Req() req: any) {
+    // Se não estiver autenticado (pré-matrícula pública), força status pendente
+    if (!req.user) {
+      dto.status = 'pendente';
+    }
     return this.service.criarAluno(dto);
   }
 

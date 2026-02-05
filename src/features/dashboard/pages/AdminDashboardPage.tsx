@@ -209,7 +209,7 @@ const AdminDashboard: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center py-4 md:py-6 gap-4">
             <div className="flex items-center space-x-3 w-full md:w-auto">
               <img
-                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
+                src="/icons/3d/logo-IBUC.png"
                 alt="IBUC Logo"
                 className="h-8 sm:h-10 w-auto shrink-0"
               />

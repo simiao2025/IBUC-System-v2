@@ -28,6 +28,12 @@ export class PdfProcessor {
     private pdfService: PdfService
   ) { }
 
+  private parseDateSafe(date: string | null | undefined): Date | null {
+    if (!date) return null;
+    const normalized = date.includes('T') ? date : `${date}T12:00:00`;
+    return new Date(normalized);
+  }
+
   @Process('termo-matricula')
   async handleTermoMatricula(job: Job<{ matriculaId: string }>) {
     const { matriculaId } = job.data;
@@ -68,7 +74,8 @@ export class PdfProcessor {
     doc.moveDown();
     doc.fontSize(12);
     doc.text(`Protocolo: ${matricula.protocolo}`);
-    doc.text(`Data: ${new Date(matricula.data_matricula).toLocaleDateString('pt-BR')}`);
+    const dataMatricula = this.parseDateSafe(matricula.data_matricula);
+    doc.text(`Data: ${dataMatricula ? dataMatricula.toLocaleDateString('pt-BR') : '---'}`);
     doc.moveDown();
     doc.text(`Aluno: ${matricula.aluno?.nome}`);
     doc.text(`Polo: ${matricula.polo?.nome}`);
@@ -302,7 +309,8 @@ export class PdfProcessor {
     doc.moveDown();
     doc.font('Helvetica').fontSize(9);
     presencas?.slice(0, 10).forEach((p, idx) => {
-      doc.text(`${new Date(p.data).toLocaleDateString('pt-BR')} - Status: ${p.status.toUpperCase()}`, 60, doc.y + 5);
+      const dataPresenca = this.parseDateSafe(p.data);
+      doc.text(`${dataPresenca ? dataPresenca.toLocaleDateString('pt-BR') : '---'} - Status: ${p.status.toUpperCase()}`, 60, doc.y + 5);
     });
 
     // Assinaturas
@@ -710,8 +718,8 @@ export class PdfProcessor {
 
     doc.moveDown();
     doc.font('Helvetica').text(`Polo: ${pagamento.polo?.nome}`);
-    const dataPagamento = pagamento.pago_em ? new Date(pagamento.pago_em) : new Date();
-    doc.text(`Data do Pagamento: ${dataPagamento.toLocaleDateString('pt-BR')}`);
+    const dataPagamento = pagamento.pago_em ? this.parseDateSafe(pagamento.pago_em) : new Date();
+    doc.text(`Data do Pagamento: ${dataPagamento?.toLocaleDateString('pt-BR')}`);
 
     doc.moveDown(3);
 

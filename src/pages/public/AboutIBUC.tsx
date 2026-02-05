@@ -18,7 +18,7 @@ const AboutIBUC: React.FC = () => {
             <div className="mb-8">
               {/* Logo IBUC - Tentativa de carregar imagem externa com fallback para SVG local */}
               <img 
-                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png" 
+                src="/icons/3d/logo-IBUC.png" 
                 alt="IBUC - Curso de Teologia Infanto-juvenil" 
                 className="h-24 w-auto mx-auto"
                 onError={(e) => {

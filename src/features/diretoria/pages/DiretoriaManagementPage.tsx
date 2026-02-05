@@ -128,11 +128,10 @@ const DiretoriaManagementPage: React.FC = () => {
     regionalPoloIds: [] as string[],
   });
 
-  // Carregar diretorias ao montar o componente
-  useEffect(() => {
-    void carregarDiretorias();
-  }, []);
+  // Request tracking to prevent race conditions
+  const requestIdRef = React.useRef(0);
 
+  // Carregar diretorias quando mode/polo muda
   useEffect(() => {
     void carregarDiretorias();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,6 +142,14 @@ const DiretoriaManagementPage: React.FC = () => {
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
   const userPoloId = currentUser?.adminUser?.poloId || '';
+
+  console.log('[DEBUG] DiretoriaManagementPage:', {
+    role: currentUser?.adminUser?.role,
+    accessLevel: currentUser?.adminUser?.accessLevel,
+    poloId: currentUser?.adminUser?.poloId,
+    isPoloScoped,
+    directorateMode
+  });
 
   useEffect(() => {
     if (!isPoloScoped || !userPoloId) return;
@@ -188,13 +195,24 @@ const DiretoriaManagementPage: React.FC = () => {
   const carregarDiretorias = async () => {
     try {
       setLoading(true);
+      
+      // Increment request ID to track this specific request
+      const currentRequestId = ++requestIdRef.current;
 
       if (directorateMode === 'polo') {
         if (!selectedPoloId) {
           setDirectorate([]);
+          setLoading(false);
           return;
         }
         const data = await DiretoriaService.listarDiretoriaPolo(selectedPoloId, true);
+        
+        // Only update state if this is still the most recent request
+        if (currentRequestId !== requestIdRef.current) {
+          console.log(`Ignoring stale request ${currentRequestId}, current is ${requestIdRef.current}`);
+          return;
+        }
+        
         const formattedData = (data as any[]).map((item) => ({
           id: item.id,
           nome_completo: item.usuario?.nome_completo || item.nome_completo || 'N/A',
@@ -213,6 +231,13 @@ const DiretoriaManagementPage: React.FC = () => {
       }
 
       const data = await DiretoriaService.listarDiretoriaGeral(true);
+      
+      // Only update state if this is still the most recent request
+      if (currentRequestId !== requestIdRef.current) {
+        console.log(`Ignoring stale request ${currentRequestId}, current is ${requestIdRef.current}`);
+        return;
+      }
+      
       const formattedData = (data as any[]).map((item) => ({
         id: item.id,
         nome_completo: item.usuario?.nome_completo || item.nome_completo || 'N/A',
@@ -251,11 +276,17 @@ const DiretoriaManagementPage: React.FC = () => {
     primeiro_tesoureiro_polo: '1º Tesoureiro do Polo',
     segundo_tesoureiro_polo: '2º Tesoureiro do Polo',
 
-    // Compatibilidade
+    // Compatibilidade - Labels bases para backend
     diretor: 'Diretor',
+    vice_diretor: 'Vice-Diretor',
     coordenador: 'Coordenador',
+    vice_coordenador: 'Vice-Coordenador',
     secretario: 'Secretário',
     tesoureiro: 'Tesoureiro',
+    primeiro_secretario: '1º Secretário',
+    segundo_secretario: '2º Secretário',
+    primeiro_tesoureiro: '1º Tesoureiro',
+    segundo_tesoureiro: '2º Tesoureiro',
     secretario_geral: 'Secretário Geral',
     tesoureiro_geral: 'Tesoureiro Geral',
   };
@@ -787,7 +818,24 @@ const DiretoriaManagementPage: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                              {positionLabels[cargoKey] || positionLabels[position.cargo]}
+                              {(() => {
+                                // Get the label based on mode and cargo
+                                let labelKey: string = position.cargo;
+                                
+                                // If in Polo mode, construct polo-specific label key
+                                if (directorateMode === 'polo') {
+                                  // Try to find a polo-specific label first
+                                  const poloLabelKey = `${position.cargo}_polo` as string;
+                                  if (positionLabels[poloLabelKey]) {
+                                    labelKey = poloLabelKey;
+                                  }
+                                } else {
+                                  // If in Geral mode, use the reverse mapping
+                                  labelKey = (reverseCargoMapping[position.cargo] || position.cargo) as string;
+                                }
+                                
+                                return positionLabels[labelKey] || positionLabels[position.cargo] || position.cargo;
+                              })()}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

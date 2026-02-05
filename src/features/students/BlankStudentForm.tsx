@@ -7,7 +7,7 @@ const BlankStudentForm: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between border-b-2 border-red-600 pb-4 mb-6">
                 <div className="flex items-center gap-4">
-                    <img src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png" alt="Logo IBUC" className="h-16 w-auto" />
+                    <img src="/icons/3d/logo-IBUC.png" alt="Logo IBUC" className="h-16 w-auto" />
                     <div>
                         <h1 className="text-2xl font-black uppercase tracking-tighter">Ficha de Inscrição de Aluno</h1>
                         <p className="text-sm font-bold text-gray-500 uppercase">Instituto Bíblico Único Caminho</p>

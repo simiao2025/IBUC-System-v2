@@ -18,9 +18,18 @@ cd IBUC-System-v2
 
 Para mais informações sobre como fazer push, veja [GITHUB_SETUP.md](./GITHUB_SETUP.md) ou [COMANDOS_GIT.md](./COMANDOS_GIT.md).
 
+## 🤖 AI Context & Continuity
+
+Este projeto foi projetado para ser **altamente amigável a Agentes de IA (LLMs)**. Se você é uma IA atuando neste repositório:
+
+1.  **Leia primeiro o [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md)**: Ele contém o estado atual, o roadmap e as decisões técnicas (ADRs).
+2.  **Siga a Skill `fsd-guard`**: Localizada em `.agent/skills/fsd-guard/SKILL.md`, ela define as regras da arquitetura Feature-Sliced Design.
+3.  **Respeite as ADRs**: Decisões como o uso de **Vanilla CSS** e a estrutura de **Matrículas** estão documentadas para evitar refatorações desnecessárias.
+
 ## 🎨 Paleta de Cores
 
 O sistema utiliza as seguintes cores obrigatórias:
+
 - **Amarelo**: `#FFC107` / `yellow-500`
 - **Azul**: `#2196F3` / `blue-500`
 - **Verde**: `#4CAF50` / `green-500`
@@ -49,12 +58,14 @@ backend/                      # Backend (NestJS)
 ## 🚀 Tecnologias
 
 ### Frontend
+
 - **React 18** + TypeScript + Vite
 - **Tailwind CSS** para estilização
 - **React Router v7** para navegação
 - **Lucide React** para ícones
 
 ### Backend
+
 - **NestJS** - Framework Node.js
 - **Supabase** - Banco de dados PostgreSQL + Auth + Storage
 - **BullMQ/Redis** - Fila de jobs para processamento assíncrono
@@ -63,6 +74,7 @@ backend/                      # Backend (NestJS)
 - **Swagger** - Documentação da API
 
 ### Banco de Dados
+
 - **PostgreSQL** (via Supabase)
 - **Row Level Security (RLS)** para multi-tenancy
 - **21 tabelas** principais
@@ -142,23 +154,27 @@ PORT=3000
 ### 6. Execute o projeto
 
 #### Terminal 1 - Backend
+
 ```bash
 cd backend
 npm run start:dev
 ```
 
 #### Terminal 2 - Worker (opcional)
+
 ```bash
 cd backend
 npm run worker:dev
 ```
 
 #### Terminal 3 - Frontend
+
 ```bash
 npm run dev
 ```
 
 O projeto estará disponível em:
+
 - **Frontend**: `http://localhost:5173`
 - **Backend API**: `http://localhost:3000`
 - **Swagger**: `http://localhost:3000/api/docs`
@@ -205,6 +221,7 @@ O sistema utiliza Supabase Auth para autenticação e Row Level Security (RLS) p
 ### RLS (Row Level Security)
 
 Todas as tabelas possuem políticas RLS que garantem:
+
 - Usuários só acessam dados do seu polo (exceto super_admin e admin_geral)
 - Professores só veem dados das suas turmas
 - Responsáveis só veem dados dos seus alunos
@@ -280,6 +297,7 @@ npm run test
 ## 📚 Documentação API
 
 A documentação OpenAPI/Swagger está disponível em:
+
 - **Swagger UI**: `http://localhost:3000/api/docs`
 - **Arquivo YAML**: `docs/api.yaml`
 

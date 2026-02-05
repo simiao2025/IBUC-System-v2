@@ -30,7 +30,7 @@ const Footer: React.FC = () => {
               </div>
               <div className="flex items-center space-x-3 pt-4">
                 <img
-                  src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
+                  src="/icons/3d/logo-IBUC.png"
                   alt="IBUC Logo"
                   className="h-8 w-auto"
                 />

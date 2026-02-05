@@ -1,5 +1,6 @@
 import React from 'react';
 import { Database } from 'lucide-react';
+import { formatLocalDate } from '../../shared/utils/dateUtils';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import Input from '../ui/Input';
@@ -60,7 +61,7 @@ export const BackupSettings: React.FC<BackupSettingsProps> = ({ config, onUpdate
             <div>
               <p className="text-sm text-gray-600">
                 {config.lastBackup 
-                  ? new Date(config.lastBackup).toLocaleString('pt-BR')
+                  ? formatLocalDate(config.lastBackup)
                   : 'Nenhum backup realizado'
                 }
               </p>

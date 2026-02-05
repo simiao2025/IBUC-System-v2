@@ -1,4 +1,4 @@
--- Adicionar colunas de Responsáveis (caso não existam)
+  -- Adicionar colunas de Responsáveis (caso não existam)
 ALTER TABLE alunos
     ADD COLUMN IF NOT EXISTS nome_responsavel TEXT,
     ADD COLUMN IF NOT EXISTS cpf_responsavel TEXT,

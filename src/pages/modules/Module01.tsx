@@ -16,7 +16,7 @@ const Module01: React.FC = () => {
               </Link>
               <div className="h-8 w-px bg-white opacity-30"></div>
               <img
-                src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
+                src="/icons/3d/logo-IBUC.png"
                 alt="IBUC Logo"
                 className="h-12 w-auto"
               />

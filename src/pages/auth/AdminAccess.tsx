@@ -5,6 +5,7 @@ import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { Shield, Mail, Lock } from 'lucide-react';
+import ScrollToTop from '../../components/common/ScrollToTop';
 
 const AdminAccess: React.FC = () => {
   const { login, showFeedback, currentUser } = useApp();
@@ -80,6 +81,7 @@ const AdminAccess: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <ScrollToTop />
       {/* Background Logos */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-between px-4 opacity-[0.1] sm:opacity-[0.15]">
         <img
@@ -97,7 +99,7 @@ const AdminAccess: React.FC = () => {
       <div className="max-w-md w-full space-y-8 relative z-10">
         <div className="text-center">
           <img
-            src="https://ibuc.com.br/wp-content/uploads/2023/05/logo-site.png"
+            src="/icons/3d/logo-IBUC.png"
             alt="IBUC Logo"
             className="h-16 w-auto mx-auto mb-6"
           />

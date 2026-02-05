@@ -171,7 +171,9 @@ export function usePreMatricula(isAdminView = false) {
     const calculateAge = (birthDate: string): number => {
         if (!birthDate) return 0;
         const today = new Date();
-        const birth = new Date(birthDate);
+        // Normaliza para meio-dia para evitar shift de 1 dia na conversão UTC
+        const normalizedBirthStr = birthDate.includes('T') ? birthDate : `${birthDate}T12:00:00`;
+        const birth = new Date(normalizedBirthStr);
         let age = today.getFullYear() - birth.getFullYear();
         const m = today.getMonth() - birth.getMonth();
         if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {

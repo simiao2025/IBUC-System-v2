@@ -243,6 +243,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               permissions: user.metadata?.permissions,
             } as AdminUser,
           });
+          console.log('[DEBUG] AppContext - Session Restored:', {
+            role: user.role,
+            accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral'
+          });
           setAuthLoading(false);
           return;
         }
@@ -320,6 +324,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             regionalPoloIds: user.regionalPoloIds || [],
             permissions: user.metadata?.permissions,
           } as AdminUser,
+        });
+        console.log('[DEBUG] AppContext - Login Success:', {
+          role: user.role,
+          accessLevel: hasGlobalAccessForRole(user.role) ? 'geral' : user.polo_id ? 'polo_especifico' : 'geral'
         });
         return 'admin';
       }

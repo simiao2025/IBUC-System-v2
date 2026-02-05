@@ -12,11 +12,13 @@
 export const parseISOToLocal = (dateStr: string | null | undefined): Date => {
   if (!dateStr) return new Date();
 
-  // Se já contém 'T', assumimos que é um ISO completo.
-  // Se não contém, adicionamos 'T12:00:00' para garantir que, ao converter para local,
-  // mesmo com deslocamento de -3h ou -4h, ainda estejamos no dia correto.
-  const normalizedStr = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
-  return new Date(normalizedStr);
+  // Remove qualquer parte de hora/fuso para tratar como data "pura" (YYYY-MM-DD)
+  // Isso evita que "2026-03-31T00:00:00.000Z" vire "2026-03-30" em Brasília.
+  const onlyDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr.split(' ')[0];
+  
+  // Adicionamos T12:00:00 (meio-dia) para garantir que, ao converter para objeto Date,
+  // mesmo com variações de fuso horário, ainda estejamos no dia correto.
+  return new Date(`${onlyDate}T12:00:00`);
 };
 
 /**
@@ -27,12 +29,23 @@ export const parseISOToLocal = (dateStr: string | null | undefined): Date => {
  */
 export const formatLocalDate = (
   date: Date | string | null | undefined,
-  options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' }
+  options?: Intl.DateTimeFormatOptions
 ): string => {
   if (!date) return '';
 
+  const defaultOptions: Intl.DateTimeFormatOptions = { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric',
+    timeZone: 'America/Sao_Paulo'
+  };
+
+  // Faz merge das opções para garantir que o timeZone não seja perdido se o usuário 
+  // passar apenas { day: '2-digit' }, por exemplo.
+  const mergedOptions = { ...defaultOptions, ...options };
+
   const dateObj = typeof date === 'string' ? parseISOToLocal(date) : date;
-  return dateObj.toLocaleDateString('pt-BR', options);
+  return dateObj.toLocaleDateString('pt-BR', mergedOptions);
 };
 
 /**

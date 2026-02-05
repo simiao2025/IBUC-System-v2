@@ -363,7 +363,8 @@ export class DiretoriaService {
       `)
       .order('data_inicio', { ascending: false });
 
-    if (poloId) {
+    // Filter by polo_id if provided and not empty
+    if (poloId && poloId.trim() !== '') {
       query = query.eq('polo_id', poloId);
     }
 
