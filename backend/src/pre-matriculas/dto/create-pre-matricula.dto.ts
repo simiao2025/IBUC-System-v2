@@ -127,4 +127,13 @@ export class CreatePreMatriculaDto {
   @IsEnum(['em_analise', 'ativo', 'trancado', 'concluido'])
   @IsOptional()
   status?: 'em_analise' | 'ativo' | 'trancado' | 'concluido';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  autorizacao_imagem?: boolean;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  turma_id?: string;
 }

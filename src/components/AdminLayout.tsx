@@ -14,6 +14,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { pathname } = useLocation();
 
   useEffect(() => {
+    // Scroll all possible scroll containers to ensure it works on all devices
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTo({ top: 0, behavior: 'instant' });
+    document.body.scrollTo({ top: 0, behavior: 'instant' });
+    
     if (mainRef.current) {
       mainRef.current.scrollTop = 0;
     }

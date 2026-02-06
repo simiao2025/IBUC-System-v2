@@ -11,7 +11,9 @@ import {
   HttpStatus,
   Headers,
   NotFoundException,
+  ForbiddenException,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -85,14 +87,25 @@ export class UsuariosController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Listar usuários' })
   async listarUsuarios(
+    @Req() req: any,
     @Query('role') role?: string,
     @Query('polo_id') poloId?: string,
     @Query('ativo') ativo?: string,
     @Query('search') search?: string,
   ) {
     const filtros: any = {};
+    
+    // Segurança: Administradores de polo só veem usuários do seu polo
+    const user = req.user;
+    const isGlobalAdmin = ['super_admin', 'diretor_geral', 'admin_geral'].includes(user?.role);
+
+    if (!isGlobalAdmin) {
+      filtros.polo_id = user.polo_id;
+    } else if (poloId) {
+      filtros.polo_id = poloId;
+    }
+
     if (role) filtros.role = role;
-    if (poloId) filtros.polo_id = poloId;
     if (ativo !== undefined) filtros.ativo = ativo === 'true';
     if (search) filtros.search = search;
 
@@ -145,7 +158,25 @@ export class UsuariosController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Deletar usuário' })
-  async deletarUsuario(@Param('id') id: string) {
+  async deletarUsuario(@Req() req: any, @Param('id') id: string) {
+    const user = req.user;
+    const isGlobalAdmin = ['super_admin', 'diretor_geral', 'admin_geral'].includes(user?.role);
+
+    if (!isGlobalAdmin) {
+      const usuarioParaDeletar = await this.usuariosService.buscarUsuarioPorId(id);
+      
+      // 1. Verificar se pertence ao mesmo polo
+      if (usuarioParaDeletar.polo_id !== user.polo_id) {
+        throw new ForbiddenException('Você não tem permissão para deletar usuários de outro polo.');
+      }
+
+      // 2. Impedir exclusão de cargos de gestão por outros gestores de polo (apenas admin global pode)
+      const rolesGestao = ['super_admin', 'admin_geral', 'diretor_geral', 'diretor_polo', 'coordenador_polo'];
+      if (rolesGestao.includes(usuarioParaDeletar.role)) {
+        throw new ForbiddenException('Gestores de polo não podem excluir outros cargos de direção ou coordenação.');
+      }
+    }
+
     return this.usuariosService.deletarUsuario(id);
   }
 

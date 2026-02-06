@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { AlunoService, AlunosAPI } from './aluno.service';
 import BlankStudentForm from './BlankStudentForm';
 import StudentForm from '../../components/admin/StudentForm';
+import TransferStudentModal from './TransferStudentModal';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -18,7 +19,8 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
-  Printer
+  Printer,
+  ArrowRightLeft
 } from 'lucide-react';
 import { formatLocalDate } from '../../shared/utils/dateUtils';
 
@@ -32,6 +34,7 @@ const StudentManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('todos');
   const [currentPage, setCurrentPage] = useState(1);
+  const [transferStudent, setTransferStudent] = useState<any | null>(null);
   const itemsPerPage = 10;
 
   const isPoloScoped = currentUser?.adminUser?.accessLevel === 'polo_especifico' && Boolean(currentUser?.adminUser?.poloId);
@@ -86,6 +89,25 @@ const StudentManagement: React.FC = () => {
       showFeedback('error', 'Erro ao salvar', 'Não foi possível salvar as alterações do aluno.');
     } finally {
       setEditingLoading(false);
+    }
+  };
+
+  const handleTransfer = async (poloDestinoId: string, motivo: string, observacoes?: string) => {
+    if (!transferStudent?.id) return;
+    try {
+      await AlunoService.transferirAluno(transferStudent.id, poloDestinoId, motivo, observacoes);
+      showFeedback('success', 'Transferência realizada', 'Aluno transferido com sucesso para o novo polo.');
+      setTransferStudent(null);
+
+      // Recarregar lista de alunos
+      const data = isPoloScoped && userPoloId
+        ? await AlunoService.listarAlunos({ poloId: userPoloId })
+        : await AlunosAPI.listar();
+      setAlunos(data);
+    } catch (error) {
+      console.error('Erro ao transferir aluno:', error);
+      showFeedback('error', 'Erro ao transferir', 'Não foi possível transferir o aluno. Tente novamente.');
+      throw error;
     }
   };
 
@@ -236,6 +258,15 @@ const StudentManagement: React.FC = () => {
                         >
                           <Edit className="h-4 w-4" />
                         </button>
+                        {!isPoloScoped && (
+                          <button
+                            className="p-1 hover:bg-gray-100 rounded text-purple-600"
+                            title="Transferir Polo"
+                            onClick={() => setTransferStudent(aluno)}
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                          </button>
+                        )}
                         <button className="p-1 hover:bg-gray-100 rounded text-red-600" title="Excluir">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -284,6 +315,16 @@ const StudentManagement: React.FC = () => {
           onSave={handleSaveEdit}
           onCancel={() => setEditingStudent(null)}
           loading={editingLoading}
+        />
+      )}
+
+      {transferStudent && (
+        <TransferStudentModal
+          student={transferStudent}
+          polos={polos as any}
+          currentPoloId={transferStudent.polo_id}
+          onTransfer={handleTransfer}
+          onClose={() => setTransferStudent(null)}
         />
       )}
 

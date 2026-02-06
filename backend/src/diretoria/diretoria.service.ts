@@ -359,7 +359,7 @@ export class DiretoriaService {
       .select(`
         *,
         polo:polos!fk_polo(id, nome, codigo),
-        usuario:usuarios!fk_usuario(id, nome_completo, email, role)
+        usuario:usuarios!fk_usuario_set_null(id, nome_completo, email, role)
       `)
       .order('data_inicio', { ascending: false });
 
@@ -388,7 +388,7 @@ export class DiretoriaService {
       .select(`
         *,
         polo:polos!fk_polo(id, nome, codigo),
-        usuario:usuarios!fk_usuario(id, nome_completo, email, role)
+        usuario:usuarios!fk_usuario_set_null(id, nome_completo, email, role)
       `)
       .eq('id', id)
       .single();

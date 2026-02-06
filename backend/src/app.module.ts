@@ -8,7 +8,7 @@ import { TurmasModule } from './turmas/turmas.module';
 import { AlunosModule } from './alunos/alunos.module';
 import { MatriculasModule } from './matriculas/matriculas.module';
 import { PresencasModule } from './presencas/presencas.module';
-import { AvaliacoesModule } from './avaliacoes/avaliacoes.module';
+import { EquipesPolosModule } from './equipes-polos/equipes-polos.module';
 import { DracmasModule } from './dracmas/dracmas.module';
 import { MensalidadesModule } from './mensalidades/mensalidades.module';
 import { PagamentosModule } from './pagamentos/pagamentos.module';
@@ -30,7 +30,6 @@ import { ListaEsperaModule } from './lista-espera/lista-espera.module';
 import { MateriaisModule } from './materiais/materiais.module';
 import { PedidosMateriaisModule } from './pedidos-materiais/pedidos-materiais.module';
 import { UploadModule } from './upload/upload.module';
-import { CalendarioModule } from './calendario/calendario.module';
 
 @Module({
   imports: [
@@ -43,7 +42,7 @@ import { CalendarioModule } from './calendario/calendario.module';
     AlunosModule,
     MatriculasModule,
     PresencasModule,
-    AvaliacoesModule,
+    EquipesPolosModule,
     DracmasModule,
     MensalidadesModule,
     PagamentosModule,
@@ -65,7 +64,6 @@ import { CalendarioModule } from './calendario/calendario.module';
     MateriaisModule,
     PedidosMateriaisModule,
     UploadModule,
-    CalendarioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

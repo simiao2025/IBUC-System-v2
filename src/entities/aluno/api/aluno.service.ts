@@ -32,6 +32,10 @@ export const AlunosAPI = {
   atualizar: (id: string, data: AlunoUpdateDto) => api.put<Aluno>(`/alunos/${id}`, data),
   deletar: (id: string) => api.delete<void>(`/alunos/${id}`),
   buscarHistorico: (id: string) => api.get<any[]>(`/alunos/${id}/historico-modulos`),
+  transferir: (id: string, dto: { polo_destino_id: string; motivo: string; observacoes?: string }) => 
+    api.post<{ message: string; aluno: Aluno; polo_destino: any }>(`/alunos/${id}/transferir`, dto),
+  buscarHistoricoTransferencias: (id: string) => 
+    api.get<any[]>(`/alunos/${id}/historico-transferencias`),
 };
 
 export class AlunoService {
@@ -101,6 +105,23 @@ export class AlunoService {
     // await this.atualizarAluno(matricula.aluno_id, { status: 'ativo' ... });
 
     return matriculaAtualizada;
+  }
+
+  static async transferirAluno(
+    id: string,
+    poloDestinoId: string,
+    motivo: string,
+    observacoes?: string
+  ): Promise<{ message: string; aluno: Aluno; polo_destino: any }> {
+    return AlunosAPI.transferir(id, {
+      polo_destino_id: poloDestinoId,
+      motivo,
+      observacoes
+    });
+  }
+
+  static async buscarHistoricoTransferencias(id: string): Promise<any[]> {
+    return AlunosAPI.buscarHistoricoTransferencias(id);
   }
 
   static async rejeitarMatricula(

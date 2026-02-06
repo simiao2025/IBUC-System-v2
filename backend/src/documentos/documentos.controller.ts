@@ -1,9 +1,11 @@
+import { MemoryStorageFile } from '@nestjs-multipart/platform-express'; // Assuming type or just keeping what's needed. Wait, lines 1-6 are imports.
 import { Controller, Get, Param, Post, Query, UploadedFiles, UseInterceptors, UseGuards } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Express } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/IS_PUBLIC';
 import { DocumentosService } from './documentos.service';
 
 @UseGuards(JwtAuthGuard)
@@ -46,6 +48,7 @@ export class DocumentosController {
     return this.service.listarDocumentosMatricula(id);
   }
 
+  @Public()
   @Post('pre-matriculas/:id')
   @ApiOperation({ summary: 'Upload de documentos da pré-matrícula' })
   @ApiConsumes('multipart/form-data')
@@ -74,6 +77,7 @@ export class DocumentosController {
     return this.service.uploadDocumentosPreMatricula(id, tipo, files);
   }
 
+  @Public()
   @Get('pre-matriculas/:id')
   @ApiOperation({ summary: 'Listar documentos da pré-matrícula' })
   async listarDocumentosPreMatricula(@Param('id') id: string) {

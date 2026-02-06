@@ -54,6 +54,9 @@ export class PreMatriculasService {
         escola_origem: dto.escola_origem,
         ano_escolar: dto.ano_escolar,
         observacoes: dto.observacoes,
+        // Novos Campos Refatoração
+        autorizacao_imagem: dto.autorizacao_imagem,
+        turma_id: dto.turma_id,
         status,
       })
       .select()
@@ -212,7 +215,9 @@ export class PreMatriculasService {
           contato_emergencia_telefone: preMatricula.contato_emergencia_telefone || '',
           convenio_medico: preMatricula.convenio_medico || '',
           hospital_preferencia: preMatricula.hospital_preferencia || '',
+          hospital_preferencia: preMatricula.hospital_preferencia || '',
           autorizacao_medica: preMatricula.autorizacao_medica || false,
+          autorizacao_imagem: preMatricula.autorizacao_imagem || false,
           // Guardian 1 mapping
           nome_responsavel: preMatricula.nome_responsavel,
           cpf_responsavel: preMatricula.cpf_responsavel,

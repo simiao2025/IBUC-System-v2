@@ -7,6 +7,7 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import { UserServiceV2 } from '../../../services/userService.v2';
+import { EquipePoloService, EquipePoloMember } from '@/entities/polo/api/equipePolo.service';
 import {
   ArrowLeft,
   Search,
@@ -27,7 +28,7 @@ import type { AdminUser, AdminRole } from '../../../types';
 
 // Roles que são considerados "staff" (equipe)
 // Apenas valores válidos para o enum role_usuario no banco de dados
-const STAFF_ROLES: AdminRole[] = ['professor', 'auxiliar', 'coordenador_regional'];
+const STAFF_ROLES: AdminRole[] = ['professor', 'auxiliar'];
 
 const StaffManagementPage: React.FC = () => {
   const { polos, currentUser, showFeedback, showConfirm } = useApp();
@@ -141,22 +142,33 @@ const StaffManagementPage: React.FC = () => {
     try {
       setLoading(true);
 
-      const filtros: any = {};
-      if (isPoloScoped && userPoloId) {
-        filtros.polo_id = userPoloId;
-      } else if (filterPolo !== 'all') {
-        filtros.polo_id = filterPolo;
-      }
-      if (filterRole !== 'all') {
-        filtros.role = filterRole;
-      }
+      const poloId = isPoloScoped && userPoloId ? userPoloId : (filterPolo !== 'all' ? filterPolo : undefined);
+      const members = await EquipePoloService.listByPolo(poloId);
 
-      const usuarios = await UserServiceV2.listUsers(filtros);
-
-      const staffMapeados = usuarios.filter(u => STAFF_ROLES.includes(u.role));
+      // Mapear EquipePoloMember para AdminUser para compatibilidade com o componente
+      const staffMapeados: AdminUser[] = members.map(m => ({
+        id: m.id,
+        name: m.nome,
+        email: m.email,
+        phone: m.telefone || '',
+        role: m.cargo as AdminRole,
+        accessLevel: m.polo_id ? 'polo_especifico' : 'geral',
+        poloId: m.polo_id,
+        isActive: m.status === 'ativo',
+        permissions: { mode: 'limited', modules: [] },
+        qualifications: m.observacoes ? [m.observacoes] : [], // Simplificado para exemplo, ou usar metadados do usuário
+        hireDate: m.created_at || '',
+        createdAt: m.created_at || '',
+        updatedAt: m.updated_at || '',
+        usuario_id: m.usuario_id
+      }));
 
       // Aplicar filtros manuais de busca
       let staffFiltrados = staffMapeados;
+      if (filterRole !== 'all') {
+        staffFiltrados = staffFiltrados.filter(s => s.role === filterRole);
+      }
+      
       if (searchTerm) {
         staffFiltrados = staffFiltrados.filter(s =>
           s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -181,12 +193,17 @@ const StaffManagementPage: React.FC = () => {
 
     try {
       setSaving(true);
-      await UserServiceV2.createUser({
-        ...newStaff,
-        accessLevel: 'polo_especifico'
-      } as any);
+      await EquipePoloService.create({
+        nome: newStaff.name,
+        email: newStaff.email,
+        cpf: newStaff.cpf,
+        telefone: newStaff.phone,
+        cargo: newStaff.role as any,
+        polo_id: newStaff.poloId,
+        observacoes: newStaff.qualifications?.join(', ')
+      });
 
-      showFeedback('success', 'Sucesso', 'Membro da equipe criado com sucesso!');
+      showFeedback('success', 'Sucesso', 'Membro da equipe criado com sucesso! Usuário gerado automaticamente.');
       await carregarStaff();
       setNewStaff({
         name: '',
@@ -213,7 +230,14 @@ const StaffManagementPage: React.FC = () => {
 
     try {
       setSaving(true);
-      await UserServiceV2.updateUser(editingStaff.id, editingStaff);
+      await EquipePoloService.update(editingStaff.id, {
+        nome: editingStaff.name,
+        email: editingStaff.email,
+        telefone: editingStaff.phone,
+        cargo: editingStaff.role as any,
+        status: editingStaff.isActive ? 'ativo' : 'inativo',
+        observacoes: editingStaff.qualifications?.join(', ')
+      });
 
       showFeedback('success', 'Sucesso', 'Membro da equipe atualizado com sucesso!');
       await carregarStaff();
@@ -227,10 +251,10 @@ const StaffManagementPage: React.FC = () => {
   };
 
   const handleDeleteStaff = async (staffId: string) => {
-    showConfirm('Confirmar exclusão', 'Tem certeza que deseja excluir este membro da equipe?', async () => {
+    showConfirm('Confirmar exclusão', 'Tem certeza que deseja excluir este membro da equipe? O usuário vinculado também será removido.', async () => {
       try {
-        await UserServiceV2.deleteUser(staffId);
-        showFeedback('success', 'Sucesso', 'Membro da equipe deletado com sucesso!');
+        await EquipePoloService.delete(staffId);
+        showFeedback('success', 'Sucesso', 'Membro da equipe e usuário deletados com sucesso!');
         await carregarStaff();
       } catch (error: any) {
         console.error('Erro ao deletar membro da equipe:', error);
@@ -244,7 +268,7 @@ const StaffManagementPage: React.FC = () => {
     if (!staff) return;
 
     try {
-      await UserServiceV2.updateUser(staffId, { isActive: !staff.isActive });
+      await EquipePoloService.update(staffId, { status: staff.isActive ? 'inativo' : 'ativo' });
       showFeedback('success', 'Sucesso', `Membro da equipe ${staff.isActive ? 'desativado' : 'ativado'} com sucesso!`);
       await carregarStaff();
     } catch (error: any) {
@@ -512,35 +536,7 @@ const StaffManagementPage: React.FC = () => {
                 </select>
               </div>
 
-              {newStaff.role === 'coordenador_regional' && (
-                <div className="border rounded-lg p-3 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Polos da Região (Selecione um ou mais)
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-                    {polos.map(polo => (
-                      <label key={polo.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
-                        <input
-                          type="checkbox"
-                          checked={newStaff.regionalPoloIds?.includes(polo.id) || false}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            const currentIds = newStaff.regionalPoloIds || [];
-                            setNewStaff(prev => ({
-                              ...prev,
-                              regionalPoloIds: checked
-                                ? [...currentIds, polo.id]
-                                : currentIds.filter(id => id !== polo.id)
-                            }));
-                          }}
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        <span>{polo.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               <Input
                 label="Nome Completo"
@@ -639,35 +635,7 @@ const StaffManagementPage: React.FC = () => {
                 </select>
               </div>
 
-              {editingStaff.role === 'coordenador_regional' && (
-                <div className="border rounded-lg p-3 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Polos da Região (Selecione um ou mais)
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-                    {polos.map(polo => (
-                      <label key={polo.id} className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-white p-1 rounded">
-                        <input
-                          type="checkbox"
-                          checked={editingStaff.regionalPoloIds?.includes(polo.id) || false}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            const currentIds = editingStaff.regionalPoloIds || [];
-                            setEditingStaff(prev => prev ? ({
-                              ...prev,
-                              regionalPoloIds: checked
-                                ? [...currentIds, polo.id]
-                                : currentIds.filter(id => id !== polo.id)
-                            }) : null);
-                          }}
-                          className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                        />
-                        <span>{polo.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               <Input
                 label="Nome Completo"

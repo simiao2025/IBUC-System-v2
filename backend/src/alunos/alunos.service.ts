@@ -164,7 +164,9 @@ export class AlunosService {
         contato_emergencia_telefone: dto.contato_emergencia_telefone,
         convenio_medico: dto.convenio_medico,
         hospital_preferencia: dto.hospital_preferencia,
+        hospital_preferencia: dto.hospital_preferencia,
         autorizacao_medica: dto.autorizacao_medica || false,
+        autorizacao_imagem: (dto as any).autorizacao_imagem || false, // Cast as any if DTO not updated yet, or update DTO interface
         observacoes_medicas: dto.observacoes_medicas,
         escola_atual: dto.escola_atual,
         serie: dto.serie,
@@ -402,6 +404,158 @@ export class AlunosService {
     }));
 
     return resultado;
+  }
+
+  async transferirAluno(id: string, dto: { polo_destino_id: string; motivo: string; observacoes?: string }, userId: string) {
+    // 1. Buscar o aluno atual com seus dados completos
+    const aluno = await this.buscarAlunoPorId(id);
+
+    // 2. Validar que o polo de destino existe
+    const { data: poloDestino, error: poloError } = await this.supabase
+      .getAdminClient()
+      .from('polos')
+      .select('id, nome')
+      .eq('id', dto.polo_destino_id)
+      .single();
+
+    if (poloError || !poloDestino) {
+      throw new NotFoundException('Polo de destino não encontrado');
+    }
+
+    // 3. Validar que não está transferindo para o mesmo polo
+    if (aluno.polo_id === dto.polo_destino_id) {
+      throw new BadRequestException('O aluno já está neste polo');
+    }
+
+    // 4. Registrar a transferência no histórico
+    const { error: transferenciaError } = await this.supabase
+      .getAdminClient()
+      .from('transferencias_alunos')
+      .insert({
+        aluno_id: id,
+        polo_origem_id: aluno.polo_id,
+        polo_destino_id: dto.polo_destino_id,
+        turma_origem_id: aluno.turma_id,
+        realizado_por: userId,
+        motivo: dto.motivo,
+        observacoes: dto.observacoes
+      });
+
+    if (transferenciaError) {
+      throw new BadRequestException(`Erro ao registrar transferência: ${transferenciaError.message}`);
+    }
+
+    // --- NOVA LÓGICA: Criar Pré-matrícula de Transferência ---
+    const { error: preMatriculaError } = await this.supabase
+      .getAdminClient()
+      .from('pre_matriculas')
+      .insert({
+        tipo: 'transferencia',
+        aluno_origem_id: id,
+        polo_id: dto.polo_destino_id,
+        nome_completo: aluno.nome,
+        cpf: aluno.cpf,
+        data_nascimento: aluno.data_nascimento,
+        sexo: aluno.sexo,
+        nacionalidade: aluno.nacionalidade,
+        naturalidade: aluno.naturalidade,
+        rg: aluno.rg,
+        rg_orgao: aluno.rg_orgao,
+        rg_data_expedicao: aluno.rg_data_expedicao,
+        endereco: aluno.endereco,
+        // Health info copy
+        alergias: aluno.alergias,
+        restricao_alimentar: aluno.restricao_alimentar,
+        medicacao_continua: aluno.medicacao_continua,
+        doencas_cronicas: aluno.doencas_cronicas,
+        contato_emergencia_nome: aluno.contato_emergencia_nome,
+        contato_emergencia_telefone: aluno.contato_emergencia_telefone,
+        convenio_medico: aluno.convenio_medico,
+        hospital_preferencia: aluno.hospital_preferencia,
+        autorizacao_medica: aluno.autorizacao_medica,
+        // Guardians copy
+        nome_responsavel: aluno.nome_responsavel,
+        cpf_responsavel: aluno.cpf_responsavel,
+        telefone_responsavel: aluno.telefone_responsavel,
+        email_responsavel: aluno.email_responsavel,
+        tipo_parentesco: aluno.tipo_parentesco,
+        nome_responsavel_2: aluno.nome_responsavel_2,
+        cpf_responsavel_2: aluno.cpf_responsavel_2,
+        telefone_responsavel_2: aluno.telefone_responsavel_2,
+        email_responsavel_2: aluno.email_responsavel_2,
+        tipo_parentesco_2: aluno.tipo_parentesco_2,
+        // Transfer info
+        status: 'em_analise',
+        observacoes: `TRANSFERÊNCIA DE POLO - Motivo: ${dto.motivo}. Obs: ${dto.observacoes || ''}`,
+        // TODO: Buscar materiais pagos e popular dados_materiais
+      });
+    
+    if (preMatriculaError) {
+      console.error('Erro ao criar pré-matrícula de transferência:', preMatriculaError);
+      // Não falha a transferência se a pré-matrícula falhar, mas loga erro
+    }
+    // --------------------------------------------------------
+
+    // 5. Atualizar o aluno: novo polo e sem turma
+    const { data: alunoAtualizado, error: updateAlunoError } = await this.supabase
+      .getAdminClient()
+      .from('alunos')
+      .update({
+        polo_id: dto.polo_destino_id,
+        turma_id: null, // Aluno fica sem turma até ser alocado manualmente
+        data_atualizacao: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateAlunoError) {
+      throw new BadRequestException(`Erro ao atualizar aluno: ${updateAlunoError.message}`);
+    }
+
+    // 6. Atualizar o usuário vinculado (se existir) para refletir o novo polo no login
+    if (aluno.usuario_id) {
+      const { error: updateUsuarioError } = await this.supabase
+        .getAdminClient()
+        .from('usuarios')
+        .update({
+          polo_id: dto.polo_destino_id
+        })
+        .eq('id', aluno.usuario_id);
+
+      if (updateUsuarioError) {
+        console.error('Erro ao atualizar polo do usuário:', updateUsuarioError);
+        // Não lança erro pois a transferência do aluno já foi bem-sucedida
+      }
+    }
+
+    return {
+      message: 'Transferência realizada com sucesso',
+      aluno: alunoAtualizado,
+      polo_destino: poloDestino
+    };
+  }
+
+  async buscarHistoricoTransferencias(alunoId: string) {
+    // Buscar histórico de transferências do aluno
+    const { data, error } = await this.supabase
+      .getAdminClient()
+      .from('transferencias_alunos')
+      .select(`
+        *,
+        polo_origem:polos!fk_polo_origem(id, nome, codigo),
+        polo_destino:polos!fk_polo_destino(id, nome, codigo),
+        turma_origem:turmas!fk_turma_origem(id, nome),
+        realizado_por_usuario:usuarios!fk_realizado_por(id, nome_completo, email)
+      `)
+      .eq('aluno_id', alunoId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new BadRequestException(`Erro ao buscar histórico de transferências: ${error.message}`);
+    }
+
+    return data || [];
   }
 }
 

@@ -25,14 +25,16 @@
     "types": [
       "node",
       "jest"
-    ]
+    ],
+    "rootDir": "src"
   },
   "include": [
-    "src/**/*",
-    "test/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "test",
+    "**/*spec.ts"
   ]
 }

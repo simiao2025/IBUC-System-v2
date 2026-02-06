@@ -162,6 +162,10 @@ export const ClassManagement: React.FC = () => {
         modulo_atual_id: t.modulo_atual_id,
         dias_semana: (t as any).dias_semana || [],
         horario_inicio: (t as any).horario_inicio || '',
+        data_inicio: (t as any).data_inicio || '',
+        data_previsao_termino: (t as any).data_previsao_termino || '',
+        data_conclusao: (t as any).data_conclusao || '',
+        migracao_concluida: (t as any).migracao_concluida,
         created_at: t.created_at,
       })));
     } catch (e) {
@@ -507,8 +511,7 @@ export const ClassManagement: React.FC = () => {
               onChange={e => setForm(prev => ({ ...prev, data_previsao_termino: e.target.value }))}
             />
           </div>
-          {editingId && (
-            <div>
+          <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Data de Conclusão</label>
               <Input
                 type="date"
@@ -516,7 +519,6 @@ export const ClassManagement: React.FC = () => {
                 onChange={e => setForm(prev => ({ ...prev, data_conclusao: e.target.value }))}
               />
             </div>
-          )}
           <div className="md:col-span-3">
             <label className="block text-sm font-medium text-gray-700 mb-2">Dias da Semana</label>
             <div className="flex flex-wrap gap-4">

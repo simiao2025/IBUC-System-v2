@@ -12,6 +12,7 @@ import { FormularioSaude } from '../../features/enrollments/components/Formulari
 import { FormularioResponsaveis } from '../../features/enrollments/components/FormularioResponsaveis';
 
 import Select from '../../components/ui/Select';
+import Input from '../../components/ui/Input';
 import PhotoUpload from '../../components/ui/PhotoUpload';
 import DocumentUpload from '../../components/ui/DocumentUpload';
 
@@ -28,6 +29,7 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
         loading,
         polos,
         turmas,
+        niveis,
         errors,
         submitted,
         handleInputChange,
@@ -130,9 +132,9 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                         setFormData={setFormData}
                     />
 
-                    {/* Sessão 5: Institucional (Polos/Turmas) */}
+                    {/* Sessão 5: Dados Acadêmicos */}
                     <Card>
-                        <h2 className="text-xl font-semibold text-gray-900 uppercase mb-4">Informações Institucionais</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 uppercase mb-4">Dados Acadêmicos</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Polo Selection */}
                             {!isAdminView || polos.length > 1 ? (
@@ -154,6 +156,8 @@ const NovaMatriculaPage: React.FC<NovaMatriculaPageProps> = ({ isAdminView }) =>
                                     <p className="text-xs text-gray-500">Cadastro restrito ao seu polo.</p>
                                 </div>
                             )}
+
+
 
                             {/* Turma Selection */}
                             {isAdminView && (

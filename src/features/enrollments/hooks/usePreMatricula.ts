@@ -276,7 +276,7 @@ export function usePreMatricula(isAdminView = false) {
 
         setLoading(true);
         try {
-            // Mapeia o formData para o DTO de Aluno
+            // Mapeia o formData para o DTO de Aluno (Comum)
             const alunoDto: AlunoCreateDto = {
                 nome: formData.nome,
                 cpf: formData.cpf,
@@ -287,8 +287,6 @@ export function usePreMatricula(isAdminView = false) {
                 rg_data_expedicao: formData.rg_data_expedicao,
                 naturalidade: formData.naturalidade,
                 nacionalidade: formData.nacionalidade,
-                // email: formData.email_responsavel, // Email removido pois nao existe no DTO
-                // telefone: formData.telefone_responsavel,
                 endereco: {
                     cep: formData.cep,
                     rua: formData.rua,
@@ -298,10 +296,6 @@ export function usePreMatricula(isAdminView = false) {
                     cidade: formData.cidade,
                     estado: formData.estado,
                 },
-                // filiacao: {
-                //     mae: formData.tipo_parentesco === 'mae' ? formData.nome_responsavel : '',
-                //     pai: formData.tipo_parentesco === 'pai' ? formData.nome_responsavel : '',
-                // },
                 responsaveis: [
                     {
                         nome: formData.nome_responsavel,
@@ -311,39 +305,94 @@ export function usePreMatricula(isAdminView = false) {
                         parentesco: formData.tipo_parentesco
                     }
                 ],
-                saude: formData.saude, // Assumindo compatibilidade de tipos
+                saude: formData.saude,
                 status: isAdminView && formData.turma_id ? 'ativo' : 'pendente',
                 polo_id: formData.polo_id,
-                nivel_atual_id: formData.nivel_id || '' // Campo obrigatório
+                nivel_atual_id: formData.nivel_id || '' 
             };
 
-            // Cria aluno
-            const novoAluno = await AlunoService.criarAluno(alunoDto);
+            let studentIdForDocs: string;
+            let uploadMethod: 'aluno' | 'pre-matricula' = 'aluno';
 
-            // Se tiver turma selecionada (admin), cria matrícula direta
-            if (formData.turma_id) {
-                await MatriculaService.criar({
-                    aluno_id: novoAluno.id,
-                    polo_id: formData.polo_id,
-                    turma_id: formData.turma_id,
-                    // nivel_id e modulo_id seriam inferidos no backend ou passados aqui se necessário
-                    status: isAdminView ? 'ativa' : 'pendente',
-                    observacoes: formData.observacoes
-                });
+            if (isAdminView) {
+                 // --- FLUXO ADMIN: CRIAÇÃO DIRETA ---
+                const novoAluno = await AlunoService.criarAluno(alunoDto);
+                studentIdForDocs = novoAluno.id;
+
+                if (formData.turma_id) {
+                    await MatriculaService.criar({
+                        aluno_id: novoAluno.id,
+                        polo_id: formData.polo_id,
+                        turma_id: formData.turma_id,
+                        status: 'ativa',
+                        observacoes: formData.observacoes
+                    });
+                } else {
+                    await MatriculaService.criar({
+                        aluno_id: novoAluno.id,
+                        polo_id: formData.polo_id,
+                        turma_id: undefined,
+                        status: 'pendente',
+                        observacoes: 'Matrícula Rápida (Admin)'
+                    });
+                }
             } else {
-                // Apenas pré-matrícula (sem turma definida ainda)
-                // Pode-se criar uma matrícula com status 'pendente' e sem turma, ou usar uma tabela de pre-matriculas separada
-                // Neste refactor, assumimos unificação na tabela de matrículas
-                await MatriculaService.criar({
-                    aluno_id: novoAluno.id,
+                // --- FLUXO PÚBLICO: PRÉ-MATRÍCULA ---
+                // Mapeia para DTO de Pré-Matrícula (Flat + Novos Campos)
+                const preMatriculaDto: any = {
+                    nome_completo: formData.nome,
+                    cpf: formData.cpf,
+                    rg: formData.rg,
+                    rg_orgao: formData.rg_orgao,
+                    rg_data_expedicao: formData.rg_data_expedicao,
+                    data_nascimento: formData.data_nascimento,
+                    sexo: formData.sexo,
+                    naturalidade: formData.naturalidade,
+                    nacionalidade: formData.nacionalidade,
+                    endereco: alunoDto.endereco,
+                    
+                    // Responsável 1
+                    nome_responsavel: formData.nome_responsavel,
+                    cpf_responsavel: formData.cpf_responsavel,
+                    telefone_responsavel: formData.telefone_responsavel,
+                    email_responsavel: formData.email_responsavel,
+                    tipo_parentesco: formData.tipo_parentesco,
+
+                    // Responsável 2
+                    nome_responsavel_2: formData.nome_responsavel_2,
+                    cpf_responsavel_2: formData.cpf_responsavel_2,
+                    telefone_responsavel_2: formData.telefone_responsavel_2,
+                    email_responsavel_2: formData.email_responsavel_2,
+                    tipo_parentesco_2: formData.tipo_parentesco_2,
+
+                    // Saúde (Flattened)
+                    alergias: formData.saude.alergias,
+                    restricao_alimentar: formData.saude.restricao_alimentar,
+                    medicacao_continua: formData.saude.medicacao_continua,
+                    doencas_cronicas: formData.saude.doencas_cronicas,
+                    contato_emergencia_nome: formData.saude.contato_emergencia_nome,
+                    contato_emergencia_telefone: formData.saude.contato_emergencia_telefone,
+                    convenio_medico: formData.saude.convenio_medico,
+                    hospital_preferencia: formData.saude.hospital_preferencia,
+                    autorizacao_medica: formData.saude.autorizacao_medica,
+                    
+                    // Novos Campos Refatorados
+                    autorizacao_imagem: formData.saude.autorizacao_imagem,
+                    turma_id: formData.turma_id || null, 
+
                     polo_id: formData.polo_id,
-                    turma_id: undefined,
-                    status: 'pendente',
-                    observacoes: 'Pré-matrícula Online'
-                });
+                    nivel_id: formData.nivel_id,
+                    observacoes: formData.observacoes,
+                    status: 'em_analise'
+                };
+
+                const { PreMatriculasAPI } = await import('../matricula.service');
+                const novaPreMatricula = await PreMatriculasAPI.criar(preMatriculaDto);
+                studentIdForDocs = novaPreMatricula.id;
+                uploadMethod = 'pre-matricula';
             }
 
-            // Upload de documentos (se houver)
+            // Upload de documentos
             const documentosParaUpload = [
                 { file: formData.foto, tipo: 'foto' },
                 { file: formData.doc_rg, tipo: 'rg' },
@@ -360,11 +409,15 @@ export function usePreMatricula(isAdminView = false) {
                         const formDataUpload = new FormData();
                         formDataUpload.append('files', file!);
 
-                        await DocumentosAPI.uploadPorAluno(novoAluno.id, formDataUpload, tipo);
+                        if (uploadMethod === 'aluno') {
+                            await DocumentosAPI.uploadPorAluno(studentIdForDocs, formDataUpload, tipo);
+                        } else {
+                            await DocumentosAPI.uploadPorPreMatricula(studentIdForDocs, formDataUpload, tipo);
+                        }
                     }
                 } catch (uploadError) {
                     console.error('Erro ao fazer upload de documentos:', uploadError);
-                    toast.warning('Aluno cadastrado, mas houve erro ao enviar alguns documentos. Você pode enviá-los depois.');
+                    toast.warning('Cadastro realizado, mas houve erro ao enviar alguns documentos.');
                 }
             }
 

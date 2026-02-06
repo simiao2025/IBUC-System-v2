@@ -107,6 +107,7 @@ export const FormularioSaude: React.FC<FormularioSaudeProps> = ({
                         Autorizo o IBUC a prestar primeiros socorros e encaminhar ao hospital em caso de emergência médica.
                     </label>
                 </div>
+
             </div>
         </Card>
     );

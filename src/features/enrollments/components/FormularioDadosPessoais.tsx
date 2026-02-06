@@ -82,6 +82,22 @@ export const FormularioDadosPessoais: React.FC<FormularioDadosPessoaisProps> = (
                 />
 
                 <Input
+                    label="Órgão Emissor (RG)"
+                    name="rg_orgao"
+                    value={formData.rg_orgao}
+                    onChange={handleChange}
+                    placeholder="Ex: SSP/TO"
+                />
+
+                <Input
+                    label="Data de Expedição"
+                    name="rg_data_expedicao"
+                    type="date"
+                    value={formData.rg_data_expedicao}
+                    onChange={handleChange}
+                />
+
+                <Input
                     label="Naturalidade"
                     name="naturalidade"
                     value={formData.naturalidade}

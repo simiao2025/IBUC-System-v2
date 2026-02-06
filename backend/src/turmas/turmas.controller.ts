@@ -63,6 +63,7 @@ export class TurmasController {
   @Get()
   @ApiOperation({ summary: 'Listar turmas (público para matrícula)' })
   async listar(
+    @Request() req: any,
     @Query('polo_id') poloId?: string,
     @Query('nivel_id') nivelId?: string,
     @Query('professor_id') professorId?: string,
@@ -71,7 +72,22 @@ export class TurmasController {
     @Query('ano_letivo') anoLetivo?: string,
   ) {
     const filtros: any = {};
-    if (poloId) filtros.polo_id = poloId;
+    
+    // Segurança: Se houver usuário logado e não for admin global, força o polo_id dele
+    const user = req.user;
+    if (user) {
+      const isGlobalAdmin = ['super_admin', 'diretor_geral', 'admin_geral'].includes(user?.role);
+      if (!isGlobalAdmin) {
+        filtros.polo_id = user.polo_id;
+      } else if (poloId) {
+        filtros.polo_id = poloId;
+      }
+    } else if (poloId) {
+      // Fluxo público: polo_id é obrigatório para não listar tudo? 
+      // Por enquanto permitimos se for explicitamente passado.
+      filtros.polo_id = poloId;
+    }
+
     if (nivelId) filtros.nivel_id = nivelId;
     if (professorId) filtros.professor_id = professorId;
     if (status) filtros.status = status;

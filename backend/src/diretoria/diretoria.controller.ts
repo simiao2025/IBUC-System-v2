@@ -10,6 +10,8 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -55,7 +57,12 @@ export class DiretoriaController {
   }
 
   @Delete('geral/:id')
-  async deletarDiretoriaGeral(@Param('id') id: string) {
+  async deletarDiretoriaGeral(@Request() req: any, @Param('id') id: string) {
+    const user = req.user;
+    const isGlobalAdmin = ['super_admin', 'diretor_geral', 'admin_geral'].includes(user?.role);
+    if (!isGlobalAdmin) {
+      throw new ForbiddenException('Apenas administradores globais podem excluir membros da diretoria geral.');
+    }
     return this.diretoriaService.deletarDiretoriaGeral(id);
   }
 
@@ -72,11 +79,23 @@ export class DiretoriaController {
 
   @Get('polo')
   async listarDiretoriaPolo(
+    @Request() req: any,
     @Query('polo_id') poloId?: string,
     @Query('ativo') ativo?: string
   ) {
+    const filtros: any = {};
+    const user = req.user;
+    const isGlobalAdmin = ['super_admin', 'diretor_geral', 'admin_geral'].includes(user?.role);
+
+    let finalPoloId = poloId;
+
+    // Segurança: Se não for admin global, força o polo do usuário
+    if (!isGlobalAdmin) {
+      finalPoloId = user.polo_id;
+    }
+
     const ativoBool = ativo === 'true' ? true : ativo === 'false' ? false : undefined;
-    return this.diretoriaService.listarDiretoriaPolo(poloId, ativoBool);
+    return this.diretoriaService.listarDiretoriaPolo(finalPoloId, ativoBool);
   }
 
   @Get('polo/:id')
@@ -98,7 +117,17 @@ export class DiretoriaController {
   }
 
   @Delete('polo/:id')
-  async deletarDiretoriaPolo(@Param('id') id: string) {
+  async deletarDiretoriaPolo(@Request() req: any, @Param('id') id: string) {
+    const user = req.user;
+    const isGlobalAdmin = ['super_admin', 'diretor_geral', 'admin_geral'].includes(user?.role);
+
+    if (!isGlobalAdmin) {
+      const diretoria = await this.diretoriaService.buscarDiretoriaPoloPorId(id);
+      if (diretoria.polo_id !== user.polo_id) {
+        throw new ForbiddenException('Você não tem permissão para deletar membros da diretoria de outro polo.');
+      }
+    }
+
     return this.diretoriaService.deletarDiretoriaPolo(id);
   }
 }
