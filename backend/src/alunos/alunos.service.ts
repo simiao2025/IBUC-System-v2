@@ -164,7 +164,6 @@ export class AlunosService {
         contato_emergencia_telefone: dto.contato_emergencia_telefone,
         convenio_medico: dto.convenio_medico,
         hospital_preferencia: dto.hospital_preferencia,
-        hospital_preferencia: dto.hospital_preferencia,
         autorizacao_medica: dto.autorizacao_medica || false,
         autorizacao_imagem: (dto as any).autorizacao_imagem || false, // Cast as any if DTO not updated yet, or update DTO interface
         observacoes_medicas: dto.observacoes_medicas,

@@ -1,11 +1,11 @@
-import { MemoryStorageFile } from '@nestjs-multipart/platform-express'; // Assuming type or just keeping what's needed. Wait, lines 1-6 are imports.
+
 import { Controller, Get, Param, Post, Query, UploadedFiles, UseInterceptors, UseGuards } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Express } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Public } from '../auth/decorators/IS_PUBLIC';
+import { Public } from '../auth/decorators/public.decorator';
 import { DocumentosService } from './documentos.service';
 
 @UseGuards(JwtAuthGuard)

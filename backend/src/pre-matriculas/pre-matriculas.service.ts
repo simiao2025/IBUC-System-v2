@@ -215,7 +215,6 @@ export class PreMatriculasService {
           contato_emergencia_telefone: preMatricula.contato_emergencia_telefone || '',
           convenio_medico: preMatricula.convenio_medico || '',
           hospital_preferencia: preMatricula.hospital_preferencia || '',
-          hospital_preferencia: preMatricula.hospital_preferencia || '',
           autorizacao_medica: preMatricula.autorizacao_medica || false,
           autorizacao_imagem: preMatricula.autorizacao_imagem || false,
           // Guardian 1 mapping
