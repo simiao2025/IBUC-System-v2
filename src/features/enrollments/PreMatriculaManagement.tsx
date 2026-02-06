@@ -411,8 +411,8 @@ export const PreMatriculaManagement: React.FC = () => {
 
                           {/* Seção: Institucional / Escolar */}
                           <div>
-                            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Escolaridade e Nível</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Nível de Ensino</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <label className="text-xs font-medium text-gray-500">Nível Desejado</label>
                                 {isEditing ? (
@@ -426,30 +426,6 @@ export const PreMatriculaManagement: React.FC = () => {
                                   <p className="text-sm text-gray-900 font-bold">
                                     {niveis.find(n => n.id === (selectedData?.nivel_id || (selectedData as any)?.nivel_atual_id))?.nome || 'N/A'}
                                   </p>
-                                )}
-                              </div>
-                              <div>
-                                <label className="text-xs font-medium text-gray-500">Escola de Origem</label>
-                                {isEditing ? (
-                                  <Input
-                                    value={editFormData?.escola_origem || ''}
-                                    onChange={(e) => handleEditChange('escola_origem', e.target.value)}
-                                    className="mt-1"
-                                  />
-                                ) : (
-                                  <p className="text-sm text-gray-900">{selectedData?.escola_origem || 'N/A'}</p>
-                                )}
-                              </div>
-                              <div>
-                                <label className="text-xs font-medium text-gray-500">Ano Escolar</label>
-                                {isEditing ? (
-                                  <Input
-                                    value={editFormData?.ano_escolar || ''}
-                                    onChange={(e) => handleEditChange('ano_escolar', e.target.value)}
-                                    className="mt-1"
-                                  />
-                                ) : (
-                                  <p className="text-sm text-gray-900">{selectedData?.ano_escolar || 'N/A'}</p>
                                 )}
                               </div>
                             </div>

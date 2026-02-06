@@ -397,7 +397,7 @@ export function usePreMatricula(isAdminView = false) {
                 { file: formData.foto, tipo: 'foto' },
                 { file: formData.doc_rg, tipo: 'rg' },
                 { file: formData.doc_cpf, tipo: 'cpf' },
-                { file: formData.doc_certidao, tipo: 'certidao_nascimento' },
+                { file: formData.doc_certidao, tipo: 'certidao' },
                 { file: formData.doc_comprovante, tipo: 'comprovante_residencia' },
             ].filter(doc => doc.file !== null && doc.file !== undefined);
 
