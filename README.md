@@ -6,6 +6,7 @@ Sistema web completo para gestão de curso de teologia infanto-juvenil com supor
 [![Backend](https://img.shields.io/badge/backend-NestJS-red)]()
 [![Frontend](https://img.shields.io/badge/frontend-React-blue)]()
 [![Database](https://img.shields.io/badge/database-Supabase-green)]()
+[![Deploy to VPS](https://github.com/simiao2025/IBUC-System-v2/actions/workflows/deploy.yml/badge.svg)](https://github.com/simiao2025/IBUC-System-v2/actions/workflows/deploy.yml)
 
 ## 📦 Repositório
 
