@@ -1,98 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { GoogleDriveService } from './google-drive.service';
 
 @Injectable()
 export class DocumentosService {
-  constructor(private supabase: SupabaseService) { }
+  private readonly logger = new Logger(DocumentosService.name);
 
-  async uploadDocumentosMatricula(matriculaId: string, files: any[]) {
-    if (!files || files.length === 0) {
-      throw new BadRequestException('Nenhum arquivo enviado');
-    }
+  constructor(
+    private supabase: SupabaseService,
+    private googleDrive: GoogleDriveService,
+  ) { }
 
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
-    const client = this.supabase.getAdminClient();
-
-    const uploads: {
-      path: string;
-      url?: string;
-      name: string;
-      size: number;
-      type: string;
-    }[] = [];
-
-    for (const file of files) {
-      const timestamp = Date.now();
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const path = `matriculas/${matriculaId}/${timestamp}_${safeName}`;
-
-      const { error } = await client.storage.from(bucket).upload(path, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false,
-      });
-
-      if (error) {
-        throw new BadRequestException(`Erro ao enviar arquivo: ${error.message}`);
-      }
-
-      const {
-        data: { publicUrl },
-      } = client.storage.from(bucket).getPublicUrl(path);
-
-      uploads.push({
-        path,
-        url: publicUrl,
-        name: file.originalname,
-        size: file.size,
-        type: file.mimetype,
-      });
-    }
-
-    return {
-      matricula_id: matriculaId,
-      arquivos: uploads,
-    };
-  }
-
-  async listarDocumentosMatricula(matriculaId: string) {
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
-    const client = this.supabase.getAdminClient();
-
-    const prefix = `matriculas/${matriculaId}`;
-
-    const { data, error } = await client.storage.from(bucket).list(prefix, {
-      limit: 100,
-      offset: 0,
-    });
-
-    if (error) {
-      throw new BadRequestException(`Erro ao listar documentos: ${error.message}`);
-    }
-
-    const arquivos = (data || []).map((item) => {
-      const path = `${prefix}/${item.name}`;
-      const {
-        data: { publicUrl },
-      } = client.storage.from(bucket).getPublicUrl(path);
-
-      return {
-        name: item.name,
-        path,
-        url: publicUrl,
-        size: item.metadata?.size ?? undefined,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      };
-    });
-
-    return {
-      matricula_id: matriculaId,
-      arquivos,
-    };
-  }
-
-  async uploadDocumentosPreMatricula(preMatriculaId: string, files: any[]): Promise<any>;
-  async uploadDocumentosPreMatricula(preMatriculaId: string, tipo: string | undefined, files: any[]): Promise<any>;
   async uploadDocumentosPreMatricula(
     preMatriculaId: string,
     tipoOrFiles: string | undefined | any[],
@@ -105,44 +23,45 @@ export class DocumentosService {
       throw new BadRequestException('Nenhum arquivo enviado');
     }
 
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
-
-    const uploads: {
-      path: string;
-      url?: string;
-      name: string;
-      size: number;
-      type: string;
-    }[] = [];
-
+    const uploads: any[] = [];
     const safeTipo = typeof tipo === 'string' && tipo.trim().length > 0 ? tipo.trim() : 'outros';
 
     for (const file of files) {
-      const timestamp = Date.now();
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const path = `pre-matriculas/${preMatriculaId}/${safeTipo}/${timestamp}_${safeName}`;
+      try {
+        // Enviar para o Google Drive
+        const driveFile = await this.googleDrive.uploadFile(file, `pre-matricula_${preMatriculaId}`);
 
-      const { error } = await client.storage.from(bucket).upload(path, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false,
-      });
+        // Salvar metadados na tabela 'documentos'
+        const { data: docRecord, error: dbError } = await client
+          .from('documentos')
+          .insert({
+            owner_type: 'aluno', // Pré-matrícula é tecnicamente um aluno pendente
+            owner_id: preMatriculaId,
+            tipo_documento: this.mapTipoDocumento(safeTipo),
+            url: driveFile.url,
+            file_name: file.originalname,
+            uploaded_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
 
-      if (error) {
-        throw new BadRequestException(`Erro ao enviar arquivo: ${error.message}`);
+        if (dbError) {
+          this.logger.error('Erro ao salvar metadados do documento no banco', dbError);
+        }
+
+        uploads.push({
+          id: docRecord?.id,
+          name: file.originalname,
+          url: driveFile.url,
+          source: 'google_drive',
+          tipo: safeTipo
+        });
+      } catch (error) {
+        this.logger.error(`Falha no upload para o Drive: ${file.originalname}`, error);
+        // Fallback para Supabase Storage opcionalmente, ou apenas erro
+        throw new BadRequestException(`Erro ao processar ${file.originalname}: ${error.message}`);
       }
-
-      const {
-        data: { publicUrl },
-      } = client.storage.from(bucket).getPublicUrl(path);
-
-      uploads.push({
-        path,
-        url: publicUrl,
-        name: file.originalname,
-        size: file.size,
-        type: file.mimetype,
-      });
     }
 
     return {
@@ -152,66 +71,75 @@ export class DocumentosService {
   }
 
   async listarDocumentosPreMatricula(preMatriculaId: string) {
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
+    const allArquivos: any[] = [];
 
-    const rootPrefix = `pre-matriculas/${preMatriculaId}`;
+    // 1. Buscar na tabela 'documentos' (Fonte de verdade para novos arquivos no Drive)
+    const { data: dbDocs } = await client
+      .from('documentos')
+      .select('*')
+      .eq('owner_id', preMatriculaId);
 
-    // Listar itens na raiz para encontrar as "pastas" (document types)
-    const { data: rootItems, error: rootError } = await client.storage.from(bucket).list(rootPrefix, {
-      limit: 100,
-      offset: 0,
-    });
-
-    if (rootError) {
-      throw new BadRequestException(`Erro ao listar documentos: ${rootError.message}`);
+    if (dbDocs) {
+      dbDocs.forEach(doc => {
+        allArquivos.push({
+          id: doc.id,
+          name: doc.file_name,
+          url: doc.url,
+          path: `google-drive/${doc.tipo_documento}/${doc.file_name}`, // Simula caminho para compatibilidade com o frontend
+          source: 'database',
+          tipo: doc.tipo_documento,
+          created_at: doc.uploaded_at
+        });
+      });
     }
 
-    const allArquivos = [];
-
-    // Para cada item encontrado na raiz
-    for (const item of (rootItems || [])) {
-      // Se não tiver id, geralmente significa que é uma pasta na API do Supabase Storage
-      if (!item.id) {
-        const subPrefix = `${rootPrefix}/${item.name}`;
-        const { data: subItems, error: subError } = await client.storage.from(bucket).list(subPrefix, {
-          limit: 100,
-          offset: 0,
-        });
-
-        if (!subError && subItems) {
-          for (const subItem of subItems) {
-            const path = `${subPrefix}/${subItem.name}`;
-            const {
-              data: { publicUrl },
-            } = client.storage.from(bucket).getPublicUrl(path);
-
-            allArquivos.push({
-              name: subItem.name,
-              path,
-              url: publicUrl,
-              size: subItem.metadata?.size ?? undefined,
-              created_at: subItem.created_at,
-              updated_at: subItem.updated_at,
-            });
+    // 2. Buscar no Supabase Storage (Compatibilidade Legada)
+    const rootPrefix = `pre-matriculas/${preMatriculaId}`;
+    try {
+      const { data: rootItems } = await client.storage.from(bucket).list(rootPrefix);
+      if (rootItems) {
+        for (const item of rootItems) {
+          if (!item.id) { // Pasta
+            const subPrefix = `${rootPrefix}/${item.name}`;
+            const { data: subItems } = await client.storage.from(bucket).list(subPrefix);
+            if (subItems) {
+              for (const subItem of subItems) {
+                const path = `${subPrefix}/${subItem.name}`;
+                const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
+                
+                // Adiciona se não estiver nas já buscadas pelo banco
+                if (!allArquivos.some(a => a.name === subItem.name)) {
+                  allArquivos.push({
+                    name: subItem.name,
+                    path,
+                    url: publicUrl,
+                    source: 'storage',
+                    tipo: item.name,
+                    created_at: subItem.created_at
+                  });
+                }
+              }
+            }
+          } else {
+             const path = `${rootPrefix}/${item.name}`;
+             const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
+             if (!allArquivos.some(a => a.name === item.name)) {
+               allArquivos.push({
+                 name: item.name,
+                 path,
+                 url: publicUrl,
+                 source: 'storage',
+                 tipo: 'outros',
+                 created_at: item.created_at
+               });
+             }
           }
         }
-      } else {
-        // Arquivo na raiz
-        const path = `${rootPrefix}/${item.name}`;
-        const {
-          data: { publicUrl },
-        } = client.storage.from(bucket).getPublicUrl(path);
-
-        allArquivos.push({
-          name: item.name,
-          path,
-          url: publicUrl,
-          size: item.metadata?.size ?? undefined,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-        });
       }
+    } catch (e) {
+      this.logger.warn(`Erro ao buscar no storage legado: ${e.message}`);
     }
 
     return {
@@ -220,49 +148,86 @@ export class DocumentosService {
     };
   }
 
+  async uploadDocumentosMatricula(matriculaId: string, files: any[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('Nenhum arquivo enviado');
+    }
+
+    const client = this.supabase.getAdminClient();
+    const uploads: any[] = [];
+
+    for (const file of files) {
+      try {
+        const driveFile = await this.googleDrive.uploadFile(file, `matricula_${matriculaId}`);
+
+        const { data: docRecord } = await client
+          .from('documentos')
+          .insert({
+            owner_type: 'aluno', // Matrícula é vinculada ao aluno
+            owner_id: matriculaId,
+            tipo_documento: 'outro',
+            url: driveFile.url,
+            file_name: file.originalname,
+            uploaded_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        uploads.push({
+          id: docRecord?.id,
+          name: file.originalname,
+          url: driveFile.url,
+          source: 'google_drive'
+        });
+      } catch (error) {
+        this.logger.error(`Falha no upload da matrícula para o Drive: ${file.originalname}`, error);
+        throw new BadRequestException(`Erro ao processar ${file.originalname}: ${error.message}`);
+      }
+    }
+
+    return {
+      matricula_id: matriculaId,
+      arquivos: uploads,
+    };
+  }
+
   async uploadDocumentosAluno(alunoId: string, tipo: string | undefined, files: any[]) {
     if (!files || files.length === 0) {
       throw new BadRequestException('Nenhum arquivo enviado');
     }
 
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
-
-    const uploads: {
-      path: string;
-      url?: string;
-      name: string;
-      size: number;
-      type: string;
-      tipo?: string;
-    }[] = [];
+    const uploads: any[] = [];
+    const safeTipo = tipo || 'outro';
 
     for (const file of files) {
-      const timestamp = Date.now();
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-      const path = `alunos/${alunoId}/${timestamp}_${safeName}`;
+      try {
+        const driveFile = await this.googleDrive.uploadFile(file, `aluno_${alunoId}`);
 
-      const { error } = await client.storage.from(bucket).upload(path, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false,
-      });
+        const { data: docRecord } = await client
+          .from('documentos')
+          .insert({
+            owner_type: 'aluno',
+            owner_id: alunoId,
+            tipo_documento: this.mapTipoDocumento(safeTipo),
+            url: driveFile.url,
+            file_name: file.originalname,
+            uploaded_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
 
-      if (error) {
-        throw new BadRequestException(`Erro ao enviar arquivo: ${error.message}`);
+        uploads.push({
+          id: docRecord?.id,
+          name: file.originalname,
+          url: driveFile.url,
+          source: 'google_drive',
+          tipo: safeTipo
+        });
+      } catch (error) {
+        this.logger.error(`Falha no upload do aluno para o Drive: ${file.originalname}`, error);
+        throw new BadRequestException(`Erro ao enviar ${file.originalname}: ${error.message}`);
       }
-
-      const {
-        data: { publicUrl },
-      } = client.storage.from(bucket).getPublicUrl(path);
-
-      uploads.push({
-        path,
-        url: publicUrl,
-        name: file.originalname,
-        size: file.size,
-        type: file.mimetype,
-        tipo,
-      });
     }
 
     return {
@@ -271,109 +236,125 @@ export class DocumentosService {
     };
   }
 
+  private mapTipoDocumento(tipo: string): string {
+    const map: Record<string, string> = {
+      'rg': 'rg',
+      'cpf': 'cpf',
+      'certidao': 'certidao',
+      'foto': 'foto',
+      'comprovante_residencia': 'comprovante_residencia',
+      'laudo': 'laudo'
+    };
+    return map[tipo] || 'outro';
+  }
+
   async listarDocumentosAluno(alunoId: string) {
-    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
     const client = this.supabase.getAdminClient();
-    const allArquivos: {
-      name: string;
-      path: string;
-      url: string;
-      size?: number;
-      created_at?: string;
-      updated_at?: string;
-      tipo?: string;
-    }[] = [];
+    const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
+    const allArquivos: any[] = [];
 
-    // Helper para processar itens de uma pasta
+    // 1. Buscar na tabela 'documentos' (Fonte de verdade para novos arquivos no Drive)
+    // Buscamos tanto pelo aluno_id quanto pela pré-matrícula associada (se houver)
+    const { data: dbDocs } = await client
+      .from('documentos')
+      .select('*')
+      .eq('owner_id', alunoId);
+
+    if (dbDocs) {
+      dbDocs.forEach(doc => {
+        allArquivos.push({
+          id: doc.id,
+          name: doc.file_name,
+          url: doc.url,
+          path: `google-drive/${doc.tipo_documento}/${doc.file_name}`,
+          source: 'database',
+          tipo: doc.tipo_documento,
+          created_at: doc.uploaded_at
+        });
+      });
+    }
+
+    // 2. Compatibilidade Legada: Buscar no Supabase Storage
     const processItems = async (prefix: string) => {
-      // Tenta listar subpastas (para estrutura antiga/organizada)
-      const { data: rootItems } = await client.storage.from(bucket).list(prefix, { limit: 50 });
+      try {
+        const { data: rootItems } = await client.storage.from(bucket).list(prefix);
+        if (!rootItems) return;
 
-      if (!rootItems) return;
-
-      for (const item of rootItems) {
-        if (!item.id) {
-          // É uma pasta, entra nela
-          const subPrefix = `${prefix}/${item.name}`;
-          const { data: subItems } = await client.storage.from(bucket).list(subPrefix, { limit: 50 });
-
-          if (subItems) {
-            for (const subItem of subItems) {
-              const path = `${subPrefix}/${subItem.name}`;
-              const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
-
-              // Evita duplicatas
-              if (!allArquivos.some(a => a.name === subItem.name && a.size === subItem.metadata?.size)) {
-                allArquivos.push({
-                  name: subItem.name,
-                  path,
-                  url: publicUrl,
-                  size: subItem.metadata?.size,
-                  created_at: subItem.created_at,
-                  updated_at: subItem.updated_at,
-                  tipo: item.name // Usa o nome da pasta como tipo
-                });
+        for (const item of rootItems) {
+          if (!item.id) { // Pasta
+            const subPrefix = `${prefix}/${item.name}`;
+            const { data: subItems } = await client.storage.from(bucket).list(subPrefix);
+            if (subItems) {
+              for (const subItem of subItems) {
+                const path = `${subPrefix}/${subItem.name}`;
+                const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
+                
+                if (!allArquivos.some(a => a.name === subItem.name)) {
+                  allArquivos.push({
+                    name: subItem.name,
+                    path,
+                    url: publicUrl,
+                    source: 'storage',
+                    tipo: item.name,
+                    created_at: subItem.created_at
+                  });
+                }
               }
             }
-          }
-        } else {
-          // Arquivo na raiz do prefixo
-          const path = `${prefix}/${item.name}`;
-          const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
-
-          if (!allArquivos.some(a => a.name === item.name && a.size === item.metadata?.size)) {
-            allArquivos.push({
-              name: item.name,
-              path,
-              url: publicUrl,
-              size: item.metadata?.size,
-              created_at: item.created_at,
-              updated_at: item.updated_at,
-              tipo: 'outros'
-            });
+          } else {
+             const path = `${prefix}/${item.name}`;
+             const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
+             if (!allArquivos.some(a => a.name === item.name)) {
+               allArquivos.push({
+                 name: item.name,
+                 path,
+                 url: publicUrl,
+                 source: 'storage',
+                 tipo: 'outros',
+                 created_at: item.created_at
+               });
+             }
           }
         }
+      } catch (e) {
+        this.logger.warn(`Erro no processItems (${prefix}): ${e.message}`);
       }
     };
 
-    // 1. Busca no caminho padrão de alunos
+    // Buscar no caminho padrão e legado
     await processItems(`alunos/${alunoId}`);
-
-    // 2. Busca no caminho legado de pré-matrículas (onde student_id foi usado)
     await processItems(`pre-matriculas/${alunoId}`);
 
-    // 3. Buscar pelo CPF do aluno para encontrar documentos de pré-matrícula associados
-    // Buscar CPF do aluno
-    const { data: aluno } = await client
-      .from('alunos')
-      .select('cpf')
-      .eq('id', alunoId)
-      .single();
-
+    // Buscar também documentos associados ao CPF da pré-matrícula
+    const { data: aluno } = await client.from('alunos').select('cpf').eq('id', alunoId).single();
     if (aluno?.cpf) {
       const cpfNormalizado = String(aluno.cpf).replace(/\D/g, '');
-
-      // Buscar pré-matrículas com o mesmo CPF
-      const { data: preMatriculas } = await client
+      
+      // Buscar IDs de pré-matrículas pelo CPF
+      const { data: pms } = await client
         .from('pre_matriculas')
         .select('id')
         .eq('cpf', cpfNormalizado);
-
-      // Se não encontrar com CPF normalizado, tentar com o CPF original
-      let preMatriculaIds = preMatriculas?.map(pm => pm.id) || [];
-
-      if (preMatriculaIds.length === 0) {
-        const { data: preMatriculas2 } = await client
-          .from('pre_matriculas')
-          .select('id')
-          .eq('cpf', aluno.cpf);
-
-        preMatriculaIds = preMatriculas2?.map(pm => pm.id) || [];
-      }
-
-      // Buscar documentos em cada pré-matrícula encontrada
-      for (const preMatriculaId of preMatriculaIds) {
-        await processItems(`pre-matriculas/${preMatriculaId}`);
+      
+      const ids = pms?.map(pm => pm.id) || [];
+      for (const id of ids) {
+        // Buscar no DB para essa PM
+        const { data: pmDbDocs } = await client.from('documentos').select('*').eq('owner_id', id);
+        pmDbDocs?.forEach(doc => {
+          if (!allArquivos.some(a => (a.id === doc.id) || (a.name === doc.file_name))) {
+            allArquivos.push({
+              id: doc.id,
+              name: doc.file_name,
+              url: doc.url,
+              path: `google-drive/${doc.tipo_documento}/${doc.file_name}`,
+              source: 'database',
+              tipo: doc.tipo_documento,
+              created_at: doc.uploaded_at
+            });
+          }
+        });
+        // Buscar no Storage para essa PM
+        await processItems(`pre-matriculas/${id}`);
       }
     }
 
