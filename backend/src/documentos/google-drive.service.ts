@@ -15,13 +15,22 @@ export class GoogleDriveService {
     const keyPath = process.env.GOOGLE_CREDENTIALS_PATH;
     this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-    if (!keyPath || !this.folderId) {
-      this.logger.warn('Google Drive credentials or Folder ID not configured.');
+    if (!keyPath) {
+      this.logger.error('Google Drive ERROR: GOOGLE_CREDENTIALS_PATH not configured.');
+      return;
+    }
+    if (!this.folderId) {
+      this.logger.error('Google Drive ERROR: GOOGLE_DRIVE_FOLDER_ID not configured.');
       return;
     }
 
     try {
       const resolvedPath = path.resolve(process.cwd(), keyPath);
+      if (!fs.existsSync(resolvedPath)) {
+        this.logger.error(`Google Drive ERROR: Credentials file not found at ${resolvedPath}`);
+        return;
+      }
+
       const auth = new google.auth.GoogleAuth({
         keyFile: resolvedPath,
         scopes: ['https://www.googleapis.com/auth/drive.file'],
