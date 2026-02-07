@@ -1,60 +1,34 @@
-import { supabase } from '../lib/supabase';
+import { api } from '@/shared/api/api';
 
 /**
- * @deprecated Use src/services/documento.service.ts instead.
- * This service bypasses validation and creates orphan files.
+ * @deprecated Use backend API through DocumentosAPI or the unified /upload endpoint.
+ * This service now redirects to the backend to ensure Google Drive storage.
  */
 
 type UploadOptions = {
-  folder: string;
+  folder?: string; // Mantido por compatibilidade de assinatura, mas agora o backend decide a estrutura
   file: File;
   metadata?: Record<string, unknown>;
 };
 
 export const uploadFile = async ({
-  folder,
   file,
-  metadata = {},
 }: UploadOptions): Promise<{ path: string; publicUrl: string }> => {
-  // Gera um nome de arquivo único
-  const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
-  const fileName = `${Math.random().toString(36).substring(2, 15)}-${Date.now()}.${fileExt}`;
-  const filePath = `${folder}/${fileName}`;
+  const formData = new FormData();
+  formData.append('file', file);
 
-  // Determina o tipo MIME do arquivo
-  const fileType = file.type || 
-    (fileExt === 'pdf' ? 'application/pdf' : 
-     fileExt.match(/(jpg|jpeg|png|gif)/) ? `image/${fileExt}` : 
-     'application/octet-stream');
+  try {
+    const response = await api.upload<{ url: string; filename: string }>(
+      '/upload', 
+      formData
+    );
 
-  // Configura o upload com progresso
-  const { data, error } = await supabase.storage
-    .from('documentos')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: fileType,
-      metadata: {
-        ...metadata,
-        originalName: file.name,
-        size: file.size,
-        type: fileType,
-        uploadedAt: new Date().toISOString(),
-      },
-    });
-
-  if (error) {
-    console.error('Erro ao fazer upload do arquivo:', error);
+    return {
+      path: response.filename,
+      publicUrl: response.url,
+    };
+  } catch (error: any) {
+    console.error('Erro ao fazer upload do arquivo via backend:', error);
     throw new Error(error.message || 'Erro ao fazer upload do arquivo');
   }
-
-  // Obtém a URL pública do arquivo
-  const { data: { publicUrl } } = supabase.storage
-    .from('documentos')
-    .getPublicUrl(data.path);
-
-  return {
-    path: data.path,
-    publicUrl,
-  };
 };

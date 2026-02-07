@@ -1,13 +1,11 @@
 import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { extname } from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { SupabaseService } from '../supabase/supabase.service';
+import { GoogleDriveService } from '../documentos/google-drive.service';
 
 @Controller('upload')
 export class UploadController {
-    constructor(private supabase: SupabaseService) { }
+    constructor(private googleDrive: GoogleDriveService) { }
 
     @Post()
     @UseInterceptors(FileInterceptor('file', {
@@ -19,34 +17,23 @@ export class UploadController {
             callback(null, true);
         },
         limits: {
-            fileSize: 5 * 1024 * 1024, // 5MB
+            fileSize: 10 * 1024 * 1024, // 10MB
         },
     }))
     async uploadFile(@UploadedFile() file: Express.Multer.File) {
         if (!file) throw new BadRequestException('Arquivo não fornecido.');
 
-        const bucket = process.env.SUPABASE_MATRICULAS_BUCKET || 'documentos';
-        const client = this.supabase.getAdminClient();
+        try {
+            // Redireciona para o Google Drive usando uma pasta genérica 'geral'
+            const driveFile = await this.googleDrive.uploadFile(file, 'geral');
 
-        const uniqueSuffix = uuidv4();
-        const ext = extname(file.originalname);
-        const path = `geral/${uniqueSuffix}${ext}`;
-
-        const { error } = await client.storage.from(bucket).upload(path, file.buffer, {
-            contentType: file.mimetype,
-            upsert: false,
-        });
-
-        if (error) {
-            throw new BadRequestException(`Erro ao enviar para o Supabase: ${error.message}`);
+            return {
+                url: driveFile.url,
+                filename: driveFile.id, // Usamos o ID do Drive como nome interno
+                originalname: file.originalname
+            };
+        } catch (error) {
+            throw new BadRequestException(`Erro ao enviar para o Google Drive: ${error.message}`);
         }
-
-        const { data: { publicUrl } } = client.storage.from(bucket).getPublicUrl(path);
-
-        return {
-            url: publicUrl,
-            filename: `${uniqueSuffix}${ext}`,
-            originalname: file.originalname
-        };
     }
 }

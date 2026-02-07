@@ -24,70 +24,38 @@ export class DocumentoService {
   static readonly BUCKET_NAME = 'documentos';
 
   /**
-   * Faz upload de um documento para o storage
+   * Faz upload de um documento para o storage (Redirecionado para Google Drive via Backend)
    */
   static async uploadDocument(
     file: File,
-    folder: string,
-    ownerType: OwnerType,
+    _folder: string,
+    ownerType: 'aluno' | 'matricula' | 'pre-matricula',
     ownerId: string,
     tipoDocumento: TipoDocumento,
-    validade?: string
-  ): Promise<Documento> {
+    _validade?: string
+  ): Promise<any> {
     // Validação básica do arquivo
     if (!file) {
       throw new Error('Nenhum arquivo fornecido');
     }
 
-    // Gera um nome único para o arquivo
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2, 15)}-${Date.now()}.${fileExt}`;
-    const filePath = `${folder}/${fileName}`;
+    const formData = new FormData();
+    formData.append('files', file);
 
-    // Faz upload para o storage
-    const { error: uploadError } = await supabase.storage
-      .from(this.BUCKET_NAME)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+    try {
+      let response;
+      if (ownerType === 'pre-matricula') {
+        response = await DocumentosAPI.uploadPorPreMatricula(ownerId, formData, tipoDocumento);
+      } else {
+        // Por padrão, usa o upload de aluno que já está mapeado para o Drive
+        response = await DocumentosAPI.uploadPorAluno(ownerId, formData, tipoDocumento);
+      }
 
-    if (uploadError) {
-      console.error('Erro ao fazer upload do documento:', uploadError);
-      throw uploadError;
+      return response;
+    } catch (error) {
+      console.error('Erro ao fazer upload do documento via API:', error);
+      throw error;
     }
-
-    // Obtém a URL pública do arquivo
-    const { data: { publicUrl } } = supabase.storage
-      .from(this.BUCKET_NAME)
-      .getPublicUrl(filePath);
-
-    // Salva a referência no banco de dados
-    const { data, error: dbError } = await supabase
-      .from('documentos')
-      .insert({
-        owner_type: ownerType,
-        owner_id: ownerId,
-        tipo_documento: tipoDocumento,
-        url: publicUrl,
-        file_name: file.name,
-        validade: validade ? new Date(validade).toISOString() : null,
-        validado: false,
-      })
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('Erro ao salvar referência do documento:', dbError);
-      // Tenta remover o arquivo do storage em caso de falha no banco
-      await supabase.storage
-        .from(this.BUCKET_NAME)
-        .remove([filePath]);
-      
-      throw dbError;
-    }
-
-    return data;
   }
 
   /**
